@@ -25,6 +25,10 @@
       "PackagePath": "staticwebassets\\index.html"
     },
     {
+      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\js\\mrs-download.js",
+      "PackagePath": "staticwebassets\\js\\mrs-download.js"
+    },
+    {
       "Id": "obj\\Debug\\net9.0-windows10.0.19041.0\\win10-x64\\staticwebassets\\msbuild.MRS.Maui.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
       "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssetEndpoints.props"
     },

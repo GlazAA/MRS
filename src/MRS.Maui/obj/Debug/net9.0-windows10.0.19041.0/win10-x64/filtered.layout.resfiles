@@ -1,11 +1,13 @@
 Components\Layout\MainLayout.razor.css
 Components\Layout\NavMenu.razor.css
 wwwroot\MRS.Maui.styles.css.gz
+wwwroot\js\mrs-download.js.gz
 wwwroot\index.html.gz
 wwwroot\css\bootstrap\bootstrap.min.css.map.gz
 wwwroot\css\app.css.gz
 wwwroot\MRS.Maui.dqephvklz1.bundle.scp.css.gz
 wwwroot\MRS.Maui.styles.css.br
+wwwroot\js\mrs-download.js.br
 wwwroot\index.html.br
 wwwroot\css\bootstrap\bootstrap.min.css.map.br
 wwwroot\css\app.css.br
@@ -77,3 +79,4 @@ wwwroot\css\bootstrap\bootstrap.min.css
 wwwroot\css\bootstrap\bootstrap.min.css.map
 wwwroot\images\home-bg.png
 wwwroot\index.html
+wwwroot\js\mrs-download.js

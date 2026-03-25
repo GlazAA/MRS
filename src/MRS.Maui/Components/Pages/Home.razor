@@ -3,7 +3,7 @@
 @inject ILocalDatabasePath DatabasePath
 @inject ILocalDatabaseBootstrapper DatabaseBootstrapper
 
-<PageTitle>Главная страница</PageTitle>
+<PageTitle>Главная</PageTitle>
 
 <div class="mrs-home">
     <h1 class="mrs-home-title">Главная страница</h1>
@@ -30,3 +30,4 @@
         _status = await DatabaseBootstrapper.EnsureReadyAsync(path);
     }
 }
+

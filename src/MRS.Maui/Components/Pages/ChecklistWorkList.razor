@@ -1,0 +1,245 @@
+@page "/checklists/work"
+@using System.Globalization
+@using System.Text
+@using MRS.Application.Checklists
+@inject IChecklistManagementService ChecklistManagement
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>Работа с контрольными листами</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="/management">←</a>
+    <h1 class="mrs-title">Работа с контрольными листами</h1>
+    <span class="mrs-menu-placeholder" aria-hidden="true">☰</span>
+</div>
+
+@if (_busy)
+{
+    <p>Загрузка…</p>
+}
+else if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+else
+{
+    <section class="mrs-list-window">
+        <div class="mrs-filter-panel">
+            <div class="mrs-field">
+                <label class="mrs-label">Объект</label>
+                <select class="mrs-select" value="@_objectFilter" @onchange="OnObjectFilterChanged">
+                    <option value="all">Все</option>
+                    @foreach (var opt in _objectOptions)
+                    {
+                        <option value="@opt">@opt</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mrs-field">
+                <label class="mrs-label">Оборудование</label>
+                <select class="mrs-select" value="@_equipmentFilter" @onchange="OnEquipmentFilterChanged">
+                    <option value="all">Все</option>
+                    @foreach (var opt in _equipmentOptions)
+                    {
+                        <option value="@opt">@opt</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mrs-field">
+                <label class="mrs-label">№ установки</label>
+                <select class="mrs-select" value="@_installationFilter" @onchange="OnInstallationFilterChanged">
+                    <option value="all">Все</option>
+                    @foreach (var opt in _installationOptions)
+                    {
+                        <option value="@opt">@opt</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <button type="button"
+                class="mrs-export-arrow"
+                aria-label="Экспорт"
+                title="Экспорт"
+                disabled="@(_filteredRows.Count == 0)"
+                @onclick="ExportCsv">
+            ↓
+        </button>
+
+        @foreach (var row in _filteredRows)
+        {
+            <button type="button"
+                    class="mrs-worklist-item"
+                    @onclick="() => GoEdit(row.ChecklistId)">
+                <div class="mrs-worklist-item-row">
+                    <input type="checkbox"
+                           class="mrs-worklist-checkbox"
+                           checked="@_selectedIds.Contains(row.ChecklistId)"
+                           @onchange="(e) => ToggleSelected(row.ChecklistId, e)"
+                           @onclick:stopPropagation="true" />
+
+                    <div class="mrs-worklist-title">@BuildToken(row)</div>
+                </div>
+
+                <div class="mrs-info-note">
+                    @row.OrganizationName • @row.EquipmentTypeName • @row.InstallationLabel
+                </div>
+            </button>
+        }
+
+        @if (_filteredRows.Count == 0)
+        {
+            <p class="mrs-info-note">Нет контрольных листов по выбранным фильтрам.</p>
+        }
+    </section>
+}
+
+@code {
+    private List<ChecklistManagementRow> _rows = [];
+    private bool _busy;
+    private string? _error;
+
+    private readonly HashSet<int> _selectedIds = [];
+
+    private string _objectFilter = "all";
+    private string _equipmentFilter = "all";
+    private string _installationFilter = "all";
+
+    private List<string> _objectOptions = [];
+    private List<string> _equipmentOptions = [];
+    private List<string> _installationOptions = [];
+
+    private List<ChecklistManagementRow> _filteredRows = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            _rows = (await ChecklistManagement.GetAllAsync().ConfigureAwait(false)).ToList();
+            _objectOptions = _rows.Select(r => r.FacilityName).Distinct().OrderBy(x => x).ToList();
+            _equipmentOptions = _rows.Select(r => r.EquipmentTypeName).Distinct().OrderBy(x => x).ToList();
+            _installationOptions = _rows.Select(r => r.InstallationLabel).Distinct().OrderBy(x => x).ToList();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void GoEdit(int checklistId)
+    {
+        Nav.NavigateTo($"/checklists/work/edit?checklistId={checklistId}");
+    }
+
+    private void ApplyFilters()
+    {
+        IEnumerable<ChecklistManagementRow> q = _rows;
+        if (_objectFilter != "all")
+            q = q.Where(r => r.FacilityName == _objectFilter);
+        if (_equipmentFilter != "all")
+            q = q.Where(r => r.EquipmentTypeName == _equipmentFilter);
+        if (_installationFilter != "all")
+            q = q.Where(r => r.InstallationLabel == _installationFilter);
+
+        _filteredRows = q
+            .OrderBy(r => r.OrganizationName)
+            .ThenBy(r => r.FacilityName)
+            .ThenBy(r => r.EquipmentTypeName)
+            .ThenBy(r => r.InstallationLabel)
+            .ToList();
+    }
+
+    private void OnObjectFilterChanged(ChangeEventArgs e)
+    {
+        _objectFilter = e.Value?.ToString() ?? "all";
+        ApplyFilters();
+    }
+
+    private void OnEquipmentFilterChanged(ChangeEventArgs e)
+    {
+        _equipmentFilter = e.Value?.ToString() ?? "all";
+        ApplyFilters();
+    }
+
+    private void OnInstallationFilterChanged(ChangeEventArgs e)
+    {
+        _installationFilter = e.Value?.ToString() ?? "all";
+        ApplyFilters();
+    }
+
+    private void ToggleSelected(int checklistId, ChangeEventArgs e)
+    {
+        var on = e.Value is bool b && b
+                  || string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase)
+                  || string.Equals(e.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
+        if (on)
+            _selectedIds.Add(checklistId);
+        else
+            _selectedIds.Remove(checklistId);
+    }
+
+    private static string BuildToken(ChecklistManagementRow row)
+    {
+        var localDate = row.StartedAt?.ToLocalTime().ToString("dd/MM/yy", CultureInfo.InvariantCulture) ?? "—";
+        var company = NormalizeToken(row.OrganizationName);
+        var equipment = NormalizeToken(ExtractEquipmentToken(row.EquipmentTypeName));
+        var unit = NormalizeToken(row.InstallationLabel);
+        return $"{localDate}_{company}_{equipment}_{unit}";
+    }
+
+    private static string ExtractEquipmentToken(string equipmentTypeName)
+    {
+        // "Винтовой компрессор" -> "компрессор"
+        var idx = equipmentTypeName.IndexOf("компресс", StringComparison.OrdinalIgnoreCase);
+        return idx >= 0 ? equipmentTypeName[idx..] : equipmentTypeName;
+    }
+
+    private static string NormalizeToken(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s))
+            return "—";
+        // Keep spaces inside tokens; only trim and normalize separators.
+        return s.Trim().Replace('/', '_');
+    }
+
+    private async Task ExportCsv()
+    {
+        var exportRows =
+            _selectedIds.Count > 0
+                ? _rows.Where(r => _selectedIds.Contains(r.ChecklistId)).ToList()
+                : _filteredRows;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("token;checklist_id;start_at;organization;facility;equipment_type;installation;maintenance_type;status");
+
+        foreach (var row in exportRows)
+        {
+            var token = BuildToken(row);
+            var started = row.StartedAt?.ToString("O", CultureInfo.InvariantCulture) ?? "";
+            sb.Append('"').Append(token.Replace("\"", "\"\"")).Append('"').Append(';')
+                .Append(row.ChecklistId).Append(';')
+                .Append('"').Append(started).Append('"').Append(';')
+                .Append('"').Append(row.OrganizationName.Replace("\"", "\"\"")).Append('"').Append(';')
+                .Append('"').Append(row.FacilityName.Replace("\"", "\"\"")).Append('"').Append(';')
+                .Append('"').Append(row.EquipmentTypeName.Replace("\"", "\"\"")).Append('"').Append(';')
+                .Append('"').Append(row.InstallationLabel.Replace("\"", "\"\"")).Append('"').Append(';')
+                .Append('"').Append(row.MaintenanceTypeName.Replace("\"", "\"\"")).Append('"').Append(';')
+                .Append('"').Append(row.StatusCode.Replace("\"", "\"\"")).Append('"')
+                .AppendLine();
+        }
+
+        var fileName = $"checklists_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+        await JS.InvokeVoidAsync("mrsDownloadTextFile", fileName, "text/csv;charset=utf-8", sb.ToString()).ConfigureAwait(false);
+    }
+}
+

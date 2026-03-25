@@ -129,3 +129,4 @@ C:\Development\MRS\tests\MRS.Infrastructure.Tests\obj\Debug\net9.0\refint\MRS.In
 C:\Development\MRS\tests\MRS.Infrastructure.Tests\obj\Debug\net9.0\MRS.Infrastructure.Tests.pdb
 C:\Development\MRS\tests\MRS.Infrastructure.Tests\obj\Debug\net9.0\MRS.Infrastructure.Tests.genruntimeconfig.cache
 C:\Development\MRS\tests\MRS.Infrastructure.Tests\obj\Debug\net9.0\ref\MRS.Infrastructure.Tests.dll
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\obj\Debug\net9.0\MRS.Infrastructure.Tests.sourcelink.json

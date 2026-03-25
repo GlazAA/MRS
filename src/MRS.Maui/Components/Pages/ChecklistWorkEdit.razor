@@ -1,0 +1,429 @@
+@page "/checklists/work/edit"
+@using System.Globalization
+@using MRS.Application.Checklists
+@inject IChecklistEditService ChecklistEdit
+@inject NavigationManager Nav
+
+<PageTitle>Изменить контрольный лист</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="/checklists/work">←</a>
+    <h1 class="mrs-title">Изменить контрольный лист</h1>
+    <span class="mrs-menu-placeholder" aria-hidden="true">☰</span>
+</div>
+
+@if (_busy)
+{
+    <p>Загрузка…</p>
+}
+else if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+else if (_model is null)
+{
+    <p>Не найден контрольный лист.</p>
+}
+else
+{
+    <div class="mrs-top-plate">
+        Лист №@_model.Info.ChecklistId • @_model.Info.MaintenanceTypeName
+    </div>
+
+    <div class="mrs-info">
+        <div style="margin-bottom: 0.35rem">
+            Объект: <strong>@_model.Info.FacilityName</strong>
+        </div>
+        <div style="margin-bottom: 0.35rem">
+            Заказчик: <strong>@_model.Info.OrganizationName</strong>
+        </div>
+        <div style="margin-bottom: 0.35rem">
+            Оборудование: <strong>@_model.Info.EquipmentTypeName</strong>
+        </div>
+        <div>
+            № установки: <strong>@_model.Info.InstallationLabel</strong>
+        </div>
+    </div>
+
+    <div style="margin-top: 1rem">
+        @foreach (var field in _model.Fields)
+        {
+            var disabled = _busy || _saving || !_isEditing || field.IsLocked;
+            var wrapperClass = field.IsLocked ? "mrs-locked" : null;
+
+            <div class="mrs-field">
+                <div class="@wrapperClass">
+                    <label class="mrs-label">
+                        @field.QuestionText@if (!field.IsLocked) { <text> *</text> }
+                    </label>
+                    @if (!string.IsNullOrWhiteSpace(field.HintText))
+                    {
+                        <p class="mrs-hint">@field.HintText</p>
+                    }
+
+                    @switch (field.FieldTypeName.ToLowerInvariant())
+                    {
+                        case "textarea":
+                            <textarea class="mrs-select" rows="4" disabled="@disabled"
+                                      value="@GetValue(field.TemplateItemId)"
+                                      @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))"></textarea>
+                            break;
+                        case "date":
+                            <input type="date" class="mrs-select" disabled="@disabled"
+                                   value="@GetValue(field.TemplateItemId)"
+                                   @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                            break;
+                        case "time":
+                            <input type="time" class="mrs-select" disabled="@disabled"
+                                   value="@GetValue(field.TemplateItemId)"
+                                   @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                            break;
+                        case "number":
+                            <input type="number" class="mrs-select" disabled="@disabled"
+                                   value="@GetValue(field.TemplateItemId)"
+                                   @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                            break;
+                        case "boolean":
+                            <select class="mrs-select" disabled="@disabled" value="@GetValue(field.TemplateItemId)"
+                                    @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))">
+                                <option value="">—</option>
+                                <option value="false">Нет</option>
+                                <option value="true">Да</option>
+                            </select>
+                            break;
+                        case "radio":
+                        case "dropdown":
+                            @if (field.Options.Count > 0)
+                            {
+                                <select class="mrs-select" disabled="@disabled" value="@GetValue(field.TemplateItemId)"
+                                        @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))">
+                                    <option value="">—</option>
+                                    @foreach (var opt in field.Options)
+                                    {
+                                        <option value="@opt.OptionId.ToString(CultureInfo.InvariantCulture)">@opt.Label</option>
+                                    }
+                                </select>
+                            }
+                            else
+                            {
+                                <input type="text" class="mrs-select" disabled="@disabled"
+                                       value="@GetValue(field.TemplateItemId)"
+                                       @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                            }
+                            break;
+                        case "checkbox":
+                        case "dropdown_multiple":
+                            @if (field.Options.Count > 0)
+                            {
+                                <div class="mrs-check-grid">
+                                    @foreach (var opt in field.Options)
+                                    {
+                                        var cid = $"cb_{field.TemplateItemId}_{opt.OptionId}";
+                                        <label class="mrs-check-label" for="@cid">
+                                            <input id="@cid" class="mrs-check" type="checkbox" disabled="@disabled"
+                                                   checked="@IsMultiOn(field.TemplateItemId, opt.OptionId)"
+                                                   @onchange="@(e => ToggleMulti(field.TemplateItemId, opt.OptionId, e))" />
+                                            @opt.Label
+                                        </label>
+                                    }
+                                </div>
+                            }
+                            break;
+                        default:
+                            <input type="text" class="mrs-select" disabled="@disabled"
+                                   value="@GetValue(field.TemplateItemId)"
+                                   @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                            break;
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="mrs-form-actions">
+        <button type="button" class="mrs-btn-secondary" disabled="@_busy || _saving || _isEditing" @onclick="EnableEdit">Внести изменения</button>
+        <button type="button" class="mrs-btn-primary" disabled="@_busy || _saving || !_isEditing" @onclick="OpenSaveConfirm">Сохранить</button>
+    </div>
+
+    <div style="margin-top: 0.75rem">
+        <button type="button" class="mrs-btn-equipment" disabled>Отправить администратору</button>
+    </div>
+}
+
+@* Confirm save *@
+@if (_showConfirmSave && _model is not null)
+{
+    <div class="mrs-modal-backdrop" @onclick="() => _showConfirmSave = false">
+        <div class="mrs-modal" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="() => _showConfirmSave = false">×</button>
+            <h3 class="mrs-modal-title">Вы вносите изменения в базу данных. Продолжить?</h3>
+            <div class="mrs-modal-body">
+                <div style="font-size: 0.95rem; margin-bottom: 1rem">Подтвердите, чтобы выполнить сохранение.</div>
+                <div class="mrs-form-actions" style="margin-top: 0">
+                    <button type="button" class="mrs-btn-secondary" disabled="@_busy || _saving" @onclick="CancelConfirm">Отменить</button>
+                    <button type="button" class="mrs-btn-primary" disabled="@_busy || _saving" @onclick="ConfirmSave">Да</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Success *@
+@if (_showSuccess && _model is not null)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseSuccess">
+        <div class="mrs-modal" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseSuccess">×</button>
+            <h3 class="mrs-modal-title">2.1.2.1 Изменения сохранены</h3>
+            <p class="mrs-modal-body mrs-pre-wrap">Готово. Контрольный лист обновлён.</p>
+            <div class="mrs-form-actions" style="margin-top: 0">
+                <button type="button" class="mrs-btn-primary" @onclick="CloseSuccess">Ок</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* DB error partial save *@
+@if (_showDbError && _model is not null && _dryRun is not null)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseDbError">
+        <div class="mrs-modal" @onclick:stopPropagation="true" style="max-width: 520px">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseDbError">×</button>
+            <h3 class="mrs-modal-title">2.1.2.2</h3>
+            <div class="mrs-modal-body mrs-pre-wrap">
+                <p style="margin-top: 0; margin-bottom: 0.75rem">
+                    Сохранение выполнено не для всех полей. Ниже показано, что можно сохранить успешно, а что изменить нельзя.
+                </p>
+                <div style="margin-bottom: 0.75rem">
+                    Можно сохранить успешно:
+                </div>
+                <ul style="margin: 0 0 0.75rem 1.1rem">
+                    @foreach (var f in _dryRun.CanSaveFields)
+                    {
+                        <li class="text-success">@f.QuestionText</li>
+                    }
+                </ul>
+                <div style="margin-bottom: 0.75rem">
+                    Нельзя сохранить (попробуем позже по выбору):
+                </div>
+                <ul style="margin: 0 0 0 1.1rem">
+                    @foreach (var f in _dryRun.CannotSaveFields)
+                    {
+                        <li class="text-danger">@f.QuestionText</li>
+                    }
+                </ul>
+            </div>
+            <div class="mrs-form-actions" style="margin-top: 0">
+                <button type="button" class="mrs-btn-secondary" @onclick="CancelDbError">Отменить</button>
+                <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="SaveSubset">Сохранить доступные поля</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery] public int? checklistId { get; set; }
+
+    private ChecklistEditModel? _model;
+    private Dictionary<int, string> _values = [];
+    private Dictionary<int, string> _originalValues = [];
+
+    private bool _busy;
+    private bool _saving;
+    private string? _error;
+
+    private bool _isEditing;
+    private bool _showConfirmSave;
+    private bool _showSuccess;
+    private bool _showDbError;
+    private ChecklistUpdateDryRunResult? _dryRun;
+
+    private string GetValue(int templateItemId) =>
+        _values.TryGetValue(templateItemId, out var v) ? v : string.Empty;
+
+    private void SetValue(int templateItemId, string? value)
+    {
+        if (!_isEditing)
+            return;
+
+        _values[templateItemId] = value ?? string.Empty;
+    }
+
+    private bool IsMultiOn(int itemId, int optionId)
+    {
+        if (!_values.TryGetValue(itemId, out var raw) || string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        foreach (var p in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (int.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) && id == optionId)
+                return true;
+        }
+        return false;
+    }
+
+    private void ToggleMulti(int itemId, int optionId, ChangeEventArgs e)
+    {
+        if (!_isEditing)
+            return;
+
+        var on = e.Value is bool b && b;
+        var set = new HashSet<int>();
+
+        if (_values.TryGetValue(itemId, out var raw) && !string.IsNullOrWhiteSpace(raw))
+        {
+            foreach (var p in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (int.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+                    set.Add(id);
+            }
+        }
+
+        if (on) set.Add(optionId);
+        else set.Remove(optionId);
+
+        _values[itemId] = set.Count == 0 ? string.Empty : string.Join(",", set.OrderBy(x => x));
+    }
+
+    private async Task LoadAsync()
+    {
+        if (checklistId is not int id)
+        {
+            _error = "Не передан id контрольного листа.";
+            return;
+        }
+
+        _busy = true;
+        _saving = false;
+        _error = null;
+        _showConfirmSave = false;
+        _showSuccess = false;
+        _showDbError = false;
+        _dryRun = null;
+
+        try
+        {
+            _model = await ChecklistEdit.GetForEditAsync(id).ConfigureAwait(false);
+            _values = _model.Fields.ToDictionary(f => f.TemplateItemId, f => f.ValueRaw);
+            _originalValues = new Dictionary<int, string>(_values);
+            _isEditing = false;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync().ConfigureAwait(false);
+    }
+
+    private void EnableEdit()
+    {
+        if (_model is null)
+            return;
+        _isEditing = true;
+    }
+
+    private void OpenSaveConfirm()
+    {
+        _showConfirmSave = true;
+    }
+
+    private void CancelConfirm()
+    {
+        _showConfirmSave = false;
+    }
+
+    private async Task ConfirmSave()
+    {
+        if (_model is null)
+            return;
+
+        _showConfirmSave = false;
+        _showSuccess = false;
+        _showDbError = false;
+        _dryRun = null;
+
+        _saving = true;
+        try
+        {
+            var request = new UpdateChecklistAnswersRequest(_model.Info.ChecklistId, _values);
+            _dryRun = await ChecklistEdit.ValidateAsync(request).ConfigureAwait(false);
+
+            if (_dryRun.AllFieldsCanBeSaved)
+            {
+                var ids = _dryRun.CanSaveFields.Select(f => f.TemplateItemId).ToList();
+                var apply = await ChecklistEdit.ApplyAsync(request, ids).ConfigureAwait(false);
+                if (!apply.Ok)
+                    throw new InvalidOperationException(apply.ErrorMessage ?? "Ошибка применения изменений.");
+
+                _isEditing = false;
+                await LoadAsync().ConfigureAwait(false);
+                _showSuccess = true;
+                return;
+            }
+
+            // Partial: user will decide in 2.1.2.2 modal.
+            _showDbError = true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveSubset()
+    {
+        if (_model is null || _dryRun is null)
+            return;
+
+        _saving = true;
+        try
+        {
+            var request = new UpdateChecklistAnswersRequest(_model.Info.ChecklistId, _values);
+            var ids = _dryRun.CanSaveFields.Select(f => f.TemplateItemId).ToList();
+            var apply = await ChecklistEdit.ApplyAsync(request, ids).ConfigureAwait(false);
+            if (!apply.Ok)
+                throw new InvalidOperationException(apply.ErrorMessage ?? "Ошибка сохранения части полей.");
+
+            _isEditing = false;
+            await LoadAsync().ConfigureAwait(false);
+            _showDbError = false;
+            _showSuccess = true;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void CancelDbError()
+    {
+        // No DB write performed yet; local changes are discarded by navigation.
+        _showDbError = false;
+        _showConfirmSave = false;
+        _showSuccess = false;
+        Nav.NavigateTo("/checklists/work");
+    }
+
+    private void CloseDbError()
+    {
+        _showDbError = false;
+    }
+
+    private void CloseSuccess()
+    {
+        _showSuccess = false;
+    }
+}
+

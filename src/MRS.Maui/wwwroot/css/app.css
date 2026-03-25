@@ -466,3 +466,88 @@ h1:focus {
     flex-direction: column;
     gap: 1rem;
 }
+
+/* 2.1 Работа с контрольными листами */
+.mrs-list-window {
+    background: #E8ECF1;
+    border-radius: 14px;
+    padding: 0.85rem;
+    margin-top: 1rem;
+    position: relative;
+    padding-bottom: 3.2rem;
+}
+
+.mrs-worklist-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.mrs-worklist-item {
+    width: 100%;
+    text-align: left;
+    padding: 0.7rem 0.85rem;
+    background: #fff;
+    border: 1px solid #cfcfcf;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 0.55rem;
+    font-size: 0.74rem;
+}
+
+.mrs-worklist-item:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.mrs-worklist-item-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mrs-worklist-checkbox {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #c62828;
+}
+
+.mrs-worklist-title {
+    font-weight: 400;
+    font-size: 0.74rem;
+}
+
+.mrs-locked {
+    background: #f1f1f1 !important;
+    color: #7a7a7a !important;
+    cursor: not-allowed !important;
+}
+
+.mrs-export-arrow {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 0.75rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    font-size: 1.8rem;
+    line-height: 1;
+    width: auto;
+    height: auto;
+    display: block;
+    text-align: left;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.mrs-export-arrow:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.mrs-filter-panel {
+    margin-bottom: 0.75rem;
+}

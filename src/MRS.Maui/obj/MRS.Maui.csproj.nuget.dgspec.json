@@ -70,14 +70,14 @@
         }
       }
     },
-    "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+    "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
+        "projectUniqueName": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
         "projectName": "MRS.Infrastructure",
-        "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
+        "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\Glaz0112\\.nuget\\packages\\",
-        "outputPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\obj\\",
+        "outputPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -181,8 +181,8 @@
               "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
                 "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
               },
-              "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-                "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+              "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+                "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
               }
             }
           },
@@ -192,8 +192,8 @@
               "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
                 "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
               },
-              "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-                "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+              "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+                "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
               }
             }
           },
@@ -203,8 +203,8 @@
               "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
                 "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
               },
-              "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-                "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+              "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+                "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
               }
             }
           }

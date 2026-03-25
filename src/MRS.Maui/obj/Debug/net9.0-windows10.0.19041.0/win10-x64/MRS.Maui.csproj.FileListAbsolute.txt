@@ -9,7 +9,6 @@ C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\s
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\scopedcss\projectbundle\MRS.Maui.bundle.scp.css
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\qzidjibv7c-6gzpyzhau4.gz
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\awdy4h3ryh-8inm30yfxf.gz
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\afn3esly2z-p2cu9xnfmg.gz
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\2h1jr7gwab-dqephvklz1.gz
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\opfv6q134m-dqephvklz1.gz
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\staticwebassets.build.json
@@ -26,7 +25,6 @@ C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\c
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\opfv6q134m-dqephvklz1.br
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\qzidjibv7c-6gzpyzhau4.br
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\awdy4h3ryh-8inm30yfxf.br
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\afn3esly2z-p2cu9xnfmg.br
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\staticwebassets.publish.json
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\staticwebassets.publish.endpoints.json
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\mauiimage.inputs
@@ -587,7 +585,14 @@ C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\p
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\qualifiers.txt
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\qualifiers.txt.intermediate
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\MultipleQualifiersPerDimensionFound.txt
-c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\hqacibf539-jmgrcpnizd.gz
-c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\hqacibf539-jmgrcpnizd.br
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\MRS.Maui.sourcelink.json
 C:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\wwwroot\images\home-bg.png
+c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\wwwroot\js\mrs-download.js.gz
+c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\wwwroot\js\mrs-download.js.br
+c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\wwwroot\js\mrs-download.js
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\afn3esly2z-3caa9gautl.gz
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\82ntfoifye-51hghvk5c6.gz
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\afn3esly2z-3caa9gautl.br
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\82ntfoifye-51hghvk5c6.br
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\hqacibf539-851muq5ikr.gz
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\hqacibf539-851muq5ikr.br
