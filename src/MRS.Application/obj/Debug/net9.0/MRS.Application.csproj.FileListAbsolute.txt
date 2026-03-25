@@ -9,3 +9,4 @@ C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\MRS.Application.dll
 C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\refint\MRS.Application.dll
 C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\MRS.Application.pdb
 C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\ref\MRS.Application.dll
+c:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\MRS.Application.sourcelink.json

@@ -3,36 +3,30 @@
 @inject ILocalDatabasePath DatabasePath
 @inject ILocalDatabaseBootstrapper DatabaseBootstrapper
 
-<PageTitle>MRS</PageTitle>
+<PageTitle>Главная страница</PageTitle>
 
-<h1>MRS</h1>
+<div class="mrs-home">
+    <h1 class="mrs-home-title">Главная страница</h1>
 
-@if (_status is null)
-{
-	<p>Инициализация локальной базы…</p>
-}
-else if (!_status.Ready)
-{
-	<p class="text-danger">Ошибка БД: @_status.Error</p>
-}
-	else
-	{
-		<p>Локальная SQLite готова. <a href="checklists">Контрольные листы</a></p>
-		<ul>
-		<li>Путь: <code>@_dbPath</code></li>
-		<li>Версия схемы (PRAGMA user_version): @_status.SchemaVersion</li>
-		<li>Записей в <code>field_types</code>: @_status.FieldTypeCount</li>
-		<li>Записей в <code>maintenance_types</code>: @_status.MaintenanceTypeCount</li>
-	</ul>
-}
+    <div class="mrs-home-panel">
+        <a class="mrs-home-btn" href="checklists">Контрольный лист</a>
+        <a class="mrs-home-btn" href="management">Управление листами</a>
+        <a class="mrs-home-btn" href="javascript:void(0)">Управление объектами</a>
+        <a class="mrs-home-btn" href="javascript:void(0)">SQL-окно</a>
+    </div>
+
+    @if (_status is not null && !_status.Ready)
+    {
+        <p class="text-danger mrs-home-note">Ошибка БД: @_status.Error</p>
+    }
+</div>
 
 @code {
-	private LocalDatabaseStatus? _status;
-	private string? _dbPath;
+    private LocalDatabaseStatus? _status;
 
-	protected override async Task OnInitializedAsync()
-	{
-		_dbPath = DatabasePath.GetDatabaseFilePath();
-		_status = await DatabaseBootstrapper.EnsureReadyAsync(_dbPath);
-	}
+    protected override async Task OnInitializedAsync()
+    {
+        var path = DatabasePath.GetDatabaseFilePath();
+        _status = await DatabaseBootstrapper.EnsureReadyAsync(path);
+    }
 }

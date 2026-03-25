@@ -17,6 +17,10 @@
       "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css.map"
     },
     {
+      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\images\\home-bg.png",
+      "PackagePath": "staticwebassets\\images\\home-bg.png"
+    },
+    {
       "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\index.html",
       "PackagePath": "staticwebassets\\index.html"
     },

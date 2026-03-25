@@ -1,0 +1,59 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/out/
+**/publish/
+**/TestResults/
+*.log
+*.tmp
+*.bak
+*.swp
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.cache
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Secrets and local config
+.env
+.env.*
+*.pfx
+*.snk
+*.key
+*.pem
+*.crt
+secrets*.json
+appsettings.Local.json
+appsettings.*.local.json
+
+# Local runtime data and db dumps
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlitedb
+*.db-shm
+*.db-wal
+*.dump
+backups/
+data/
+
+# MAUI specific generated assets
+**/Platforms/Android/**/google-services.json
+**/Platforms/iOS/**/GoogleService-Info.plist
+
+# Node temp
+node_modules/
+npm-debug.log*
+
+# Protected local-only area (put sensitive files here)
+.protected/

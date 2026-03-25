@@ -13,3 +13,4 @@ C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.dl
 C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\refint\MRS.Infrastructure.dll
 C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.pdb
 C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\ref\MRS.Infrastructure.dll
+c:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.sourcelink.json

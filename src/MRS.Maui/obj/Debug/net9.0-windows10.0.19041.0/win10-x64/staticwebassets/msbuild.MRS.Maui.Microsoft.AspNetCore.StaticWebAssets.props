@@ -12,12 +12,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>yo73jbhhlc</Fingerprint>
-      <Integrity>spjVSzhM8uQst7ZbQ9Ah16qjPz7VmxjPN/uKwKlAzSk=</Integrity>
+      <Fingerprint>jmgrcpnizd</Fingerprint>
+      <Integrity>FfM8ggpwNdjBbrn9uLAd7wHiw+oD1QfuKP2xyxRncjg=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>9149</FileLength>
-      <LastWriteTime>Tue, 24 Mar 2026 22:30:11 GMT</LastWriteTime>
+      <FileLength>10264</FileLength>
+      <LastWriteTime>Wed, 25 Mar 2026 05:56:33 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\app.css'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\bootstrap\bootstrap.min.css'))">
@@ -59,6 +59,26 @@
       <FileLength>449111</FileLength>
       <LastWriteTime>Tue, 24 Mar 2026 21:29:02 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\bootstrap\bootstrap.min.css.map'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\images\home-bg.png'))">
+      <SourceType>Package</SourceType>
+      <SourceId>MRS.Maui</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>/</BasePath>
+      <RelativePath>images/home-bg.png</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>4yvlwdb1nk</Fingerprint>
+      <Integrity>/Pi4TI2PLDsG2XjPy0SgDb3+jgKEcfBC4Dr/FY5ofW0=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <FileLength>525119</FileLength>
+      <LastWriteTime>Tue, 24 Mar 2026 11:43:51 GMT</LastWriteTime>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\images\home-bg.png'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\index.html'))">
       <SourceType>Package</SourceType>
