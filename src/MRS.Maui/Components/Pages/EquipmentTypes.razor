@@ -1,0 +1,87 @@
+@page "/checklists/equipment-types"
+@using MRS.Application.Checklists
+@inject IEquipmentTypeCatalogService EquipmentCatalog
+@inject NavigationManager Nav
+
+<PageTitle>Типы оборудования</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="checklists">←</a>
+    <h1 class="mrs-title">Типы оборудования</h1>
+    <span class="mrs-menu-placeholder" aria-hidden="true">☰</span>
+</div>
+
+@if (OrganizationId is null || FacilityId is null || SystemId is null)
+{
+    <p>Не переданы заказчик, объект или система. Вернитесь к <a href="checklists">выбору</a>.</p>
+}
+else if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+else if (_busy)
+{
+    <p>Загрузка…</p>
+}
+else if (_items.Count == 0)
+{
+    <p class="mrs-muted">Для этой системы не настроены типы оборудования (<code>system_equipment_types</code>).</p>
+}
+else
+{
+    <p class="mrs-muted">Объект и система выбраны. Выберите тип оборудования для контрольного листа.</p>
+    <ul class="mrs-equipment-list">
+        @foreach (var item in _items)
+        {
+            <li>
+                <button type="button" class="mrs-equipment-item" @onclick="() => GoMaintenance(item.Id)">
+                    <span class="mrs-equipment-name">@item.Name</span>
+                    @if (!string.IsNullOrWhiteSpace(item.Code))
+                    {
+                        <span class="mrs-equipment-code">@item.Code</span>
+                    }
+                </button>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+	[SupplyParameterFromQuery] public int? OrganizationId { get; set; }
+	[SupplyParameterFromQuery] public int? FacilityId { get; set; }
+	[SupplyParameterFromQuery] public int? SystemId { get; set; }
+
+	private readonly List<EquipmentTypeListItem> _items = [];
+	private string? _error;
+	private bool _busy;
+
+	protected override async Task OnParametersSetAsync()
+	{
+		_items.Clear();
+		_error = null;
+		if (SystemId is not int sid)
+			return;
+
+		_busy = true;
+		try
+		{
+			var list = await EquipmentCatalog.GetForSystemAsync(sid).ConfigureAwait(false);
+			_items.AddRange(list);
+		}
+		catch (Exception ex)
+		{
+			_error = ex.Message;
+		}
+		finally
+		{
+			_busy = false;
+		}
+	}
+
+	private void GoMaintenance(int equipmentTypeId)
+	{
+		if (OrganizationId is not int o || FacilityId is not int f || SystemId is not int s)
+			return;
+		Nav.NavigateTo($"/checklists/maintenance?organizationId={o}&facilityId={f}&systemId={s}&equipmentTypeId={equipmentTypeId}");
+	}
+}

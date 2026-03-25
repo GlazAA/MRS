@@ -1,0 +1,285 @@
+@page "/checklists"
+@using System.Globalization
+@using MRS.Application.Checklists
+@using MRS.Application.Facilities
+@inject IFacilityHierarchyService Hierarchy
+@inject IChecklistSummaryService ChecklistSummaries
+@inject NavigationManager Nav
+
+<PageTitle>Контрольные листы</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="" title="На главную">←</a>
+    <h1 class="mrs-title">Контрольные листы</h1>
+    <span class="mrs-menu-placeholder" aria-hidden="true">☰</span>
+</div>
+
+@if (_loadError is not null)
+{
+    <p class="text-danger">@_loadError</p>
+}
+else
+{
+    <div class="mrs-field">
+        <label class="mrs-label">Выбор клиента</label>
+        <select class="mrs-select" @onchange="OnOrganizationChange" disabled="@_busy">
+            <option value="" selected="@(_organizationId is null)">Введите/выберете…</option>
+            @foreach (var o in _organizations)
+            {
+                <option value="@o.Id" selected="@(_organizationId == o.Id)">@o.Name</option>
+            }
+        </select>
+    </div>
+
+    <div class="mrs-field">
+        <label class="mrs-label">Выбор объекта</label>
+        <select class="mrs-select" @onchange="OnFacilityChange" disabled="@(_busy || _organizationId is null)">
+            <option value="" selected="@(_facilityId is null)">Введите/выберете…</option>
+            @foreach (var f in _facilities)
+            {
+                <option value="@f.Id" selected="@(_facilityId == f.Id)">@f.Name</option>
+            }
+        </select>
+    </div>
+
+    <div class="mrs-field">
+        <label class="mrs-label">Выбор системы</label>
+        <select class="mrs-select" @onchange="OnSystemChange" disabled="@(_busy || _facilityId is null)">
+            <option value="" selected="@(_systemId is null)">Введите/выберете…</option>
+            @foreach (var s in _systems)
+            {
+                <option value="@s.Id" selected="@(_systemId == s.Id)">@s.Name</option>
+            }
+        </select>
+    </div>
+
+    <div class="mrs-actions">
+        <button type="button"
+                class="mrs-btn-equipment"
+                disabled="@(_busy || _organizationId is null || _facilityId is null || _systemId is null)"
+                @onclick="GoEquipmentTypes">
+            Типы оборудований
+        </button>
+    </div>
+
+    <section class="mrs-info" aria-label="Информационное окно">
+        <h2 class="mrs-info-title">Информационное окно</h2>
+        @if (_historyError is not null)
+        {
+            <p class="text-danger mrs-info-note">@_historyError</p>
+        }
+        <div class="mrs-info-table" role="table" aria-label="Уже созданные листы (только просмотр)">
+            <div class="mrs-info-row mrs-info-head" role="row">
+                <span role="columnheader">Тип</span>
+                <span role="columnheader">Дата</span>
+                <span role="columnheader">Время</span>
+                <span role="columnheader">Статус</span>
+            </div>
+            @if (_historyRows.Count == 0)
+            {
+                <div class="mrs-info-row mrs-info-empty" role="row">
+                    <span colspan="4">Нет сохранённых листов для этого выбора.</span>
+                </div>
+            }
+            else
+            {
+                @foreach (var row in _historyRows)
+                {
+                    <div class="mrs-info-row" role="row">
+                        <span>@row.Type</span>
+                        <span>@row.Date</span>
+                        <span>@row.Time</span>
+                        <span>@row.Status</span>
+                    </div>
+                }
+            }
+        </div>
+        <p class="mrs-info-note">Строки ниже не кликабельны — только для ориентира на объекте.</p>
+    </section>
+}
+
+@code {
+	[SupplyParameterFromQuery] public int? OrganizationId { get; set; }
+	[SupplyParameterFromQuery] public int? FacilityId { get; set; }
+	[SupplyParameterFromQuery] public int? SystemId { get; set; }
+
+	private readonly List<HierarchyOption> _organizations = [];
+	private readonly List<HierarchyOption> _facilities = [];
+	private readonly List<HierarchyOption> _systems = [];
+	private readonly List<HistoryRow> _historyRows = [];
+
+	private int? _organizationId;
+	private int? _facilityId;
+	private int? _systemId;
+	private string? _loadError;
+	private string? _historyError;
+	private bool _busy;
+
+	protected override async Task OnInitializedAsync()
+	{
+		try
+		{
+			_busy = true;
+			var list = await Hierarchy.GetOrganizationsAsync().ConfigureAwait(false);
+			_organizations.Clear();
+			_organizations.AddRange(list);
+			await ApplyQuerySelectionAsync().ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			_loadError = ex.Message;
+		}
+		finally
+		{
+			_busy = false;
+		}
+	}
+
+	protected override async Task OnParametersSetAsync()
+	{
+		if (_loadError is not null || _organizations.Count == 0)
+			return;
+
+		await ApplyQuerySelectionAsync().ConfigureAwait(false);
+	}
+
+	private async Task ApplyQuerySelectionAsync()
+	{
+		if (OrganizationId is int qOrg && _organizations.Any(o => o.Id == qOrg) && _organizationId != qOrg)
+		{
+			_organizationId = qOrg;
+			_facilityId = null;
+			_systemId = null;
+			_facilities.Clear();
+			_systems.Clear();
+			_historyRows.Clear();
+			_facilities.AddRange(await Hierarchy.GetFacilitiesAsync(qOrg).ConfigureAwait(false));
+		}
+
+		if (FacilityId is int qFac && _facilities.Any(f => f.Id == qFac) && _facilityId != qFac)
+		{
+			_facilityId = qFac;
+			_systemId = null;
+			_systems.Clear();
+			_historyRows.Clear();
+			_systems.AddRange(await Hierarchy.GetSystemsAsync(qFac).ConfigureAwait(false));
+		}
+
+		if (SystemId is int qSys && _systems.Any(s => s.Id == qSys))
+		{
+			if (_systemId != qSys)
+			{
+				_systemId = qSys;
+				await ReloadHistoryAsync(qSys).ConfigureAwait(false);
+			}
+		}
+	}
+
+	private async Task OnOrganizationChange(ChangeEventArgs e)
+	{
+		ParseSelection(e.Value, out _organizationId);
+		_facilityId = null;
+		_systemId = null;
+		_facilities.Clear();
+		_systems.Clear();
+		_historyRows.Clear();
+		_historyError = null;
+		if (_organizationId is int oid)
+		{
+			_busy = true;
+			try
+			{
+				_facilities.AddRange(await Hierarchy.GetFacilitiesAsync(oid).ConfigureAwait(false));
+			}
+			finally
+			{
+				_busy = false;
+			}
+		}
+	}
+
+	private async Task OnFacilityChange(ChangeEventArgs e)
+	{
+		ParseSelection(e.Value, out _facilityId);
+		_systemId = null;
+		_systems.Clear();
+		_historyRows.Clear();
+		_historyError = null;
+		if (_facilityId is int fid)
+		{
+			_busy = true;
+			try
+			{
+				_systems.AddRange(await Hierarchy.GetSystemsAsync(fid).ConfigureAwait(false));
+			}
+			finally
+			{
+				_busy = false;
+			}
+		}
+	}
+
+	private async Task OnSystemChange(ChangeEventArgs e)
+	{
+		ParseSelection(e.Value, out _systemId);
+		_historyRows.Clear();
+		_historyError = null;
+		if (_systemId is not int sid)
+			return;
+
+		_busy = true;
+		try
+		{
+			await ReloadHistoryAsync(sid).ConfigureAwait(false);
+		}
+		finally
+		{
+			_busy = false;
+		}
+	}
+
+	private async Task ReloadHistoryAsync(int facilitySystemId)
+	{
+		_historyRows.Clear();
+		_historyError = null;
+		try
+		{
+			var rows = await ChecklistSummaries.GetForSystemAsync(facilitySystemId).ConfigureAwait(false);
+			foreach (var r in rows)
+			{
+				var local = r.StartedAt?.ToLocalTime();
+				var d = local?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "—";
+				var tm = local?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "—";
+				_historyRows.Add(new HistoryRow(r.EquipmentTypeName, d, tm, FormatStatus(r.StatusCode)));
+			}
+		}
+		catch (Exception ex)
+		{
+			_historyError = ex.Message;
+		}
+	}
+
+	private static string FormatStatus(string code) => code switch
+	{
+		"draft" => "Черновик",
+		"in_progress" => "В работе",
+		"completed" => "Завершён",
+		"cancelled" => "Отменён",
+		_ => code
+	};
+
+	private static void ParseSelection(object? value, out int? id)
+	{
+		var s = value?.ToString();
+		id = int.TryParse(s, out var n) ? n : null;
+	}
+
+	private void GoEquipmentTypes()
+	{
+		if (_organizationId is not int o || _facilityId is not int f || _systemId is not int s)
+			return;
+		Nav.NavigateTo($"/checklists/equipment-types?organizationId={o}&facilityId={f}&systemId={s}");
+	}
+
+	private sealed record HistoryRow(string Type, string Date, string Time, string Status);
+}

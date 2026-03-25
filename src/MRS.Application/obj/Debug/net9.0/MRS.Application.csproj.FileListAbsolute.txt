@@ -1,0 +1,11 @@
+C:\Development\MRS\src\MRS.Application\bin\Debug\net9.0\MRS.Application.deps.json
+C:\Development\MRS\src\MRS.Application\bin\Debug\net9.0\MRS.Application.dll
+C:\Development\MRS\src\MRS.Application\bin\Debug\net9.0\MRS.Application.pdb
+C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\MRS.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\MRS.Application.AssemblyInfoInputs.cache
+C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\MRS.Application.AssemblyInfo.cs
+C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\MRS.Application.csproj.CoreCompileInputs.cache
+C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\MRS.Application.dll
+C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\refint\MRS.Application.dll
+C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\MRS.Application.pdb
+C:\Development\MRS\src\MRS.Application\obj\Debug\net9.0\ref\MRS.Application.dll

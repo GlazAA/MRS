@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\MRS.Application\MRS.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\database\sqlite\001_schema.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.Schema.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\002_seed_reference.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.Seed.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\003_demo_data.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.Demo.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\004_demo_checklists.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.DemoChecklists.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\005_system_equipment_full.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.EquipmentFull.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\006_checklist_templates_demo.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.TemplatesDemo.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\007_mosarchive_full.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.MosarchiveTemplates.sql</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MRS.Infrastructure.Tests" />
+  </ItemGroup>
+
+</Project>

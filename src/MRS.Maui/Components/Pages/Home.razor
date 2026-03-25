@@ -1,0 +1,38 @@
+@page "/"
+@using MRS.Application.Storage
+@inject ILocalDatabasePath DatabasePath
+@inject ILocalDatabaseBootstrapper DatabaseBootstrapper
+
+<PageTitle>MRS</PageTitle>
+
+<h1>MRS</h1>
+
+@if (_status is null)
+{
+	<p>Инициализация локальной базы…</p>
+}
+else if (!_status.Ready)
+{
+	<p class="text-danger">Ошибка БД: @_status.Error</p>
+}
+	else
+	{
+		<p>Локальная SQLite готова. <a href="checklists">Контрольные листы</a></p>
+		<ul>
+		<li>Путь: <code>@_dbPath</code></li>
+		<li>Версия схемы (PRAGMA user_version): @_status.SchemaVersion</li>
+		<li>Записей в <code>field_types</code>: @_status.FieldTypeCount</li>
+		<li>Записей в <code>maintenance_types</code>: @_status.MaintenanceTypeCount</li>
+	</ul>
+}
+
+@code {
+	private LocalDatabaseStatus? _status;
+	private string? _dbPath;
+
+	protected override async Task OnInitializedAsync()
+	{
+		_dbPath = DatabasePath.GetDatabaseFilePath();
+		_status = await DatabaseBootstrapper.EnsureReadyAsync(_dbPath);
+	}
+}

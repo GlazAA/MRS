@@ -1,0 +1,10 @@
+{
+  "solution": {
+    "path": "MRS.sln",
+    "projects": [
+      "src\\MRS.Application\\MRS.Application.csproj",
+      "src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
+      "tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj"
+    ]
+  }
+}

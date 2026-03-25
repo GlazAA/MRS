@@ -1,0 +1,15 @@
+C:\Development\MRS\src\MRS.Infrastructure\bin\Debug\net9.0\MRS.Infrastructure.deps.json
+C:\Development\MRS\src\MRS.Infrastructure\bin\Debug\net9.0\MRS.Infrastructure.dll
+C:\Development\MRS\src\MRS.Infrastructure\bin\Debug\net9.0\MRS.Infrastructure.pdb
+C:\Development\MRS\src\MRS.Infrastructure\bin\Debug\net9.0\MRS.Application.dll
+C:\Development\MRS\src\MRS.Infrastructure\bin\Debug\net9.0\MRS.Application.pdb
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.csproj.AssemblyReference.cache
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.AssemblyInfoInputs.cache
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.AssemblyInfo.cs
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infr.676C102B.Up2Date
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.dll
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\refint\MRS.Infrastructure.dll
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\MRS.Infrastructure.pdb
+C:\Development\MRS\src\MRS.Infrastructure\obj\Debug\net9.0\ref\MRS.Infrastructure.dll

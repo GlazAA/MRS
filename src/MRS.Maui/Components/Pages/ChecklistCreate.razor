@@ -1,0 +1,355 @@
+@page "/checklists/create"
+@using System.Globalization
+@using MRS.Application.Checklists
+@using MRS.Application.Facilities
+@inject IEquipmentTypeCatalogService EquipmentCatalog
+@inject IChecklistFlowService Flow
+@inject IChecklistSaveService SaveService
+@inject IInstallationQueryService InstallationQuery
+@inject IInstallationEnsureService InstallationEnsure
+@inject NavigationManager Nav
+
+<PageTitle>Создание контрольного листа</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="@BackLink">←</a>
+    <h1 class="mrs-title">Создание контрольного листа</h1>
+    <span class="mrs-menu-placeholder" aria-hidden="true">☰</span>
+</div>
+
+@if (OrganizationId is null || FacilityId is null || SystemId is null || EquipmentTypeId is null || MaintenanceTypeId is null)
+{
+    <p>Не хватает параметров (нужен также <strong>maintenanceTypeId</strong>). <a href="checklists">На начало</a></p>
+}
+else if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+else if (_busy)
+{
+    <p>Загрузка шаблона…</p>
+}
+else if (_templateId is null)
+{
+    <p class="text-danger">Не найден шаблон для выбранной пары «тип оборудования — вид ТО».</p>
+    <p><a href="@BackLink">Назад</a></p>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(_meta?.TopPlateText))
+    {
+        <div class="mrs-top-plate">@_meta!.TopPlateText</div>
+    }
+
+    <p class="mrs-muted">@(_meta?.TemplateName)</p>
+
+    <div class="mrs-field">
+        <label class="mrs-label">Установка *</label>
+        <p class="mrs-hint">Выберите существующую или создайте по номеру (например G301).</p>
+        <select class="mrs-select" value="@_installationChoice" @onchange="OnInstallationSelect">
+            <option value="">—</option>
+            @foreach (var ins in _installations)
+            {
+                <option value="@ins.Id.ToString(CultureInfo.InvariantCulture)">@ins.Label</option>
+            }
+            <option value="new">Новая установка (ввести номер)…</option>
+        </select>
+        @if (_installationChoice == "new")
+        {
+            <input type="text" class="mrs-select mrs-mt" placeholder="Номер установки" @bind="_newUnitNumber" @bind:event="oninput" />
+        }
+    </div>
+
+    @foreach (var field in _fields)
+    {
+        var ft = field.FieldTypeName.ToLowerInvariant();
+        <div class="mrs-field">
+            <label class="mrs-label">@field.QuestionText@if (field.IsRequired) { <text> *</text> }</label>
+            @if (!string.IsNullOrWhiteSpace(field.HintText))
+            {
+                <p class="mrs-hint">@field.HintText</p>
+            }
+            @switch (ft)
+            {
+                case "textarea":
+                    <textarea class="mrs-select" rows="4" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))"></textarea>
+                    break;
+                case "date":
+                    <input type="date" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                    break;
+                case "time":
+                    <input type="time" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                    break;
+                case "number":
+                    <input type="number" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                    break;
+                case "boolean":
+                    <select class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))">
+                        <option value="">—</option>
+                        <option value="false">Нет</option>
+                        <option value="true">Да</option>
+                    </select>
+                    break;
+                case "dropdown_multiple":
+                case "checkbox" when field.Options.Count > 1:
+                    <div class="mrs-check-grid">
+                        @foreach (var opt in field.Options)
+                        {
+                            var id = $"cb_{field.TemplateItemId}_{opt.OptionId}";
+                            <label class="mrs-check-label" for="@id">
+                                <input id="@id" type="checkbox" class="mrs-check" checked="@IsMultiOn(field.TemplateItemId, opt.OptionId)" @onchange="@(e => ToggleMulti(field.TemplateItemId, opt.OptionId, e))" />
+                                @opt.Label
+                            </label>
+                        }
+                    </div>
+                    break;
+                case "radio":
+                case "dropdown":
+                    @if (field.Options.Count > 0)
+                    {
+                        <select class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))">
+                            <option value="">—</option>
+                            @foreach (var opt in field.Options)
+                            {
+                                <option value="@opt.OptionId.ToString(CultureInfo.InvariantCulture)">@opt.Label</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <input type="text" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                    }
+                    break;
+                default:
+                    <input type="text" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                    break;
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_saveMessage))
+    {
+        <p class="mrs-save-msg">@_saveMessage</p>
+    }
+
+    <div class="mrs-form-actions">
+        <button type="button" class="mrs-btn-secondary" disabled="@_saving" @onclick="@(() => SaveAsync(ChecklistPersistenceMode.LocalDraft))">Сохранить локально</button>
+        <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="@(() => SaveAsync(ChecklistPersistenceMode.UploadQueue))">Сохранить в БД</button>
+    </div>
+    <p class="mrs-info-note">«Сохранить локально» — черновик на устройстве. «Сохранить в БД» — завершённый лист в очереди на выгрузку.</p>
+}
+
+@if (_meta?.RedButtonEnabled == true && !string.IsNullOrWhiteSpace(_meta.SafetyModalText))
+{
+    <button type="button" class="mrs-safety-fab" aria-label="Инструкция по безопасности" @onclick="() => _showSafety = true"></button>
+}
+
+@if (_showIntro && !string.IsNullOrWhiteSpace(_meta?.IntroModalText))
+{
+    <div class="mrs-modal-backdrop" @onclick="() => _showIntro = false">
+        <div class="mrs-modal" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="() => _showIntro = false">×</button>
+            <h3 class="mrs-modal-title">Внимание</h3>
+            <p class="mrs-modal-body mrs-pre-wrap">@_meta!.IntroModalText</p>
+        </div>
+    </div>
+}
+
+@if (_showSafety && !string.IsNullOrWhiteSpace(_meta?.SafetyModalText))
+{
+    <div class="mrs-modal-backdrop" @onclick="() => _showSafety = false">
+        <div class="mrs-modal" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="() => _showSafety = false">×</button>
+            <h3 class="mrs-modal-title">Безопасность</h3>
+            <p class="mrs-modal-body mrs-pre-wrap">@_meta!.SafetyModalText</p>
+        </div>
+    </div>
+}
+
+@code {
+	[SupplyParameterFromQuery] public int? OrganizationId { get; set; }
+	[SupplyParameterFromQuery] public int? FacilityId { get; set; }
+	[SupplyParameterFromQuery] public int? SystemId { get; set; }
+	[SupplyParameterFromQuery] public int? EquipmentTypeId { get; set; }
+	[SupplyParameterFromQuery] public int? MaintenanceTypeId { get; set; }
+
+	private readonly Dictionary<int, string> _values = [];
+	private List<TemplateFieldDefinition> _fields = [];
+	private List<InstallationListItem> _installations = [];
+	private ChecklistTemplateMeta? _meta;
+	private int? _templateId;
+	private string? _error;
+	private string? _saveMessage;
+	private bool _busy;
+	private bool _saving;
+	private bool _showSafety;
+	private bool _showIntro;
+	private string _installationChoice = "";
+	private string _newUnitNumber = "";
+
+	private string BackLink =>
+		OrganizationId is int o && FacilityId is int f && SystemId is int s && EquipmentTypeId is int e
+			? $"/checklists/maintenance?organizationId={o}&facilityId={f}&systemId={s}&equipmentTypeId={e}"
+			: "checklists";
+
+	protected override async Task OnParametersSetAsync()
+	{
+		_error = null;
+		_saveMessage = null;
+		_meta = null;
+		_fields = [];
+		_installations = [];
+		_templateId = null;
+		_showSafety = false;
+		_showIntro = false;
+		_installationChoice = "";
+		_newUnitNumber = "";
+		_values.Clear();
+
+		if (SystemId is not int sid || EquipmentTypeId is not int etid || MaintenanceTypeId is not int mtid)
+			return;
+
+		_busy = true;
+		try
+		{
+			var types = await EquipmentCatalog.GetForSystemAsync(sid).ConfigureAwait(false);
+			if (types.All(t => t.Id != etid))
+			{
+				_error = "Тип оборудования не относится к выбранной системе.";
+				return;
+			}
+
+			_installations = (await InstallationQuery.GetForSystemAndEquipmentAsync(sid, etid).ConfigureAwait(false)).ToList();
+
+			_templateId = await Flow.ResolveTemplateIdAsync(etid, mtid).ConfigureAwait(false);
+			if (_templateId is not int tid)
+				return;
+
+			_meta = await Flow.GetTemplateMetaAsync(tid).ConfigureAwait(false);
+			_fields = (await Flow.GetTemplateFieldsAsync(tid).ConfigureAwait(false)).ToList();
+			foreach (var f in _fields)
+				_values.TryAdd(f.TemplateItemId, string.Empty);
+
+			_showIntro = !string.IsNullOrWhiteSpace(_meta?.IntroModalText);
+		}
+		catch (Exception ex)
+		{
+			_error = ex.Message;
+		}
+		finally
+		{
+			_busy = false;
+		}
+	}
+
+	private void OnInstallationSelect(ChangeEventArgs e)
+	{
+		_installationChoice = e.Value?.ToString() ?? "";
+		if (_installationChoice != "new")
+			_newUnitNumber = "";
+	}
+
+	private string GetValue(int itemId) =>
+		_values.TryGetValue(itemId, out var v) ? v : string.Empty;
+
+	private void SetValue(int itemId, string? value)
+	{
+		_values[itemId] = value ?? string.Empty;
+	}
+
+	private bool IsMultiOn(int itemId, int optionId)
+	{
+		if (!_values.TryGetValue(itemId, out var raw) || string.IsNullOrWhiteSpace(raw))
+			return false;
+		foreach (var p in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+		{
+			if (int.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) && id == optionId)
+				return true;
+		}
+
+		return false;
+	}
+
+	private void ToggleMulti(int itemId, int optionId, ChangeEventArgs e)
+	{
+		var on = e.Value is bool b && b;
+		var set = new HashSet<int>();
+		if (_values.TryGetValue(itemId, out var raw) && !string.IsNullOrWhiteSpace(raw))
+		{
+			foreach (var p in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+			{
+				if (int.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+					set.Add(id);
+			}
+		}
+
+		if (on)
+			set.Add(optionId);
+		else
+			set.Remove(optionId);
+
+		_values[itemId] = set.Count == 0
+			? string.Empty
+			: string.Join(",", set.OrderBy(x => x));
+	}
+
+	private async Task SaveAsync(ChecklistPersistenceMode mode)
+	{
+		_saveMessage = null;
+		if (_templateId is not int tid || SystemId is not int sysId || EquipmentTypeId is not int etId
+		    || MaintenanceTypeId is not int mtId || OrganizationId is not int orgId || FacilityId is not int facId)
+		{
+			_saveMessage = "Не хватает контекста для сохранения.";
+			return;
+		}
+
+		int installationId;
+		if (string.IsNullOrEmpty(_installationChoice))
+		{
+			_saveMessage = "Выберите установку или создайте новую по номеру.";
+			return;
+		}
+
+		if (_installationChoice == "new")
+		{
+			try
+			{
+				installationId = await InstallationEnsure.EnsureAsync(sysId, etId, _newUnitNumber).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				_saveMessage = ex.Message;
+				return;
+			}
+		}
+		else if (!int.TryParse(_installationChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out installationId))
+		{
+			_saveMessage = "Некорректный выбор установки.";
+			return;
+		}
+
+		_saving = true;
+		try
+		{
+			var req = new SaveChecklistRequest(
+				installationId,
+				tid,
+				mtId,
+				1,
+				_values,
+				mode);
+			var res = await SaveService.SaveAsync(req).ConfigureAwait(false);
+			if (!res.Ok)
+			{
+				_saveMessage = res.ErrorMessage ?? "Ошибка сохранения.";
+				return;
+			}
+
+			Nav.NavigateTo($"/checklists?organizationId={orgId}&facilityId={facId}&systemId={sysId}", forceLoad: true);
+		}
+		finally
+		{
+			_saving = false;
+		}
+	}
+}

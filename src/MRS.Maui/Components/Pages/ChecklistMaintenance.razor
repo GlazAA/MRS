@@ -1,0 +1,99 @@
+@page "/checklists/maintenance"
+@using MRS.Application.Checklists
+@inject IEquipmentTypeCatalogService EquipmentCatalog
+@inject IChecklistFlowService Flow
+@inject NavigationManager Nav
+
+<PageTitle>Вид технического обслуживания</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="@BackToEquipment">←</a>
+    <h1 class="mrs-title">Вид ТО</h1>
+    <span class="mrs-menu-placeholder" aria-hidden="true">☰</span>
+</div>
+
+@if (OrganizationId is null || FacilityId is null || SystemId is null || EquipmentTypeId is null)
+{
+    <p>Не хватает параметров. <a href="checklists">На начало</a></p>
+}
+else if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+else if (_busy)
+{
+    <p>Загрузка вариантов…</p>
+}
+else if (_forks.Count == 0)
+{
+    <p class="mrs-muted">Для этого типа оборудования нет активных шаблонов в базе. Обратитесь к администратору.</p>
+}
+else
+{
+    <p class="mrs-muted">Тип оборудования: <strong>@(_equipmentName ?? "?")</strong>. Выберите вид обслуживания (шаблон контрольного листа).</p>
+    <ul class="mrs-fork-list">
+        @foreach (var fork in _forks)
+        {
+            <li>
+                <button type="button" class="mrs-fork-item" @onclick="() => GoCreate(fork.MaintenanceTypeId)">
+                    <span class="mrs-fork-title">@fork.MaintenanceTypeName</span>
+                    <span class="mrs-fork-sub">@fork.TemplateName</span>
+                    @if (!string.IsNullOrWhiteSpace(fork.MaintenanceCode))
+                    {
+                        <span class="mrs-fork-code">@fork.MaintenanceCode</span>
+                    }
+                </button>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+	[SupplyParameterFromQuery] public int? OrganizationId { get; set; }
+	[SupplyParameterFromQuery] public int? FacilityId { get; set; }
+	[SupplyParameterFromQuery] public int? SystemId { get; set; }
+	[SupplyParameterFromQuery] public int? EquipmentTypeId { get; set; }
+
+	private readonly List<MaintenanceForkOption> _forks = [];
+	private string? _equipmentName;
+	private string? _error;
+	private bool _busy;
+
+	private string BackToEquipment =>
+		OrganizationId is int o && FacilityId is int f && SystemId is int s
+			? $"/checklists/equipment-types?organizationId={o}&facilityId={f}&systemId={s}"
+			: "checklists";
+
+	protected override async Task OnParametersSetAsync()
+	{
+		_forks.Clear();
+		_equipmentName = null;
+		_error = null;
+		if (SystemId is not int sid || EquipmentTypeId is not int etid)
+			return;
+
+		_busy = true;
+		try
+		{
+			var types = await EquipmentCatalog.GetForSystemAsync(sid).ConfigureAwait(false);
+			_equipmentName = types.FirstOrDefault(t => t.Id == etid)?.Name ?? $"Тип #{etid}";
+			var list = await Flow.GetMaintenanceForkAsync(etid).ConfigureAwait(false);
+			_forks.AddRange(list);
+		}
+		catch (Exception ex)
+		{
+			_error = ex.Message;
+		}
+		finally
+		{
+			_busy = false;
+		}
+	}
+
+	private void GoCreate(int maintenanceTypeId)
+	{
+		if (OrganizationId is not int o || FacilityId is not int f || SystemId is not int s || EquipmentTypeId is not int e)
+			return;
+		Nav.NavigateTo($"/checklists/create?organizationId={o}&facilityId={f}&systemId={s}&equipmentTypeId={e}&maintenanceTypeId={maintenanceTypeId}");
+	}
+}

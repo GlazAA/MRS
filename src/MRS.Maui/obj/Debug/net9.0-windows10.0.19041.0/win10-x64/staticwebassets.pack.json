@@ -1,0 +1,45 @@
+{
+  "Files": [
+    {
+      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\obj\\Debug\\net9.0-windows10.0.19041.0\\win10-x64\\scopedcss\\bundle\\MRS.Maui.styles.css",
+      "PackagePath": "staticwebassets\\MRS.Maui.styles.css"
+    },
+    {
+      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\css\\app.css",
+      "PackagePath": "staticwebassets\\css\\app.css"
+    },
+    {
+      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\css\\bootstrap\\bootstrap.min.css",
+      "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css"
+    },
+    {
+      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\css\\bootstrap\\bootstrap.min.css.map",
+      "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css.map"
+    },
+    {
+      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\index.html",
+      "PackagePath": "staticwebassets\\index.html"
+    },
+    {
+      "Id": "obj\\Debug\\net9.0-windows10.0.19041.0\\win10-x64\\staticwebassets\\msbuild.MRS.Maui.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssetEndpoints.props"
+    },
+    {
+      "Id": "obj\\Debug\\net9.0-windows10.0.19041.0\\win10-x64\\staticwebassets\\msbuild.MRS.Maui.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj\\Debug\\net9.0-windows10.0.19041.0\\win10-x64\\staticwebassets\\msbuild.build.MRS.Maui.props",
+      "PackagePath": "build\\MRS.Maui.props"
+    },
+    {
+      "Id": "obj\\Debug\\net9.0-windows10.0.19041.0\\win10-x64\\staticwebassets\\msbuild.buildMultiTargeting.MRS.Maui.props",
+      "PackagePath": "buildMultiTargeting\\MRS.Maui.props"
+    },
+    {
+      "Id": "obj\\Debug\\net9.0-windows10.0.19041.0\\win10-x64\\staticwebassets\\msbuild.buildTransitive.MRS.Maui.props",
+      "PackagePath": "buildTransitive\\MRS.Maui.props"
+    }
+  ],
+  "ElementsToRemove": []
+}
