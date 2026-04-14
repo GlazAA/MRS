@@ -60,17 +60,17 @@
       <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-01s7TbHVCCQl9/C99fkt5eDZJQJ\u002Bm6cnauqoiZCL1xo="}]]]></EndpointProperties>
       <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"897"},{"Name":"Content-Type","Value":"text/html"},{"Name":"ETag","Value":"\u002201s7TbHVCCQl9/C99fkt5eDZJQJ\u002Bm6cnauqoiZCL1xo=\u0022"},{"Name":"Last-Modified","Value":"Wed, 25 Mar 2026 06:54:43 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
+    <StaticWebAssetEndpoint Include="js/mrs-download.f0khk7cv6c.js">
+      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mrs-download.js'))</AssetFile>
+      <Selectors><![CDATA[[]]]></Selectors>
+      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"f0khk7cv6c"},{"Name":"integrity","Value":"sha256-jw8s72L\u002Bm1tc8hdMJJCxBl\u002BieinMAoQLQqxyn7uYrEY="},{"Name":"label","Value":"js/mrs-download.js"}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"1910"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022jw8s72L\u002Bm1tc8hdMJJCxBl\u002BieinMAoQLQqxyn7uYrEY=\u0022"},{"Name":"Last-Modified","Value":"Tue, 14 Apr 2026 17:22:40 GMT"}]]]></ResponseHeaders>
+    </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="js/mrs-download.js">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mrs-download.js'))</AssetFile>
       <Selectors><![CDATA[[]]]></Selectors>
-      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-/sMGUZBGsJjab6gEjrK8gZYED1S1sVN5WOw5JaSOf6c="}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"1481"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022/sMGUZBGsJjab6gEjrK8gZYED1S1sVN5WOw5JaSOf6c=\u0022"},{"Name":"Last-Modified","Value":"Tue, 14 Apr 2026 09:19:43 GMT"}]]]></ResponseHeaders>
-    </StaticWebAssetEndpoint>
-    <StaticWebAssetEndpoint Include="js/mrs-download.mv5x0snxbj.js">
-      <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mrs-download.js'))</AssetFile>
-      <Selectors><![CDATA[[]]]></Selectors>
-      <EndpointProperties><![CDATA[[{"Name":"fingerprint","Value":"mv5x0snxbj"},{"Name":"integrity","Value":"sha256-/sMGUZBGsJjab6gEjrK8gZYED1S1sVN5WOw5JaSOf6c="},{"Name":"label","Value":"js/mrs-download.js"}]]]></EndpointProperties>
-      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"max-age=31536000, immutable"},{"Name":"Content-Length","Value":"1481"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022/sMGUZBGsJjab6gEjrK8gZYED1S1sVN5WOw5JaSOf6c=\u0022"},{"Name":"Last-Modified","Value":"Tue, 14 Apr 2026 09:19:43 GMT"}]]]></ResponseHeaders>
+      <EndpointProperties><![CDATA[[{"Name":"integrity","Value":"sha256-jw8s72L\u002Bm1tc8hdMJJCxBl\u002BieinMAoQLQqxyn7uYrEY="}]]]></EndpointProperties>
+      <ResponseHeaders><![CDATA[[{"Name":"Accept-Ranges","Value":"bytes"},{"Name":"Cache-Control","Value":"no-cache"},{"Name":"Content-Length","Value":"1910"},{"Name":"Content-Type","Value":"text/javascript"},{"Name":"ETag","Value":"\u0022jw8s72L\u002Bm1tc8hdMJJCxBl\u002BieinMAoQLQqxyn7uYrEY=\u0022"},{"Name":"Last-Modified","Value":"Tue, 14 Apr 2026 17:22:40 GMT"}]]]></ResponseHeaders>
     </StaticWebAssetEndpoint>
     <StaticWebAssetEndpoint Include="MRS.Maui.dqephvklz1.styles.css">
       <AssetFile>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\MRS.Maui.styles.css'))</AssetFile>

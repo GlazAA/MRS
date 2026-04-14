@@ -112,12 +112,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>mv5x0snxbj</Fingerprint>
-      <Integrity>/sMGUZBGsJjab6gEjrK8gZYED1S1sVN5WOw5JaSOf6c=</Integrity>
+      <Fingerprint>f0khk7cv6c</Fingerprint>
+      <Integrity>jw8s72L+m1tc8hdMJJCxBl+ieinMAoQLQqxyn7uYrEY=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>1481</FileLength>
-      <LastWriteTime>Tue, 14 Apr 2026 09:19:43 GMT</LastWriteTime>
+      <FileLength>1910</FileLength>
+      <LastWriteTime>Tue, 14 Apr 2026 17:22:40 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mrs-download.js'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\MRS.Maui.styles.css'))">

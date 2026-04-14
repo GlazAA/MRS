@@ -11,6 +11,8 @@ public static class MauiProgram
 {
 	public static MauiApp CreateMauiApp()
 	{
+		// Корень конфигурации приложения MAUI + Blazor.
+		// Здесь важно регистрировать все сервисы, чтобы они были доступны через DI.
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()
@@ -31,6 +33,8 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IInstallationEnsureService, SqliteInstallationEnsureService>();
 		builder.Services.AddSingleton<IChecklistManagementService, SqliteChecklistManagementService>();
 		builder.Services.AddSingleton<IChecklistEditService, SqliteChecklistEditService>();
+		// Регистрация сервиса экспорта DOC/ZIP.
+		// Если появится другая реализация (например, API-based), меняется только эта строка.
 		builder.Services.AddSingleton<IChecklistDocumentExportService, SqliteChecklistDocumentExportService>();
 
 #if DEBUG

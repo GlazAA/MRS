@@ -30,6 +30,9 @@
     <EmbeddedResource Include="..\..\database\sqlite\007_mosarchive_full.sql">
       <LogicalName>MRS.Infrastructure.Sqlite.MosarchiveTemplates.sql</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Resources\brand-schutz-logo.png">
+      <LogicalName>MRS.Infrastructure.Resources.brand-schutz-logo.png</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <PropertyGroup>
