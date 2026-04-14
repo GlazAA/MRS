@@ -12,12 +12,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>e5tk7yf482</Fingerprint>
-      <Integrity>bhCZyC/yM2+DaFXr8z25+5MeWfXWqMJNNA4ZLAXbjjU=</Integrity>
+      <Fingerprint>fx6nkq6m0m</Fingerprint>
+      <Integrity>LWHufQnIjCPeIqcjPLRjAjdVvys4ztXEFadGrHpbxLg=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>3376</FileLength>
-      <LastWriteTime>Tue, 24 Mar 2026 21:29:02 GMT</LastWriteTime>
+      <FileLength>12154</FileLength>
+      <LastWriteTime>Wed, 01 Apr 2026 07:22:59 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\app.css'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\bootstrap\bootstrap.min.css'))">
@@ -60,6 +60,26 @@
       <LastWriteTime>Tue, 24 Mar 2026 21:29:02 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\bootstrap\bootstrap.min.css.map'))</OriginalItemSpec>
     </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\images\home-bg.png'))">
+      <SourceType>Package</SourceType>
+      <SourceId>MRS.Maui</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>/</BasePath>
+      <RelativePath>images/home-bg.png</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>4yvlwdb1nk</Fingerprint>
+      <Integrity>/Pi4TI2PLDsG2XjPy0SgDb3+jgKEcfBC4Dr/FY5ofW0=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <FileLength>525119</FileLength>
+      <LastWriteTime>Tue, 24 Mar 2026 11:43:51 GMT</LastWriteTime>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\images\home-bg.png'))</OriginalItemSpec>
+    </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\index.html'))">
       <SourceType>Package</SourceType>
       <SourceId>MRS.Maui</SourceId>
@@ -72,13 +92,33 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>p2cu9xnfmg</Fingerprint>
-      <Integrity>X2p+EzS/OU6wocIzS5DaSql2dCTlclJNTX7PiC/pib8=</Integrity>
+      <Fingerprint>3caa9gautl</Fingerprint>
+      <Integrity>01s7TbHVCCQl9/C99fkt5eDZJQJ+m6cnauqoiZCL1xo=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>849</FileLength>
-      <LastWriteTime>Tue, 24 Mar 2026 21:29:02 GMT</LastWriteTime>
+      <FileLength>897</FileLength>
+      <LastWriteTime>Wed, 25 Mar 2026 06:54:43 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\index.html'))</OriginalItemSpec>
+    </StaticWebAsset>
+    <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mrs-download.js'))">
+      <SourceType>Package</SourceType>
+      <SourceId>MRS.Maui</SourceId>
+      <ContentRoot>$(MSBuildThisFileDirectory)..\staticwebassets\</ContentRoot>
+      <BasePath>/</BasePath>
+      <RelativePath>js/mrs-download.js</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <RelatedAsset></RelatedAsset>
+      <AssetTraitName></AssetTraitName>
+      <AssetTraitValue></AssetTraitValue>
+      <Fingerprint>51hghvk5c6</Fingerprint>
+      <Integrity>xzhuN6WM2pzTyk3BunuOVrtpTRwCGq1MlJhq5KA0NIE=</Integrity>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <FileLength>659</FileLength>
+      <LastWriteTime>Wed, 25 Mar 2026 06:54:23 GMT</LastWriteTime>
+      <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mrs-download.js'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\MRS.Maui.styles.css'))">
       <SourceType>Package</SourceType>

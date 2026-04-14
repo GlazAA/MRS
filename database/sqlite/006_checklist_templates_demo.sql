@@ -69,4 +69,4 @@ INSERT OR IGNORE INTO checklist_template_items (id, checklist_template_id, sort_
     (40, 19, 1, 'start_date', 'Дата начала', 3, 1),
     (41, 19, 2, 'work_summary', 'Краткое описание выполненных работ', 2, 0),
     (42, 20, 1, 'start_date', 'Дата начала', 3, 1),
-    (43, 20, 2, 'work_summary', 'Краткое описание выполненных работ', 2, 0);
+    (43, 20, 2, 'work_summary', 'Краткое описание выполненных работ', 2, 0); 

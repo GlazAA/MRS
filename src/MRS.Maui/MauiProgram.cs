@@ -31,6 +31,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IInstallationEnsureService, SqliteInstallationEnsureService>();
 		builder.Services.AddSingleton<IChecklistManagementService, SqliteChecklistManagementService>();
 		builder.Services.AddSingleton<IChecklistEditService, SqliteChecklistEditService>();
+		builder.Services.AddSingleton<IChecklistDocumentExportService, SqliteChecklistDocumentExportService>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

@@ -1,0 +1,49 @@
+@inject NavigationManager Nav
+
+<button type="button" class="mrs-menu-button" @onclick="ToggleMenu" aria-label="Меню">
+    ☰
+</button>
+
+@if (_showMenu)
+{
+    <div class="mrs-menu-panel">
+        <button type="button" class="mrs-menu-item" @onclick="GoToChecklistWork">Контрольный лист</button>
+        <button type="button" class="mrs-menu-item" @onclick="GoToManagement">Управление листами</button>
+        <button type="button" class="mrs-menu-item" @onclick="GoToFacilities">Управление объектами</button>
+        <button type="button" class="mrs-menu-item" @onclick="GoToSql">SQL-окно</button>
+    </div>
+}
+
+@code {
+    private bool _showMenu;
+
+    private void ToggleMenu()
+    {
+        _showMenu = !_showMenu;
+    }
+
+    private void GoToChecklistWork()
+    {
+        _showMenu = false;
+        Nav.NavigateTo("/checklists");
+    }
+
+    private void GoToManagement()
+    {
+        _showMenu = false;
+        Nav.NavigateTo("/management");
+    }
+
+    private void GoToFacilities()
+    {
+        _showMenu = false;
+        Nav.NavigateTo("/facilities");
+    }
+
+    private void GoToSql()
+    {
+        _showMenu = false;
+        Nav.NavigateTo("/sql");
+    }
+}
+

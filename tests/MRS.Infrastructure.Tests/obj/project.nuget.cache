@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "4Duf3PDzSn4=",
+  "dgSpecHash": "QG0gl1ftQcA=",
   "success": true,
-  "projectFilePath": "c:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
+  "projectFilePath": "C:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Glaz0112\\.nuget\\packages\\coverlet.collector\\6.0.2\\coverlet.collector.6.0.2.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\microsoft.codecoverage\\17.12.0\\microsoft.codecoverage.17.12.0.nupkg.sha512",

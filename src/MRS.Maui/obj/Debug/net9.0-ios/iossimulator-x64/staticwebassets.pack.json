@@ -17,8 +17,16 @@
       "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css.map"
     },
     {
+      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\images\\home-bg.png",
+      "PackagePath": "staticwebassets\\images\\home-bg.png"
+    },
+    {
       "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\index.html",
       "PackagePath": "staticwebassets\\index.html"
+    },
+    {
+      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\js\\mrs-download.js",
+      "PackagePath": "staticwebassets\\js\\mrs-download.js"
     },
     {
       "Id": "obj\\Debug\\net9.0-ios\\iossimulator-x64\\staticwebassets\\msbuild.MRS.Maui.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",

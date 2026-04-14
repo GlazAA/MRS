@@ -1,8 +1,8 @@
 @page "/checklists/work"
 @using System.Globalization
-@using System.Text
 @using MRS.Application.Checklists
 @inject IChecklistManagementService ChecklistManagement
+@inject IChecklistDocumentExportService ChecklistExport
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
@@ -11,7 +11,7 @@
 <div class="mrs-toolbar">
     <a class="mrs-back" href="/management">←</a>
     <h1 class="mrs-title">Работа с контрольными листами</h1>
-    <span class="mrs-menu-placeholder" aria-hidden="true">☰</span>
+    <MrsTopMenu />
 </div>
 
 @if (_busy)
@@ -24,48 +24,48 @@ else if (_error is not null)
 }
 else
 {
-    <section class="mrs-list-window">
-        <div class="mrs-filter-panel">
-            <div class="mrs-field">
-                <label class="mrs-label">Объект</label>
-                <select class="mrs-select" value="@_objectFilter" @onchange="OnObjectFilterChanged">
-                    <option value="all">Все</option>
-                    @foreach (var opt in _objectOptions)
-                    {
-                        <option value="@opt">@opt</option>
-                    }
-                </select>
-            </div>
-
-            <div class="mrs-field">
-                <label class="mrs-label">Оборудование</label>
-                <select class="mrs-select" value="@_equipmentFilter" @onchange="OnEquipmentFilterChanged">
-                    <option value="all">Все</option>
-                    @foreach (var opt in _equipmentOptions)
-                    {
-                        <option value="@opt">@opt</option>
-                    }
-                </select>
-            </div>
-
-            <div class="mrs-field">
-                <label class="mrs-label">№ установки</label>
-                <select class="mrs-select" value="@_installationFilter" @onchange="OnInstallationFilterChanged">
-                    <option value="all">Все</option>
-                    @foreach (var opt in _installationOptions)
-                    {
-                        <option value="@opt">@opt</option>
-                    }
-                </select>
-            </div>
+    <div class="mrs-filter-row">
+        <div class="mrs-field mrs-field-inline">
+            <label class="mrs-label">Объект</label>
+            <select class="mrs-select" value="@_objectFilter" @onchange="OnObjectFilterChanged">
+                <option value="all">Все</option>
+                @foreach (var opt in _objectOptions)
+                {
+                    <option value="@opt">@opt</option>
+                }
+            </select>
         </div>
 
+        <div class="mrs-field mrs-field-inline">
+            <label class="mrs-label">Оборудование</label>
+            <select class="mrs-select" value="@_equipmentFilter" @onchange="OnEquipmentFilterChanged">
+                <option value="all">Все</option>
+                @foreach (var opt in _equipmentOptions)
+                {
+                    <option value="@opt">@opt</option>
+                }
+            </select>
+        </div>
+
+        <div class="mrs-field mrs-field-inline">
+            <label class="mrs-label">№ установки</label>
+            <select class="mrs-select" value="@_installationFilter" @onchange="OnInstallationFilterChanged">
+                <option value="all">Все</option>
+                @foreach (var opt in _installationOptions)
+                {
+                    <option value="@opt">@opt</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <section class="mrs-list-window">
         <button type="button"
                 class="mrs-export-arrow"
-                aria-label="Экспорт"
-                title="Экспорт"
-                disabled="@(_filteredRows.Count == 0)"
-                @onclick="ExportCsv">
+                aria-label="Экспорт выбранных листов"
+                title="Экспорт выбранных листов"
+                disabled="@(_filteredRows.Count == 0 || _exporting)"
+                @onclick="ExportDocsZip">
             ↓
         </button>
 
@@ -100,6 +100,7 @@ else
 @code {
     private List<ChecklistManagementRow> _rows = [];
     private bool _busy;
+    private bool _exporting;
     private string? _error;
 
     private readonly HashSet<int> _selectedIds = [];
@@ -110,9 +111,9 @@ else
 
     private List<string> _objectOptions = [];
     private List<string> _equipmentOptions = [];
-    private List<string> _installationOptions = [];
+	private List<string> _installationOptions = [];
 
-    private List<ChecklistManagementRow> _filteredRows = [];
+	private List<ChecklistManagementRow> _filteredRows = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -212,34 +213,31 @@ else
         return s.Trim().Replace('/', '_');
     }
 
-    private async Task ExportCsv()
+    private async Task ExportDocsZip()
     {
-        var exportRows =
+        var checklistIds =
             _selectedIds.Count > 0
-                ? _rows.Where(r => _selectedIds.Contains(r.ChecklistId)).ToList()
-                : _filteredRows;
+                ? _rows.Where(r => _selectedIds.Contains(r.ChecklistId)).Select(r => r.ChecklistId).Distinct().ToList()
+                : _filteredRows.Select(r => r.ChecklistId).Distinct().ToList();
+        if (checklistIds.Count == 0)
+            return;
 
-        var sb = new StringBuilder();
-        sb.AppendLine("token;checklist_id;start_at;organization;facility;equipment_type;installation;maintenance_type;status");
-
-        foreach (var row in exportRows)
+        _exporting = true;
+        _error = null;
+        try
         {
-            var token = BuildToken(row);
-            var started = row.StartedAt?.ToString("O", CultureInfo.InvariantCulture) ?? "";
-            sb.Append('"').Append(token.Replace("\"", "\"\"")).Append('"').Append(';')
-                .Append(row.ChecklistId).Append(';')
-                .Append('"').Append(started).Append('"').Append(';')
-                .Append('"').Append(row.OrganizationName.Replace("\"", "\"\"")).Append('"').Append(';')
-                .Append('"').Append(row.FacilityName.Replace("\"", "\"\"")).Append('"').Append(';')
-                .Append('"').Append(row.EquipmentTypeName.Replace("\"", "\"\"")).Append('"').Append(';')
-                .Append('"').Append(row.InstallationLabel.Replace("\"", "\"\"")).Append('"').Append(';')
-                .Append('"').Append(row.MaintenanceTypeName.Replace("\"", "\"\"")).Append('"').Append(';')
-                .Append('"').Append(row.StatusCode.Replace("\"", "\"\"")).Append('"')
-                .AppendLine();
+            var file = await ChecklistExport.ExportZipAsync(checklistIds).ConfigureAwait(false);
+            var base64 = Convert.ToBase64String(file.Content);
+            await JS.InvokeVoidAsync("mrsDownloadBase64File", file.FileName, file.MimeType, base64).ConfigureAwait(false);
         }
-
-        var fileName = $"checklists_{DateTime.Now:yyyyMMdd_HHmm}.csv";
-        await JS.InvokeVoidAsync("mrsDownloadTextFile", fileName, "text/csv;charset=utf-8", sb.ToString()).ConfigureAwait(false);
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _exporting = false;
+        }
     }
 }
 

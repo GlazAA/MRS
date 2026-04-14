@@ -1313,11 +1313,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
+      "projectUniqueName": "C:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
       "projectName": "MRS.Infrastructure.Tests",
-      "projectPath": "c:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
+      "projectPath": "C:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
       "packagesPath": "C:\\Users\\Glaz0112\\.nuget\\packages\\",
-      "outputPath": "c:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\obj\\",
+      "outputPath": "C:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -1339,11 +1339,11 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
-              "projectPath": "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
+            "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
+              "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
             },
-            "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-              "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+            "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+              "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
             }
           }
         }

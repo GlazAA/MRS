@@ -7,10 +7,8 @@ C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\scopedcss\
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\scopedcss\Components\Layout\NavMenu.razor.rz.scp.css
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\scopedcss\bundle\MRS.Maui.styles.css
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\scopedcss\projectbundle\MRS.Maui.bundle.scp.css
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\hqacibf539-e5tk7yf482.gz
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\qzidjibv7c-6gzpyzhau4.gz
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\awdy4h3ryh-8inm30yfxf.gz
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\afn3esly2z-p2cu9xnfmg.gz
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\2h1jr7gwab-dqephvklz1.gz
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\opfv6q134m-dqephvklz1.gz
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\staticwebassets.build.json
@@ -25,10 +23,8 @@ C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\staticweba
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\staticwebassets.pack.json
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\2h1jr7gwab-dqephvklz1.br
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\opfv6q134m-dqephvklz1.br
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\hqacibf539-e5tk7yf482.br
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\qzidjibv7c-6gzpyzhau4.br
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\awdy4h3ryh-8inm30yfxf.br
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\afn3esly2z-p2cu9xnfmg.br
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\staticwebassets.publish.json
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\staticwebassets.publish.endpoints.json
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\mauiimage.inputs
@@ -363,3 +359,10 @@ C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\refint\MRS
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\MRS.Maui.pdb
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\MRS.Maui.genruntimeconfig.cache
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\ref\MRS.Maui.dll
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\hqacibf539-fx6nkq6m0m.gz
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\afn3esly2z-3caa9gautl.gz
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\82ntfoifye-51hghvk5c6.gz
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\hqacibf539-fx6nkq6m0m.br
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\afn3esly2z-3caa9gautl.br
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\82ntfoifye-51hghvk5c6.br
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\MRS.Maui.sourcelink.json

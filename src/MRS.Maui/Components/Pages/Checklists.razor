@@ -11,7 +11,7 @@
 <div class="mrs-toolbar">
     <a class="mrs-back" href="" title="На главную">←</a>
     <h1 class="mrs-title">Контрольные листы</h1>
-    <span class="mrs-menu-placeholder" aria-hidden="true">☰</span>
+    <MrsTopMenu />
 </div>
 
 @if (_loadError is not null)
@@ -94,7 +94,7 @@ else
                 }
             }
         </div>
-        <p class="mrs-info-note">Строки ниже не кликабельны — только для ориентира на объекте.</p>
+        @* поясняющая подпись убрана по требованию ТЗ *@
     </section>
 }
 

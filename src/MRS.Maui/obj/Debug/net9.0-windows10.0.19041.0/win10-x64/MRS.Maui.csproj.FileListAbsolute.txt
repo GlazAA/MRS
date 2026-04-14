@@ -591,8 +591,8 @@ c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\w
 c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\wwwroot\js\mrs-download.js.br
 c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\wwwroot\js\mrs-download.js
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\afn3esly2z-3caa9gautl.gz
-c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\82ntfoifye-51hghvk5c6.gz
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\afn3esly2z-3caa9gautl.br
-c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\82ntfoifye-51hghvk5c6.br
-c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\hqacibf539-851muq5ikr.gz
-c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\hqacibf539-851muq5ikr.br
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\hqacibf539-fx6nkq6m0m.gz
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\hqacibf539-fx6nkq6m0m.br
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\82ntfoifye-mv5x0snxbj.gz
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\82ntfoifye-mv5x0snxbj.br
