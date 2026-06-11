@@ -7,7 +7,8 @@
           Первым идёт Windows: `dotnet run` без -f запускает десктоп.
         -->
         <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows')) And Exists('$(USERPROFILE)\AppData\Local\Android\Sdk\platforms\android-35\android.jar')">net9.0-windows10.0.19041.0;net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
-        <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows')) And !Exists('$(USERPROFILE)\AppData\Local\Android\Sdk\platforms\android-35\android.jar')">net9.0-windows10.0.19041.0;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
+        <!-- Без Android SDK не тянем iOS/MacCatalyst: restore для них всё равно требует MAUI workloads и часто даёт NETSDK1147 с «левым» ID (maui-tizen / maui-android). -->
+        <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows')) And !Exists('$(USERPROFILE)\AppData\Local\Android\Sdk\platforms\android-35\android.jar')">net9.0-windows10.0.19041.0</TargetFrameworks>
         <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('windows'))">net9.0-android;net9.0-ios;net9.0-maccatalyst</TargetFrameworks>
         <!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
         <!-- <TargetFrameworks>$(TargetFrameworks);net9.0-tizen</TargetFrameworks> -->

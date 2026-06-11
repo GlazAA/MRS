@@ -1,2 +1,3 @@
-2026/03/25-00:39:05.937 5048 Creating DB C:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\MRS.Maui.exe.WebView2\EBWebView\Default\Extension Rules since it was missing.
-2026/03/25-00:39:05.956 5048 Reusing MANIFEST C:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\MRS.Maui.exe.WebView2\EBWebView\Default\Extension Rules/MANIFEST-000001
+2026/04/26-16:17:20.248 760 Reusing MANIFEST C:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\MRS.Maui.exe.WebView2\EBWebView\Default\Extension Rules/MANIFEST-000001
+2026/04/26-16:17:20.249 760 Recovering log #3
+2026/04/26-16:17:20.249 760 Reusing old log C:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\MRS.Maui.exe.WebView2\EBWebView\Default\Extension Rules/000003.log 

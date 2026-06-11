@@ -1,0 +1,87 @@
+@using MRS.Application.Admin
+@using MRS.Application.Security
+@inject ICurrentUserSession Session
+@inject IAdminSupportRequestService SupportRequests
+
+@if (Session.IsEngineer)
+{
+    <button type="button" class="mrs-support-fab" title="Написать администратору БД" @onclick="OpenModal" aria-label="Написать администратору">
+        ✉
+    </button>
+}
+
+@if (_showModal)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseModal">
+        <div class="mrs-modal" @onclick:stopPropagation="true" style="max-width: 480px">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseModal">×</button>
+            <h3 class="mrs-modal-title">Сообщение администратору БД</h3>
+            <div class="mrs-modal-body">
+                <p class="mrs-hint" style="margin-top: 0">
+                    Опишите проблему: конфликт данных, ошибку сохранения или запрос на ручное вмешательство администратора.
+                </p>
+                <textarea class="mrs-sql-input" rows="5" @bind="_body" placeholder="Текст обращения…"></textarea>
+                @if (_error is not null)
+                {
+                    <p class="text-danger">@_error</p>
+                }
+                @if (_sent)
+                {
+                    <p class="mrs-save-msg">Обращение отправлено. Администратор увидит его в SQL-окне.</p>
+                }
+            </div>
+            <div class="mrs-form-actions" style="margin-top: 0">
+                <button type="button" class="mrs-btn-secondary" @onclick="CloseModal">Отменить</button>
+                <button type="button" class="mrs-btn-primary" disabled="@_busy || _sent" @onclick="Send">Отправить</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _showModal;
+    private bool _busy;
+    private bool _sent;
+    private string? _error;
+    private string _body = string.Empty;
+
+    private void OpenModal()
+    {
+        _showModal = true;
+        _sent = false;
+        _error = null;
+        _body = string.Empty;
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+    }
+
+    private async Task Send()
+    {
+        if (string.IsNullOrWhiteSpace(_body))
+        {
+            _error = "Введите текст обращения.";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+
+        try
+        {
+            var user = Session.Current;
+            await SupportRequests.SubmitAsync(user.UserId, user.DisplayName, _body);
+            _sent = true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

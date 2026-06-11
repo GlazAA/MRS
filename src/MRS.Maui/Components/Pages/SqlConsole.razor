@@ -1,0 +1,186 @@
+@page "/sql"
+@using MRS.Application.Admin
+@using MRS.Application.Security
+@inject ICurrentUserSession Session
+@inject ISqlConsoleService SqlConsoleService
+@inject IAdminSupportRequestService SupportRequests
+@inject NavigationManager Nav
+
+<PageTitle>SQL-окно</PageTitle>
+
+@if (!Session.IsDbAdministrator)
+{
+    <p class="text-danger">Доступ только для роли «Администратор БД».</p>
+    <a class="mrs-home-btn" href="/">На главную</a>
+}
+else
+{
+    <div class="mrs-toolbar">
+        <a class="mrs-back" href="/">←</a>
+        <h1 class="mrs-title">SQL-окно</h1>
+        <MrsTopMenu />
+    </div>
+
+    <div class="mrs-sql-tabs">
+        <button type="button" class="mrs-sql-tab @(_tab == "sql" ? "active" : null)" @onclick='() => _tab = "sql"'>SQL-запросы</button>
+        <button type="button" class="mrs-sql-tab @(_tab == "requests" ? "active" : null)" @onclick='() => _tab = "requests"'>
+            Обращения
+            @if (_openCount > 0)
+            {
+                <span class="mrs-sql-badge">@_openCount</span>
+            }
+        </button>
+    </div>
+
+    @if (_tab == "sql")
+    {
+        <div class="mrs-sql-panel">
+            <label class="mrs-label">SQL-запрос к локальной базе</label>
+            <textarea class="mrs-sql-input" rows="6" @bind="_sql" placeholder="SELECT * FROM organizations LIMIT 10;"></textarea>
+            <div class="mrs-form-actions">
+                <button type="button" class="mrs-btn-primary" disabled="@_busy" @onclick="RunSql">Выполнить</button>
+            </div>
+
+            @if (_sqlError is not null)
+            {
+                <p class="text-danger mrs-sql-msg">@_sqlError</p>
+            }
+            @if (_sqlMessage is not null)
+            {
+                <p class="mrs-save-msg mrs-sql-msg">@_sqlMessage</p>
+            }
+
+            @if (_columns.Count > 0)
+            {
+                <div class="mrs-sql-results">
+                    <table class="mrs-sql-table">
+                        <thead>
+                            <tr>
+                                @foreach (var col in _columns)
+                                {
+                                    <th>@col</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in _rows)
+                            {
+                                <tr>
+                                    @foreach (var cell in row)
+                                    {
+                                        <td>@(cell ?? "NULL")</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="mrs-sql-panel">
+            @if (_requests.Count == 0)
+            {
+                <p class="mrs-muted">Обращений от пользователей пока нет.</p>
+            }
+            else
+            {
+                @foreach (var req in _requests)
+                {
+                    <div class="mrs-support-card @(req.Status == "open" ? "open" : "resolved")">
+                        <div class="mrs-support-head">
+                            <strong>@req.AuthorDisplayName</strong>
+                            <span class="mrs-support-date">@req.CreatedAt</span>
+                        </div>
+                        <p class="mrs-support-body">@req.Body</p>
+                        @if (req.Status == "resolved")
+                        {
+                            <p class="mrs-support-reply"><span>Ответ:</span> @(req.AdminReply ?? "—")</p>
+                        }
+                        else
+                        {
+                            <textarea class="mrs-sql-input" rows="3" placeholder="Ответ администратора (необязательно)"
+                                      @bind="_replyDrafts[req.Id]"></textarea>
+                            <button type="button" class="mrs-btn-primary" disabled="@_busy" @onclick="() => Resolve(req.Id)">
+                                Отметить решённым
+                            </button>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    }
+}
+
+@code {
+    private string _tab = "sql";
+    private string _sql = "SELECT id, role_name FROM user_roles;";
+    private bool _busy;
+    private string? _sqlError;
+    private string? _sqlMessage;
+    private List<string> _columns = [];
+    private List<IReadOnlyList<string?>> _rows = [];
+    private List<AdminSupportRequest> _requests = [];
+    private Dictionary<int, string> _replyDrafts = [];
+    private int _openCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsDbAdministrator)
+            return;
+
+        await LoadRequestsAsync();
+    }
+
+    private async Task RunSql()
+    {
+        _busy = true;
+        _sqlError = null;
+        _sqlMessage = null;
+        _columns = [];
+        _rows = [];
+
+        try
+        {
+            var result = await SqlConsoleService.ExecuteAsync(_sql);
+            if (!result.Success)
+            {
+                _sqlError = result.Error;
+                return;
+            }
+
+            _columns = result.Columns.ToList();
+            _rows = result.Rows.ToList();
+            _sqlMessage = result.Message ?? (result.RowsAffected.HasValue ? $"Затронуто строк: {result.RowsAffected}" : null);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task LoadRequestsAsync()
+    {
+        _requests = (await SupportRequests.ListAsync()).ToList();
+        _openCount = _requests.Count(r => r.Status == "open");
+        foreach (var req in _requests.Where(r => r.Status == "open"))
+            _replyDrafts.TryAdd(req.Id, string.Empty);
+    }
+
+    private async Task Resolve(int requestId)
+    {
+        _busy = true;
+        try
+        {
+            _replyDrafts.TryGetValue(requestId, out var reply);
+            await SupportRequests.ResolveAsync(requestId, reply);
+            await LoadRequestsAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

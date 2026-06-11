@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
+using MRS.Application.Admin;
 using MRS.Application.Checklists;
 using MRS.Application.Facilities;
+using MRS.Application.Security;
 using MRS.Application.Storage;
 using MRS.Infrastructure.Sqlite;
 using MRS.Maui.Services;
@@ -22,15 +24,20 @@ public static class MauiProgram
 			});
 
 		builder.Services.AddMauiBlazorWebView();
+		builder.Services.AddSingleton<ICurrentUserSession, MauiCurrentUserSession>();
+		builder.Services.AddSingleton<IAdminSupportRequestService, SqliteAdminSupportRequestService>();
+		builder.Services.AddSingleton<ISqlConsoleService, SqliteSqlConsoleService>();
 		builder.Services.AddSingleton<ILocalDatabasePath, MauiDatabasePathProvider>();
 		builder.Services.AddSingleton<ILocalDatabaseBootstrapper, SqliteDatabaseBootstrapper>();
 		builder.Services.AddSingleton<IFacilityHierarchyService, SqliteFacilityHierarchyService>();
 		builder.Services.AddSingleton<IEquipmentTypeCatalogService, SqliteEquipmentTypeCatalogService>();
 		builder.Services.AddSingleton<IChecklistSummaryService, SqliteChecklistSummaryService>();
 		builder.Services.AddSingleton<IChecklistFlowService, SqliteChecklistFlowService>();
+		builder.Services.AddSingleton<IChecklistTemplateAuthoringService, SqliteChecklistTemplateAuthoringService>();
 		builder.Services.AddSingleton<IChecklistSaveService, SqliteChecklistSaveService>();
 		builder.Services.AddSingleton<IInstallationQueryService, SqliteInstallationQueryService>();
 		builder.Services.AddSingleton<IInstallationEnsureService, SqliteInstallationEnsureService>();
+		builder.Services.AddSingleton<IObjectOnboardingService, SqliteObjectOnboardingService>();
 		builder.Services.AddSingleton<IChecklistManagementService, SqliteChecklistManagementService>();
 		builder.Services.AddSingleton<IChecklistEditService, SqliteChecklistEditService>();
 		// Регистрация сервиса экспорта DOC/ZIP.

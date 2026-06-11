@@ -1,18 +1,29 @@
 @page "/"
+@using MRS.Application.Security
 @using MRS.Application.Storage
+@implements IDisposable
 @inject ILocalDatabasePath DatabasePath
 @inject ILocalDatabaseBootstrapper DatabaseBootstrapper
+@inject ICurrentUserSession Session
 
 <PageTitle>Главная</PageTitle>
 
 <div class="mrs-home">
-    <h1 class="mrs-home-title">Главная страница</h1>
-
     <div class="mrs-home-panel">
         <a class="mrs-home-btn" href="checklists">Контрольный лист</a>
         <a class="mrs-home-btn" href="management">Управление листами</a>
-        <a class="mrs-home-btn" href="javascript:void(0)">Управление объектами</a>
-        <a class="mrs-home-btn" href="javascript:void(0)">SQL-окно</a>
+        <a class="mrs-home-btn" href="objects">Управление объектами</a>
+        @if (Session.IsDbAdministrator)
+        {
+            <a class="mrs-home-btn" href="sql">SQL-окно</a>
+        }
+    </div>
+
+    <div class="mrs-home-role">
+        <span>Роль: <strong>@Session.Current.RoleName</strong></span>
+        <button type="button" class="mrs-home-role-switch" @onclick="ToggleRole">
+            @(Session.IsEngineer ? "Войти как администратор БД" : "Войти как инженер")
+        </button>
     </div>
 
     @if (_status is not null && !_status.Ready)
@@ -21,13 +32,25 @@
     }
 </div>
 
+<EngineerSupportFab />
+
 @code {
     private LocalDatabaseStatus? _status;
 
     protected override async Task OnInitializedAsync()
     {
+        Session.Changed += OnSessionChanged;
         var path = DatabasePath.GetDatabaseFilePath();
         _status = await DatabaseBootstrapper.EnsureReadyAsync(path);
     }
-}
 
+    private async Task ToggleRole()
+    {
+        var next = Session.IsEngineer ? UserRoleNames.DbAdministrator : UserRoleNames.Engineer;
+        await Session.SetRoleAsync(next);
+    }
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+}

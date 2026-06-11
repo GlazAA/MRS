@@ -1,4 +1,6 @@
+@using MRS.Application.Security
 @inject NavigationManager Nav
+@inject ICurrentUserSession Session
 
 <button type="button" class="mrs-menu-button" @onclick="ToggleMenu" aria-label="Меню">
     ☰
@@ -10,7 +12,10 @@
         <button type="button" class="mrs-menu-item" @onclick="GoToChecklistWork">Контрольный лист</button>
         <button type="button" class="mrs-menu-item" @onclick="GoToManagement">Управление листами</button>
         <button type="button" class="mrs-menu-item" @onclick="GoToFacilities">Управление объектами</button>
-        <button type="button" class="mrs-menu-item" @onclick="GoToSql">SQL-окно</button>
+        @if (Session.IsDbAdministrator)
+        {
+            <button type="button" class="mrs-menu-item" @onclick="GoToSql">SQL-окно</button>
+        }
     </div>
 }
 
@@ -37,7 +42,7 @@
     private void GoToFacilities()
     {
         _showMenu = false;
-        Nav.NavigateTo("/facilities");
+        Nav.NavigateTo("/objects");
     }
 
     private void GoToSql()
@@ -46,4 +51,3 @@
         Nav.NavigateTo("/sql");
     }
 }
-

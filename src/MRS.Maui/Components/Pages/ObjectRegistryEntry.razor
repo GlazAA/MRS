@@ -1,0 +1,384 @@
+@page "/objects/register"
+@using System.Globalization
+@using MRS.Application.Facilities
+@inject IFacilityHierarchyService Hierarchy
+@inject IObjectOnboardingService Onboarding
+@inject NavigationManager Nav
+
+<PageTitle>Внесение данных по объекту</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="/objects">←</a>
+    <h1 class="mrs-title">Внесение данных по объекту</h1>
+    <MrsTopMenu />
+</div>
+
+@if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+
+@if (_saved is not null)
+{
+    <p class="mrs-save-msg">@_saved</p>
+}
+
+<div class="mrs-object-form">
+    <div class="mrs-field">
+        <label class="mrs-label">Организация *</label>
+        <select class="mrs-select" value="@_orgChoice" @onchange="OnOrgChoiceChanged" disabled="@_busy">
+            <option value="">— выберите —</option>
+            @foreach (var o in _organizations)
+            {
+                <option value="@o.Id.ToString(CultureInfo.InvariantCulture)">@o.Name</option>
+            }
+            <option value="new">+ Новая организация</option>
+        </select>
+    </div>
+
+    @if (_orgChoice == "new")
+    {
+        <div class="mrs-field">
+            <label class="mrs-label">Название организации *</label>
+            <input class="mrs-select" type="text" @bind="_newOrgName" @bind:event="oninput" />
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-label">Краткое название</label>
+            <input class="mrs-select" type="text" @bind="_newOrgShort" @bind:event="oninput" />
+        </div>
+    }
+
+    <div class="mrs-field">
+        <label class="mrs-label">Объект *</label>
+        <select class="mrs-select" value="@_facilityChoice" @onchange="OnFacilityChoiceChanged" disabled="@(_busy || !IsOrgChosen)">
+            <option value="">— выберите —</option>
+            @foreach (var f in _facilities)
+            {
+                <option value="@f.Id.ToString(CultureInfo.InvariantCulture)">@f.Name</option>
+            }
+            <option value="new">+ Новый объект</option>
+        </select>
+    </div>
+
+    @if (_facilityChoice == "new")
+    {
+        <div class="mrs-field">
+            <label class="mrs-label">Название объекта *</label>
+            <input class="mrs-select" type="text" @bind="_newFacilityName" @bind:event="oninput" />
+        </div>
+
+        <div class="mrs-field">
+            <label class="mrs-label">Город *</label>
+            <input class="mrs-select" type="text" @bind="_city" @bind:event="oninput" />
+        </div>
+
+        <div class="mrs-field">
+            <label class="mrs-label">Улица *</label>
+            <input class="mrs-select" type="text" @bind="_street" @bind:event="oninput" />
+        </div>
+
+        <div class="mrs-field">
+            <label class="mrs-label">Дом *</label>
+            <input class="mrs-select" type="text" @bind="_building" @bind:event="oninput" />
+        </div>
+
+        <details class="mrs-object-details">
+            <summary>Дополнительный адрес</summary>
+            <div class="mrs-field mrs-mt">
+                <label class="mrs-label">Регион</label>
+                <input class="mrs-select" type="text" @bind="_region" @bind:event="oninput" />
+            </div>
+            <div class="mrs-field">
+                <label class="mrs-label">Индекс</label>
+                <input class="mrs-select" type="text" @bind="_zip" @bind:event="oninput" />
+            </div>
+        </details>
+    }
+
+    <div class="mrs-field">
+        <label class="mrs-label">Система *</label>
+        <select class="mrs-select" value="@_systemChoice" @onchange="OnSystemChoiceChanged" disabled="@(_busy || !IsFacilityChosen)">
+            <option value="">— выберите —</option>
+            @foreach (var s in _systems)
+            {
+                <option value="@s.Id.ToString(CultureInfo.InvariantCulture)">@s.Name</option>
+            }
+            <option value="new">+ Новая система</option>
+        </select>
+    </div>
+
+    @if (_systemChoice == "new")
+    {
+        <div class="mrs-field">
+            <label class="mrs-label">Название системы *</label>
+            <input class="mrs-select" type="text" @bind="_newSystemName" @bind:event="oninput" />
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-label">Описание системы</label>
+            <textarea class="mrs-select" rows="3" @bind="_newSystemDescription" @bind:event="oninput"></textarea>
+        </div>
+    }
+
+    <div class="mrs-field">
+        <label class="mrs-label">Тип оборудования *</label>
+        <select class="mrs-select" value="@_equipmentChoice" @onchange="OnEquipmentChoiceChanged" disabled="@(_busy || !IsSystemChosen)">
+            <option value="">— выберите —</option>
+            @foreach (var et in _equipmentTypes)
+            {
+                <option value="@et.Id.ToString(CultureInfo.InvariantCulture)">@et.Name</option>
+            }
+            <option value="new">+ Новый тип оборудования</option>
+        </select>
+    </div>
+
+    @if (_equipmentChoice == "new")
+    {
+        <div class="mrs-field">
+            <label class="mrs-label">Название типа оборудования *</label>
+            <input class="mrs-select" type="text" @bind="_newEquipmentTypeName" @bind:event="oninput" />
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-label">Код типа</label>
+            <input class="mrs-select" type="text" @bind="_newEquipmentTypeCode" @bind:event="oninput" />
+        </div>
+    }
+
+    <div class="mrs-field">
+        <label class="mrs-label">Установка (номер/название) *</label>
+        <input class="mrs-select" type="text" @bind="_installationLabel" @bind:event="oninput" />
+    </div>
+
+    <details class="mrs-object-details">
+        <summary>Дополнительно по установке</summary>
+        <div class="mrs-field mrs-mt">
+            <label class="mrs-label">Модель</label>
+            <input class="mrs-select" type="text" @bind="_installationModel" @bind:event="oninput" />
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-label">Серийный номер</label>
+            <input class="mrs-select" type="text" @bind="_installationSerial" @bind:event="oninput" />
+        </div>
+    </details>
+
+    <div class="mrs-form-actions">
+        <button type="button" class="mrs-btn-secondary" @onclick="ResetForm" disabled="@_busy">Очистить</button>
+        <button type="button" class="mrs-btn-primary" @onclick="SaveAsync" disabled="@_busy">Сохранить в БД</button>
+    </div>
+
+    <p class="mrs-info-note">
+        После сохранения данные сразу становятся доступны при создании контрольного листа.
+    </p>
+</div>
+
+@code {
+    private readonly List<HierarchyOption> _organizations = [];
+    private readonly List<HierarchyOption> _facilities = [];
+    private readonly List<HierarchyOption> _systems = [];
+    private readonly List<HierarchyOption> _equipmentTypes = [];
+
+    private bool _busy;
+    private string? _error;
+    private string? _saved;
+
+    private string _orgChoice = "";
+    private string _facilityChoice = "";
+    private string _systemChoice = "";
+    private string _equipmentChoice = "";
+
+    private string _newOrgName = "";
+    private string _newOrgShort = "";
+    private string _newFacilityName = "";
+    private string _city = "";
+    private string _street = "";
+    private string _building = "";
+    private string _region = "";
+    private string _zip = "";
+    private string _newSystemName = "";
+    private string _newSystemDescription = "";
+    private string _newEquipmentTypeName = "";
+    private string _newEquipmentTypeCode = "";
+    private string _installationLabel = "";
+    private string _installationModel = "";
+    private string _installationSerial = "";
+
+    private bool IsOrgChosen => !string.IsNullOrWhiteSpace(_orgChoice);
+    private bool IsFacilityChosen => !string.IsNullOrWhiteSpace(_facilityChoice);
+    private bool IsSystemChosen => !string.IsNullOrWhiteSpace(_systemChoice);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            _organizations.AddRange(await Hierarchy.GetOrganizationsAsync().ConfigureAwait(false));
+            _equipmentTypes.AddRange(await Onboarding.GetAllEquipmentTypesAsync().ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OnOrgChoiceChanged(ChangeEventArgs e)
+    {
+        _orgChoice = e.Value?.ToString() ?? string.Empty;
+        _facilityChoice = string.Empty;
+        _systemChoice = string.Empty;
+        _facilities.Clear();
+        _systems.Clear();
+        _saved = null;
+        _error = null;
+
+        if (_orgChoice == "new" || !int.TryParse(_orgChoice, out var organizationId))
+            return;
+
+        _busy = true;
+        try
+        {
+            _facilities.AddRange(await Hierarchy.GetFacilitiesAsync(organizationId).ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OnFacilityChoiceChanged(ChangeEventArgs e)
+    {
+        _facilityChoice = e.Value?.ToString() ?? string.Empty;
+        _systemChoice = string.Empty;
+        _systems.Clear();
+        _saved = null;
+        _error = null;
+
+        if (_facilityChoice == "new" || !int.TryParse(_facilityChoice, out var facilityId))
+            return;
+
+        _busy = true;
+        try
+        {
+            _systems.AddRange(await Hierarchy.GetSystemsAsync(facilityId).ConfigureAwait(false));
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task OnSystemChoiceChanged(ChangeEventArgs e)
+    {
+        _systemChoice = e.Value?.ToString() ?? string.Empty;
+        _saved = null;
+        _error = null;
+        return Task.CompletedTask;
+    }
+
+    private Task OnEquipmentChoiceChanged(ChangeEventArgs e)
+    {
+        _equipmentChoice = e.Value?.ToString() ?? string.Empty;
+        _saved = null;
+        _error = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        _error = null;
+        _saved = null;
+        _busy = true;
+        try
+        {
+            var request = new ObjectOnboardingRequest(
+                ExistingOrganizationId: ParseExisting(_orgChoice),
+                NewOrganizationFullName: _orgChoice == "new" ? _newOrgName : null,
+                NewOrganizationShortName: _orgChoice == "new" ? _newOrgShort : null,
+                ExistingFacilityId: ParseExisting(_facilityChoice),
+                NewFacilityName: _facilityChoice == "new" ? _newFacilityName : null,
+                AddressCity: _facilityChoice == "new" ? _city : null,
+                AddressStreet: _facilityChoice == "new" ? _street : null,
+                AddressBuilding: _facilityChoice == "new" ? _building : null,
+                AddressRegion: _facilityChoice == "new" ? _region : null,
+                AddressZipCode: _facilityChoice == "new" ? _zip : null,
+                ExistingSystemId: ParseExisting(_systemChoice),
+                NewSystemName: _systemChoice == "new" ? _newSystemName : null,
+                NewSystemDescription: _systemChoice == "new" ? _newSystemDescription : null,
+                ExistingEquipmentTypeId: ParseExisting(_equipmentChoice),
+                NewEquipmentTypeName: _equipmentChoice == "new" ? _newEquipmentTypeName : null,
+                NewEquipmentTypeCode: _equipmentChoice == "new" ? _newEquipmentTypeCode : null,
+                InstallationLabel: _installationLabel,
+                InstallationModel: _installationModel,
+                InstallationSerialNumber: _installationSerial);
+
+            var result = await Onboarding.UpsertHierarchyAsync(request).ConfigureAwait(false);
+            _saved = BuildSavedMessage(result);
+
+            Nav.NavigateTo($"/checklists?organizationId={result.OrganizationId}&facilityId={result.FacilityId}&systemId={result.SystemId}", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void ResetForm()
+    {
+        _error = null;
+        _saved = null;
+
+        _orgChoice = "";
+        _facilityChoice = "";
+        _systemChoice = "";
+        _equipmentChoice = "";
+        _facilities.Clear();
+        _systems.Clear();
+
+        _newOrgName = "";
+        _newOrgShort = "";
+        _newFacilityName = "";
+        _city = "";
+        _street = "";
+        _building = "";
+        _region = "";
+        _zip = "";
+        _newSystemName = "";
+        _newSystemDescription = "";
+        _newEquipmentTypeName = "";
+        _newEquipmentTypeCode = "";
+        _installationLabel = "";
+        _installationModel = "";
+        _installationSerial = "";
+    }
+
+    private static int? ParseExisting(string choice) =>
+        int.TryParse(choice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : null;
+
+    private static string BuildSavedMessage(ObjectOnboardingResult result)
+    {
+        var created = new List<string>();
+        if (result.OrganizationCreated) created.Add("организация");
+        if (result.FacilityCreated) created.Add("объект");
+        if (result.SystemCreated) created.Add("система");
+        if (result.EquipmentTypeCreated) created.Add("тип оборудования");
+        if (result.InstallationCreated) created.Add("установка");
+        return created.Count == 0
+            ? "Данные уже существовали: использованы текущие записи."
+            : $"Сохранено: {string.Join(", ", created)}.";
+    }
+}

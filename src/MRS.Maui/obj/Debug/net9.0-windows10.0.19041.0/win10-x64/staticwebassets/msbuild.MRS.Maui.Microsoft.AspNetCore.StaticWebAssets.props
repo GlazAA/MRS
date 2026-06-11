@@ -12,12 +12,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>fx6nkq6m0m</Fingerprint>
-      <Integrity>LWHufQnIjCPeIqcjPLRjAjdVvys4ztXEFadGrHpbxLg=</Integrity>
+      <Fingerprint>a8a5hbswd5</Fingerprint>
+      <Integrity>9r9kog9/IgOFynL63wqAP00yYdzPXHbL+KdDBiB8yMM=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>12154</FileLength>
-      <LastWriteTime>Tue, 14 Apr 2026 07:08:49 GMT</LastWriteTime>
+      <FileLength>15892</FileLength>
+      <LastWriteTime>Thu, 11 Jun 2026 04:19:52 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\app.css'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\bootstrap\bootstrap.min.css'))">
@@ -112,12 +112,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>f0khk7cv6c</Fingerprint>
-      <Integrity>jw8s72L+m1tc8hdMJJCxBl+ieinMAoQLQqxyn7uYrEY=</Integrity>
+      <Fingerprint>eyrc21dley</Fingerprint>
+      <Integrity>evHzvmjTjDDa9+8W67kC9vve+DM6jt0RffUL8omTLcY=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>1910</FileLength>
-      <LastWriteTime>Tue, 14 Apr 2026 17:22:40 GMT</LastWriteTime>
+      <FileLength>1867</FileLength>
+      <LastWriteTime>Fri, 17 Apr 2026 06:13:26 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mrs-download.js'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\MRS.Maui.styles.css'))">

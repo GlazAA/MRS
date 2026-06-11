@@ -1,0 +1,308 @@
+@page "/templates/create"
+@using System.Globalization
+@using MRS.Application.Checklists
+@using MRS.Application.Facilities
+@inject IChecklistTemplateAuthoringService TemplateAuthoring
+
+<PageTitle>Создание шаблона ТО</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="/management">←</a>
+    <h1 class="mrs-title">Создание шаблона ТО</h1>
+    <MrsTopMenu />
+</div>
+
+@if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+@if (_savedMessage is not null)
+{
+    <p class="mrs-save-msg">@_savedMessage</p>
+}
+
+<div class="mrs-object-form">
+    <div class="mrs-field">
+        <label class="mrs-label">Тип оборудования *</label>
+        <select class="mrs-select" @bind="_equipmentTypeChoice">
+            <option value="">— выберите —</option>
+            @foreach (var et in _equipmentTypes)
+            {
+                <option value="@et.Id.ToString(CultureInfo.InvariantCulture)">@et.Name</option>
+            }
+        </select>
+    </div>
+
+    <div class="mrs-field">
+        <label class="mrs-label">Вид ТО *</label>
+        <select class="mrs-select" @bind="_maintenanceChoice">
+            <option value="">— выберите —</option>
+            @foreach (var mt in _maintenanceTypes)
+            {
+                <option value="@mt.Id.ToString(CultureInfo.InvariantCulture)">@mt.Name</option>
+            }
+            <option value="new">+ Новый вид ТО</option>
+        </select>
+    </div>
+
+    @if (_maintenanceChoice == "new")
+    {
+        <div class="mrs-field">
+            <label class="mrs-label">Название нового вида ТО *</label>
+            <input class="mrs-select" type="text" @bind="_newMaintenanceName" @bind:event="oninput" />
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-label">Код вида ТО</label>
+            <input class="mrs-select" type="text" @bind="_newMaintenanceCode" @bind:event="oninput" />
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-label">Описание вида ТО</label>
+            <textarea class="mrs-select" rows="3" @bind="_newMaintenanceDescription" @bind:event="oninput"></textarea>
+        </div>
+    }
+
+    <div class="mrs-field">
+        <label class="mrs-label">Название шаблона *</label>
+        <input class="mrs-select" type="text" @bind="_templateName" @bind:event="oninput" />
+    </div>
+
+    <details class="mrs-object-details">
+        <summary>Доп. параметры шаблона</summary>
+        <div class="mrs-field mrs-mt">
+            <label class="mrs-label">Сценарный код</label>
+            <input class="mrs-select" type="text" @bind="_scenarioCode" @bind:event="oninput" />
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-label">Верхняя плашка (top plate)</label>
+            <textarea class="mrs-select" rows="2" @bind="_topPlateText" @bind:event="oninput"></textarea>
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-label">Текст вводного окна</label>
+            <textarea class="mrs-select" rows="3" @bind="_introModalText" @bind:event="oninput"></textarea>
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-label">Текст окна безопасности</label>
+            <textarea class="mrs-select" rows="3" @bind="_safetyModalText" @bind:event="oninput"></textarea>
+        </div>
+        <div class="mrs-field">
+            <label class="mrs-check-label">
+                <input class="mrs-check" type="checkbox" @bind="_redButtonEnabled" />
+                Показать красную кнопку безопасности
+            </label>
+        </div>
+    </details>
+
+    <p class="mrs-info-title">Поля шаблона</p>
+    @for (var i = 0; i < _fields.Count; i++)
+    {
+        var field = _fields[i];
+        <div class="mrs-template-field-card">
+            <div class="mrs-template-field-header">
+                <span>Поле #@(i + 1)</span>
+                <button type="button" class="mrs-btn-small-danger" @onclick="() => RemoveField(i)">Удалить</button>
+            </div>
+
+            <div class="mrs-field">
+                <label class="mrs-label">Код поля (field_code)</label>
+                <input class="mrs-select" type="text" @bind="field.FieldCode" @bind:event="oninput" />
+            </div>
+            <div class="mrs-field">
+                <label class="mrs-label">Текст вопроса *</label>
+                <input class="mrs-select" type="text" @bind="field.QuestionText" @bind:event="oninput" />
+            </div>
+            <div class="mrs-field">
+                <label class="mrs-label">Подсказка</label>
+                <input class="mrs-select" type="text" @bind="field.HintText" @bind:event="oninput" />
+            </div>
+            <div class="mrs-field">
+                <label class="mrs-label">Тип поля *</label>
+                <select class="mrs-select" @bind="field.FieldTypeName">
+                    @foreach (var t in FieldTypeOptions)
+                    {
+                        <option value="@t">@t</option>
+                    }
+                </select>
+            </div>
+            <div class="mrs-field">
+                <label class="mrs-check-label">
+                    <input class="mrs-check" type="checkbox" @bind="field.IsRequired" />
+                    Обязательное поле
+                </label>
+            </div>
+
+            @if (FieldNeedsOptions(field.FieldTypeName))
+            {
+                <div class="mrs-field">
+                    <label class="mrs-label">Варианты (каждый с новой строки)</label>
+                    <textarea class="mrs-select" rows="4" @bind="field.OptionsRaw" @bind:event="oninput"></textarea>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="mrs-form-actions">
+        <button type="button" class="mrs-btn-secondary" @onclick="AddField">+ Добавить поле</button>
+        <button type="button" class="mrs-btn-primary" @onclick="SaveTemplateAsync" disabled="@_busy">Сохранить шаблон</button>
+    </div>
+</div>
+
+@code {
+    private static readonly string[] FieldTypeOptions =
+    [
+        "text",
+        "textarea",
+        "date",
+        "time",
+        "number",
+        "boolean",
+        "radio",
+        "dropdown",
+        "dropdown_multiple",
+        "checkbox"
+    ];
+
+    private readonly List<HierarchyOption> _equipmentTypes = [];
+    private readonly List<MaintenanceTypeOption> _maintenanceTypes = [];
+    private readonly List<FieldDraft> _fields = [];
+
+    private bool _busy;
+    private string? _error;
+    private string? _savedMessage;
+
+    private string _equipmentTypeChoice = string.Empty;
+    private string _maintenanceChoice = string.Empty;
+    private string _newMaintenanceName = string.Empty;
+    private string _newMaintenanceCode = string.Empty;
+    private string _newMaintenanceDescription = string.Empty;
+    private string _templateName = string.Empty;
+    private string _scenarioCode = string.Empty;
+    private string _topPlateText = string.Empty;
+    private string _introModalText = string.Empty;
+    private string _safetyModalText = string.Empty;
+    private bool _redButtonEnabled;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            _equipmentTypes.AddRange(await TemplateAuthoring.GetEquipmentTypesAsync().ConfigureAwait(false));
+            _maintenanceTypes.AddRange(await TemplateAuthoring.GetMaintenanceTypesAsync().ConfigureAwait(false));
+            AddField();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void AddField()
+    {
+        _fields.Add(new FieldDraft
+        {
+            FieldTypeName = "text"
+        });
+    }
+
+    private void RemoveField(int index)
+    {
+        if (index < 0 || index >= _fields.Count)
+            return;
+        _fields.RemoveAt(index);
+        if (_fields.Count == 0)
+            AddField();
+    }
+
+    private static bool FieldNeedsOptions(string fieldTypeName) =>
+        string.Equals(fieldTypeName, "radio", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(fieldTypeName, "dropdown", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(fieldTypeName, "dropdown_multiple", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(fieldTypeName, "checkbox", StringComparison.OrdinalIgnoreCase);
+
+    private async Task SaveTemplateAsync()
+    {
+        _error = null;
+        _savedMessage = null;
+        _busy = true;
+        try
+        {
+            if (!int.TryParse(_equipmentTypeChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var equipmentTypeId))
+                throw new InvalidOperationException("Выберите тип оборудования.");
+
+            int? existingMaintenanceTypeId = null;
+            if (_maintenanceChoice != "new")
+            {
+                if (!int.TryParse(_maintenanceChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtid))
+                    throw new InvalidOperationException("Выберите вид ТО или создайте новый.");
+                existingMaintenanceTypeId = mtid;
+            }
+
+            var fieldRequests = new List<CreateTemplateFieldRequest>(_fields.Count);
+            for (var i = 0; i < _fields.Count; i++)
+            {
+                var f = _fields[i];
+                fieldRequests.Add(new CreateTemplateFieldRequest(
+                    SortOrder: i + 1,
+                    FieldCode: f.FieldCode,
+                    QuestionText: f.QuestionText,
+                    HintText: f.HintText,
+                    FieldTypeName: f.FieldTypeName,
+                    IsRequired: f.IsRequired,
+                    GroupName: null,
+                    ValidationRuleCode: null,
+                    Options: SplitOptions(f.OptionsRaw)));
+            }
+
+            var request = new CreateChecklistTemplateRequest(
+                EquipmentTypeId: equipmentTypeId,
+                ExistingMaintenanceTypeId: existingMaintenanceTypeId,
+                NewMaintenanceTypeName: _maintenanceChoice == "new" ? _newMaintenanceName : null,
+                NewMaintenanceTypeCode: _maintenanceChoice == "new" ? _newMaintenanceCode : null,
+                NewMaintenanceTypeDescription: _maintenanceChoice == "new" ? _newMaintenanceDescription : null,
+                TemplateName: _templateName,
+                ScenarioCode: _scenarioCode,
+                TopPlateText: _topPlateText,
+                IntroModalText: _introModalText,
+                SafetyModalText: _safetyModalText,
+                RedButtonEnabled: _redButtonEnabled,
+                Fields: fieldRequests);
+
+            var newTemplateId = await TemplateAuthoring.CreateTemplateAsync(request).ConfigureAwait(false);
+            _savedMessage = $"Шаблон создан (ID: {newTemplateId}).";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static IReadOnlyList<string> SplitOptions(string? optionsRaw)
+    {
+        if (string.IsNullOrWhiteSpace(optionsRaw))
+            return [];
+        return optionsRaw
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private sealed class FieldDraft
+    {
+        public string FieldCode { get; set; } = string.Empty;
+        public string QuestionText { get; set; } = string.Empty;
+        public string HintText { get; set; } = string.Empty;
+        public string FieldTypeName { get; set; } = "text";
+        public bool IsRequired { get; set; }
+        public string OptionsRaw { get; set; } = string.Empty;
+    }
+}
