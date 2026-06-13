@@ -68,11 +68,11 @@ else
         {
             <p class="text-danger mrs-info-note">@_historyError</p>
         }
-        <div class="mrs-info-table" role="table" aria-label="Уже созданные листы (только просмотр)">
+        <div class="mrs-info-table" role="table" aria-label="Созданные листы по выбранной системе">
             <div class="mrs-info-row mrs-info-head" role="row">
                 <span role="columnheader">Тип</span>
                 <span role="columnheader">Дата</span>
-                <span role="columnheader">Время</span>
+                <span role="columnheader">Затраченное время</span>
                 <span role="columnheader">Статус</span>
             </div>
             @if (_historyRows.Count == 0)
@@ -85,12 +85,27 @@ else
             {
                 @foreach (var row in _historyRows)
                 {
-                    <div class="mrs-info-row" role="row">
-                        <span>@row.Type</span>
-                        <span>@row.Date</span>
-                        <span>@row.Time</span>
-                        <span>@row.Status</span>
-                    </div>
+                    if (row.IsClickable)
+                    {
+                        <button type="button"
+                                class="mrs-info-row mrs-info-row-clickable"
+                                role="row"
+                                @onclick="() => OpenInProgressChecklist(row)">
+                            <span>@row.Type</span>
+                            <span>@row.Date</span>
+                            <span>@row.Duration</span>
+                            <span class="mrs-info-status mrs-info-status-progress">@row.Status</span>
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="mrs-info-row mrs-info-row-readonly" role="row" aria-disabled="true">
+                            <span>@row.Type</span>
+                            <span>@row.Date</span>
+                            <span>@row.Duration</span>
+                            <span class="mrs-info-status mrs-info-status-done">@row.Status</span>
+                        </div>
+                    }
                 }
             }
         </div>
@@ -249,8 +264,19 @@ else
 			{
 				var local = r.StartedAt?.ToLocalTime();
 				var d = local?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "—";
-				var tm = local?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "—";
-				_historyRows.Add(new HistoryRow(r.EquipmentTypeName, d, tm, FormatStatus(r.StatusCode)));
+				var duration = FormatDuration(r.StartedAt, r.EndedAt);
+				var statusLabel = FormatStatus(r.StatusCode);
+				var clickable = r.StatusCode == "in_progress";
+				_historyRows.Add(new HistoryRow(
+					r.ChecklistId,
+					r.EquipmentTypeId,
+					r.MaintenanceTypeId,
+					r.EquipmentTypeName,
+					d,
+					duration,
+					statusLabel,
+					r.StatusCode,
+					clickable));
 			}
 		}
 		catch (Exception ex)
@@ -261,12 +287,37 @@ else
 
 	private static string FormatStatus(string code) => code switch
 	{
-		"draft" => "Черновик",
 		"in_progress" => "В работе",
 		"completed" => "Завершён",
-		"cancelled" => "Отменён",
 		_ => code
 	};
+
+	private static string FormatDuration(DateTimeOffset? started, DateTimeOffset? ended)
+	{
+		if (started is null || ended is null)
+			return "—";
+
+		var span = ended.Value - started.Value;
+		if (span.TotalMinutes < 1)
+			return "< 1 мин";
+
+		if (span.TotalHours < 1)
+			return $"{(int)span.TotalMinutes} мин";
+
+		return $"{(int)span.TotalHours} ч {(int)span.Minutes} мин";
+	}
+
+	private void OpenInProgressChecklist(HistoryRow row)
+	{
+		if (!row.IsClickable
+		    || _organizationId is not int o
+		    || _facilityId is not int f
+		    || _systemId is not int s)
+			return;
+
+		Nav.NavigateTo(
+			$"/checklists/create?organizationId={o}&facilityId={f}&systemId={s}&equipmentTypeId={row.EquipmentTypeId}&maintenanceTypeId={row.MaintenanceTypeId}&checklistId={row.ChecklistId}");
+	}
 
 	private static void ParseSelection(object? value, out int? id)
 	{
@@ -281,5 +332,14 @@ else
 		Nav.NavigateTo($"/checklists/equipment-types?organizationId={o}&facilityId={f}&systemId={s}");
 	}
 
-	private sealed record HistoryRow(string Type, string Date, string Time, string Status);
+	private sealed record HistoryRow(
+		int ChecklistId,
+		int EquipmentTypeId,
+		int MaintenanceTypeId,
+		string Type,
+		string Date,
+		string Duration,
+		string Status,
+		string StatusCode,
+		bool IsClickable);
 }

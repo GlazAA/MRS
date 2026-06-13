@@ -1,31 +1,31 @@
 {
   "Files": [
     {
-      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\obj\\Debug\\net9.0-windows10.0.19041.0\\win10-x64\\scopedcss\\bundle\\MRS.Maui.styles.css",
+      "Id": "c:\\Development\\MRS\\src\\MRS.Maui\\obj\\Debug\\net9.0-windows10.0.19041.0\\win10-x64\\scopedcss\\bundle\\MRS.Maui.styles.css",
       "PackagePath": "staticwebassets\\MRS.Maui.styles.css"
     },
     {
-      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\css\\app.css",
+      "Id": "c:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\css\\app.css",
       "PackagePath": "staticwebassets\\css\\app.css"
     },
     {
-      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\css\\bootstrap\\bootstrap.min.css",
+      "Id": "c:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\css\\bootstrap\\bootstrap.min.css",
       "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css"
     },
     {
-      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\css\\bootstrap\\bootstrap.min.css.map",
+      "Id": "c:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\css\\bootstrap\\bootstrap.min.css.map",
       "PackagePath": "staticwebassets\\css\\bootstrap\\bootstrap.min.css.map"
     },
     {
-      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\images\\home-bg.png",
+      "Id": "c:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\images\\home-bg.png",
       "PackagePath": "staticwebassets\\images\\home-bg.png"
     },
     {
-      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\index.html",
+      "Id": "c:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\index.html",
       "PackagePath": "staticwebassets\\index.html"
     },
     {
-      "Id": "C:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\js\\mrs-download.js",
+      "Id": "c:\\Development\\MRS\\src\\MRS.Maui\\wwwroot\\js\\mrs-download.js",
       "PackagePath": "staticwebassets\\js\\mrs-download.js"
     },
     {

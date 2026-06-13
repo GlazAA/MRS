@@ -20,6 +20,8 @@ public sealed class MauiCurrentUserSession : ICurrentUserSession
 
     public bool IsEngineer => _current.RoleName == UserRoleNames.Engineer;
 
+    public bool CanUseFieldFeatures => IsEngineer || IsDbAdministrator;
+
     public event Action? Changed;
 
     public Task SetRoleAsync(string roleName, CancellationToken cancellationToken = default)

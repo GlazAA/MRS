@@ -1,0 +1,83 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Инженер" as Eng
+actor "Администратор БД" as Dba
+
+rectangle "MRS (Maintenance Record System)" {
+
+  usecase "Выбрать роль\n(инженер / администратор БД)" as UC_Role
+
+  package "Контрольные листы" {
+    usecase "Создать и заполнить\nконтрольный лист\n(оффлайн)" as UC_CreateCL
+    usecase "Продолжить черновик\nили лист «В работе»" as UC_ResumeCL
+    usecase "Просмотреть историю листов\nпо системе" as UC_History
+  }
+
+  package "Управление листами" {
+    usecase "Фильтровать список листов\nи экспортировать ZIP/DOC" as UC_Export
+    usecase "Редактировать лист\n(ValidateAsync / ApplyAsync)" as UC_Edit
+    usecase "Создать шаблон ТО\n(конструктор полей)" as UC_Template
+  }
+
+  package "Управление объектами" {
+    usecase "Внести данные по объекту\n(организация → установка)" as UC_Onboard
+    usecase "Вести комментарии\nпо объекту" as UC_Notes
+    usecase "Планировать выезд\nи расходники" as UC_Visit
+  }
+
+  package "Связь с администратором" {
+    usecase "Написать администратору БД\n(кнопка ✉ на главной)" as UC_AskAdmin
+  }
+
+  package "Администрирование БД" {
+    usecase "Выполнить SQL-запрос\nк локальной SQLite" as UC_Sql
+    usecase "Просмотреть обращения\nинженеров" as UC_Inbox
+    usecase "Ответить и закрыть\nобращение" as UC_Resolve
+  }
+}
+
+Eng --> UC_Role
+Eng --> UC_CreateCL
+Eng --> UC_ResumeCL
+Eng --> UC_History
+Eng --> UC_Export
+Eng --> UC_Edit
+Eng --> UC_Template
+Eng --> UC_Onboard
+Eng --> UC_Notes
+Eng --> UC_Visit
+Eng --> UC_AskAdmin
+
+Dba -u-|> Eng
+Dba --> UC_Sql
+Dba --> UC_Inbox
+Dba --> UC_Resolve
+
+UC_Inbox ..> UC_AskAdmin : <<include>>
+
+note right of UC_CreateCL
+  Система: IFacilityHierarchyService,
+  IChecklistFlowService,
+  IChecklistSaveService → SQLite
+end note
+
+note bottom of UC_AskAdmin
+  Система: IAdminSupportRequestService,
+  таблица admin_support_requests
+end note
+
+note bottom of UC_Sql
+  Доступно только роли «Администратор БД»
+  (включая все полевые сценарии инженера).
+  У инженера пункт меню скрыт.
+end note
+
+note bottom of UC_Notes
+  Таблица engineer_notes;
+  маршрут /objects/comments —
+  перспектива прототипа
+end note
+
+@enduml

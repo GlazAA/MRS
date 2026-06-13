@@ -210,14 +210,47 @@ h1:focus {
     flex-direction: column;
     gap: 0.35rem;
     font-size: 0.85rem;
-    pointer-events: none;
-    user-select: none;
 }
 
 .mrs-info-row {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
     gap: 0.25rem;
+    align-items: center;
+    text-align: left;
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 0.15rem 0;
+    font: inherit;
+    color: inherit;
+}
+
+.mrs-info-row-clickable {
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+
+.mrs-info-row-clickable:hover,
+.mrs-info-row-clickable:focus-visible {
+    background: rgba(27, 110, 194, 0.12);
+    outline: none;
+}
+
+.mrs-info-row-readonly {
+    opacity: 0.92;
+    cursor: default;
+}
+
+.mrs-info-status-progress {
+    color: #1565c0;
+    font-weight: 600;
+}
+
+.mrs-info-status-done {
+    color: #2e7d32;
+    font-weight: 600;
 }
 
 .mrs-info-head {

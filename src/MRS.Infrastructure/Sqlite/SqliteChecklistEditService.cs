@@ -33,6 +33,7 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		infoCmd.CommandText = """
 			SELECT
 				c.id,
+				i.id AS installation_id,
 				c.start_at,
 				c.end_at,
 				c.status,
@@ -64,25 +65,26 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 			throw new InvalidOperationException("Контрольный лист не найден (или неактивен).");
 
 		var id = infoReader.GetInt32(0);
-		if (!infoReader.IsDBNull(1) && DateTimeOffset.TryParse(infoReader.GetString(1), out var s))
+		var installationId = infoReader.GetInt32(1);
+		if (!infoReader.IsDBNull(2) && DateTimeOffset.TryParse(infoReader.GetString(2), out var s))
 			startAt = s;
-		if (!infoReader.IsDBNull(2) && DateTimeOffset.TryParse(infoReader.GetString(2), out var e))
+		if (!infoReader.IsDBNull(3) && DateTimeOffset.TryParse(infoReader.GetString(3), out var e))
 			endAt = e;
 
-		var statusCode = infoReader.GetString(3);
-		var org = infoReader.GetString(4);
-		var facility = infoReader.GetString(5);
-		var equipmentType = infoReader.GetString(6);
-		var installationLabel = infoReader.GetString(7);
-		var maintenanceType = infoReader.GetString(8);
-		int? templateId = infoReader.IsDBNull(11) ? null : infoReader.GetInt32(11);
+		var statusCode = infoReader.GetString(4);
+		var org = infoReader.GetString(5);
+		var facility = infoReader.GetString(6);
+		var equipmentType = infoReader.GetString(7);
+		var installationLabel = infoReader.GetString(8);
+		var maintenanceType = infoReader.GetString(9);
+		int? templateId = infoReader.IsDBNull(12) ? null : infoReader.GetInt32(12);
 
 		// demo-данные могут хранить checklist_template_id = NULL.
 		// Тогда находим актуальный шаблон по (equipment_type_id, maintenance_type_id).
 		if (templateId is null)
 		{
-			var equipmentTypeId = infoReader.GetInt32(9);
-			var maintenanceTypeId = infoReader.GetInt32(10);
+			var equipmentTypeId = infoReader.GetInt32(10);
+			var maintenanceTypeId = infoReader.GetInt32(11);
 
 			using var resolve = connection.CreateCommand();
 			resolve.CommandText = """
@@ -216,6 +218,7 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 
 		var info = new ChecklistEditInfo(
 			id,
+			installationId,
 			startAt,
 			endAt,
 			org,
@@ -227,6 +230,23 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 			templateId.Value);
 
 		return new ChecklistEditModel(info, fields);
+	}
+
+	public async Task SetStatusAsync(int checklistId, string status, string syncState, CancellationToken cancellationToken = default)
+	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			UPDATE checklists
+			SET status = $status,
+			    sync_state = $sync,
+			    local_updated_at = datetime('now')
+			WHERE id = $id AND is_active = 1;
+			""";
+		cmd.Parameters.AddWithValue("$id", checklistId);
+		cmd.Parameters.AddWithValue("$status", status);
+		cmd.Parameters.AddWithValue("$sync", syncState);
+		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 	}
 
 	public async Task<ChecklistUpdateDryRunResult> ValidateAsync(UpdateChecklistAnswersRequest request, CancellationToken cancellationToken = default)

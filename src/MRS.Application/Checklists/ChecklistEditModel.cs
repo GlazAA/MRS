@@ -4,6 +4,7 @@ namespace MRS.Application.Checklists;
 
 public sealed record ChecklistEditInfo(
 	int ChecklistId,
+	int InstallationId,
 	DateTimeOffset? StartedAt,
 	DateTimeOffset? EndedAt,
 	string OrganizationName,

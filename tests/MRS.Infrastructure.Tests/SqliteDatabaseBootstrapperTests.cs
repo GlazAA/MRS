@@ -79,8 +79,10 @@ public class SqliteDatabaseBootstrapperTests
 			Assert.Equal(13, types.Count);
 			var summaries = new SqliteChecklistSummaryService(paths, bootstrapper);
 			var rows = await summaries.GetForSystemAsync(1);
-			Assert.Equal(3, rows.Count);
+			Assert.Equal(2, rows.Count);
 			Assert.Contains(rows, r => r.StatusCode == "completed");
+			Assert.Contains(rows, r => r.StatusCode == "in_progress");
+			Assert.DoesNotContain(rows, r => r.StatusCode == "draft");
 		}
 		finally
 		{

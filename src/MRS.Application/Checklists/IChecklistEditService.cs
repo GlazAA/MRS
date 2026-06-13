@@ -10,5 +10,8 @@ public interface IChecklistEditService
 
 	/// <summary>Применяет только те поля, которые разрешено сохранить (например, subset после 2.1.2.2).</summary>
 	Task<ChecklistUpdateApplyResult> ApplyAsync(UpdateChecklistAnswersRequest request, IReadOnlyCollection<int> templateItemIdsToApply, CancellationToken cancellationToken = default);
+
+	/// <summary>Обновляет статус и состояние синхронизации листа (например, при завершении).</summary>
+	Task SetStatusAsync(int checklistId, string status, string syncState, CancellationToken cancellationToken = default);
 }
 

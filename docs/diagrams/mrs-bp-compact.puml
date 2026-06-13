@@ -1,0 +1,49 @@
+@startuml
+title MRS — бизнес-процессы (компактная схема TO-BE)
+skinparam defaultTextAlignment center
+skinparam wrapWidth 120
+skinparam shadowing false
+
+start
+
+:Главная страница\n(выбор раздела);
+
+if (Раздел?) then (Контрольный лист)
+  :/checklists:\nорганизация → объект → система;
+  if (Строка листа\n«В работе»/«Черновик»?) then (да)
+    :Открыть существующий лист\n/checklists/create;
+  else (новый)
+    :Типы оборудования\n→ вид ТО\n→ /checklists/create;
+  endif
+  :Заполнить поля шаблона\n(установка, ответы);
+  if (Сохранение?) then (локально)
+    :SQLite: draft;
+  else (завершить)
+    :SQLite: completed\n+ pending_upload;
+  endif
+  :Возврат на /checklists;
+
+elseif (Управление листами) then
+  if (Сценарий?) then (Работа с листом)
+    :/checklists/work:\nфильтры, экспорт ZIP;
+    :/checklists/work/edit:\nправка, ValidateAsync/ApplyAsync;
+    if (Конфликт полей?) then (да)
+      :Частичное сохранение\n+ обращение администратору;
+    endif
+  else (Создать шаблон ТО)
+    :/templates/create:\nCreateTemplateAsync → SQLite;
+  endif
+
+else (Управление объектами)
+  if (Пункт?) then (Внести данные)
+    :/objects/register:\nиерархия + установка;
+    :UpsertHierarchyAsync → SQLite;
+  elseif (Комментарии) then
+    :/objects/comments\n(заметки инженера);
+  else (Планирование / расходники)
+    :Заглушка\n(перспектива);
+  endif
+endif
+
+stop
+@enduml

@@ -5,6 +5,7 @@
 @inject IEquipmentTypeCatalogService EquipmentCatalog
 @inject IChecklistFlowService Flow
 @inject IChecklistSaveService SaveService
+@inject IChecklistEditService ChecklistEdit
 @inject IInstallationQueryService InstallationQuery
 @inject IInstallationEnsureService InstallationEnsure
 @inject NavigationManager Nav
@@ -13,7 +14,7 @@
 
 <div class="mrs-toolbar">
     <a class="mrs-back" href="@BackLink">←</a>
-    <h1 class="mrs-title">Создание контрольного листа</h1>
+    <h1 class="mrs-title">@(_existingChecklistId is null ? "Создание контрольного листа" : "Контрольный лист")</h1>
     <MrsTopMenu />
 </div>
 
@@ -46,7 +47,7 @@ else
     <div class="mrs-field">
         <label class="mrs-label">Установка *</label>
         <p class="mrs-hint">Выберите существующую или создайте по номеру (например G301).</p>
-        <select class="mrs-select" value="@_installationChoice" @onchange="OnInstallationSelect">
+        <select class="mrs-select" value="@_installationChoice" @onchange="OnInstallationSelect" disabled="@(_existingChecklistId is not null)">
             <option value="">—</option>
             @foreach (var ins in _installations)
             {
@@ -172,12 +173,14 @@ else
 	[SupplyParameterFromQuery] public int? SystemId { get; set; }
 	[SupplyParameterFromQuery] public int? EquipmentTypeId { get; set; }
 	[SupplyParameterFromQuery] public int? MaintenanceTypeId { get; set; }
+	[SupplyParameterFromQuery] public int? ChecklistId { get; set; }
 
 	private readonly Dictionary<int, string> _values = [];
 	private List<TemplateFieldDefinition> _fields = [];
 	private List<InstallationListItem> _installations = [];
 	private ChecklistTemplateMeta? _meta;
 	private int? _templateId;
+	private int? _existingChecklistId;
 	private string? _error;
 	private string? _saveMessage;
 	private bool _busy;
@@ -200,6 +203,7 @@ else
 		_fields = [];
 		_installations = [];
 		_templateId = null;
+		_existingChecklistId = null;
 		_showSafety = false;
 		_showIntro = false;
 		_installationChoice = "";
@@ -230,7 +234,24 @@ else
 			foreach (var f in _fields)
 				_values.TryAdd(f.TemplateItemId, string.Empty);
 
-			_showIntro = !string.IsNullOrWhiteSpace(_meta?.IntroModalText);
+			if (ChecklistId is int resumeId)
+			{
+				var editModel = await ChecklistEdit.GetForEditAsync(resumeId).ConfigureAwait(false);
+				if (editModel.Info.StatusCode != "in_progress")
+				{
+					_error = "Этот контрольный лист завершён и доступен только для просмотра.";
+					return;
+				}
+
+				_existingChecklistId = resumeId;
+				_installationChoice = editModel.Info.InstallationId.ToString(CultureInfo.InvariantCulture);
+				foreach (var field in editModel.Fields)
+					_values[field.TemplateItemId] = field.ValueRaw;
+			}
+			else
+			{
+				_showIntro = !string.IsNullOrWhiteSpace(_meta?.IntroModalText);
+			}
 		}
 		catch (Exception ex)
 		{
@@ -303,6 +324,12 @@ else
 			return;
 		}
 
+		if (_existingChecklistId is int existingId)
+		{
+			await SaveExistingAsync(existingId, orgId, facId, sysId, mode).ConfigureAwait(false);
+			return;
+		}
+
 		int installationId;
 		if (string.IsNullOrEmpty(_installationChoice))
 		{
@@ -343,6 +370,33 @@ else
 			{
 				_saveMessage = res.ErrorMessage ?? "Ошибка сохранения.";
 				return;
+			}
+
+			Nav.NavigateTo($"/checklists?organizationId={orgId}&facilityId={facId}&systemId={sysId}", forceLoad: true);
+		}
+		finally
+		{
+			_saving = false;
+		}
+	}
+
+	private async Task SaveExistingAsync(int checklistId, int orgId, int facId, int sysId, ChecklistPersistenceMode mode)
+	{
+		_saving = true;
+		try
+		{
+			var fieldIds = _fields.Select(f => f.TemplateItemId).ToList();
+			var request = new UpdateChecklistAnswersRequest(checklistId, _values);
+			var apply = await ChecklistEdit.ApplyAsync(request, fieldIds).ConfigureAwait(false);
+			if (!apply.Ok)
+			{
+				_saveMessage = apply.ErrorMessage ?? "Ошибка сохранения.";
+				return;
+			}
+
+			if (mode == ChecklistPersistenceMode.UploadQueue)
+			{
+				await ChecklistEdit.SetStatusAsync(checklistId, "completed", "pending_upload").ConfigureAwait(false);
 			}
 
 			Nav.NavigateTo($"/checklists?organizationId={orgId}&facilityId={facId}&systemId={sysId}", forceLoad: true);

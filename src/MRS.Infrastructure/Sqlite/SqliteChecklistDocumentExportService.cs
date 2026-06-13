@@ -13,10 +13,7 @@ namespace MRS.Infrastructure.Sqlite;
 /// 2) нормализует ответы в ChecklistDocumentExportModel;
 /// 3) рендерит Word-openable HTML и сохраняет как .doc;
 /// 4) при необходимости упаковывает несколько .doc в ZIP.
-///
-/// Точка расширения для будущих правок внешнего вида акта:
-/// - чаще всего меняются BuildWordHtml(...), AppendSecondBlock(...),
-///   FormatWorkMark(...), ParseEquipmentState(...).
+
 /// </summary>
 public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExportService
 {
@@ -79,7 +76,6 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         IReadOnlyCollection<int> checklistIds,
         CancellationToken cancellationToken = default)
     {
-        // Очистка входа: убираем дубли, невалидные id, сортируем.
         var ids = checklistIds
             .Where(id => id > 0)
             .Distinct()
@@ -107,9 +103,7 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
 
     private static string BuildWordHtml(ChecklistDocumentExportModel model)
     {
-        // Здесь собраны правила отображения в DOC:
-        // - первый фиксированный блок (лого/контакты/шапка),
-        // - второй переменный блок ("Состояние оборудования" и "Перечень работ").
+        
         var answers = model.Answers;
         var customer = model.Header.OrganizationName;
         var equipmentType = model.Header.EquipmentTypeName;
@@ -161,6 +155,22 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         sb.AppendLine(".works-table td,.works-table th{border:1px solid #000000;padding:4pt 5pt;vertical-align:middle;font-size:11pt;}");
         sb.AppendLine(".works-mark{width:22pt;text-align:center;}");
         sb.AppendLine(".works-legend td{border:1px solid #000000;padding:4pt 5pt;font-size:11pt;}");
+        sb.AppendLine(".bottom-const{margin-top:22pt;font-size:11pt;}");
+        sb.AppendLine(".bottom-section-title{font-weight:bold;text-transform:uppercase;margin:10pt 0 4pt 0;}");
+        sb.AppendLine(".lined-table{width:100%;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;}");
+        sb.AppendLine(".lined-table td{border-bottom:1px solid #7A7A7A;height:16pt;vertical-align:bottom;padding:0 0 1pt 0;font-size:11pt;}");
+        sb.AppendLine(".signature-grid{width:100%;border-collapse:collapse;margin-top:16pt;mso-table-lspace:0;mso-table-rspace:0;}");
+        sb.AppendLine(".signature-grid td{vertical-align:top;border:none !important;padding:0;}");
+        sb.AppendLine(".signature-title{font-weight:bold;margin:0 0 12pt 0;line-height:1.2;}");
+        sb.AppendLine(".signature-fields{width:100%;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;}");
+        sb.AppendLine(".signature-fields td{border:none !important;padding:2pt 0;font-size:11pt;}");
+        sb.AppendLine(".signature-label{width:90pt;white-space:nowrap;padding-right:6pt !important;}");
+        sb.AppendLine(".signature-line{border-bottom:1px solid #7A7A7A;min-height:14pt;display:block;}");
+        sb.AppendLine(".footer-brand{margin-top:26pt;}");
+        sb.AppendLine(".footer-rule{border-top:1.5pt solid ").Append(BrandRed).Append(";font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;}");
+        sb.AppendLine(".footer-meta{margin-top:8pt;width:100%;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;}");
+        sb.AppendLine(".footer-meta td{border:none !important;color:").Append(BrandRed).Append(";font-size:11pt;}");
+        sb.AppendLine(".footer-meta .right{text-align:right;}");
         sb.AppendLine("</style></head><body>");
 
         // --- Верхний блок (единый для всех): лого + отступ 7 см + вертикальная красная плашка ---
@@ -219,6 +229,7 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
 
         // Второй блок отличается по профилю оборудования.
         AppendSecondBlock(sb, model, profile, stateFlags);
+        AppendBottomConstantBlock(sb);
 
         sb.AppendLine("</body></html>");
         return sb.ToString();
@@ -307,6 +318,79 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         AppendEquipmentStateSection(sb, profile, state);
         AppendWorksSection(sb, model, profile);
         sb.AppendLine("</div>");
+    }
+
+    /// <summary>
+    /// Нижний постоянный блок (общий для всех актов):
+    /// - "Дополнительные работы"
+    /// - "Замечания и рекомендации"
+    /// - подписи исполнителя/заказчика
+    /// - нижняя красная линия + сайт/ИНН.
+    /// </summary>
+    private static void AppendBottomConstantBlock(StringBuilder sb)
+    {
+        sb.AppendLine("<div class=\"bottom-const\">");
+
+        sb.AppendLine("<p class=\"bottom-section-title\">ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ:</p>");
+        AppendLinedRows(sb, rowCount: 4, firstLineText: string.Empty);
+
+        sb.AppendLine("<p class=\"bottom-section-title\">ЗАМЕЧАНИЯ И РЕКОМЕНДАЦИИ:</p>");
+        AppendLinedRows(sb, rowCount: 4, firstLineText: string.Empty);
+
+        sb.AppendLine("<table class=\"signature-grid\" cellspacing=\"0\" cellpadding=\"0\"><tr>");
+        sb.AppendLine("<td style=\"width:48%;padding-right:18pt;\">");
+        sb.AppendLine("<p class=\"signature-title\">Представитель<br/>ИСПОЛНИТЕЛЯ<br/>Работу выполнил.</p>");
+        AppendSignatureFields(sb);
+        sb.AppendLine("</td>");
+        sb.AppendLine("<td style=\"width:4%;\">&nbsp;</td>");
+        sb.AppendLine("<td style=\"width:48%;padding-left:18pt;\">");
+        sb.AppendLine("<p class=\"signature-title\">Представитель<br/>ЗАКАЗЧИКА:<br/>Выполнение работ подтверждаю.</p>");
+        AppendSignatureFields(sb);
+        sb.AppendLine("</td>");
+        sb.AppendLine("</tr></table>");
+
+        sb.AppendLine("<div class=\"footer-brand\">");
+        sb.AppendLine("<div class=\"footer-rule\">&nbsp;</div>");
+        sb.AppendLine("<table class=\"footer-meta\" cellspacing=\"0\" cellpadding=\"0\"><tr>");
+        sb.AppendLine("<td>www. brandschutz.ru</td>");
+        sb.AppendLine("<td class=\"right\">ИНН 7726589854</td>");
+        sb.AppendLine("</tr></table>");
+        sb.AppendLine("</div>");
+
+        sb.AppendLine("</div>");
+    }
+
+    /// <summary>
+    /// Рисует несколько горизонтальных строк.
+    /// Текст можно печатать прямо поверх линии (line не пропадает, остается границей строки).
+    /// </summary>
+    private static void AppendLinedRows(StringBuilder sb, int rowCount, string? firstLineText)
+    {
+        sb.AppendLine("<table class=\"lined-table\" cellspacing=\"0\" cellpadding=\"0\">");
+        for (var i = 0; i < rowCount; i++)
+        {
+            var text = i == 0 ? firstLineText : string.Empty;
+            sb.Append("<tr><td>").Append(Html(text)).AppendLine("</td></tr>");
+        }
+
+        sb.AppendLine("</table>");
+    }
+
+    private static void AppendSignatureFields(StringBuilder sb)
+    {
+        sb.AppendLine("<table class=\"signature-fields\" cellspacing=\"0\" cellpadding=\"0\">");
+        AppendSignatureRow(sb, "Должность:");
+        AppendSignatureRow(sb, "ФИО:");
+        AppendSignatureRow(sb, "Подпись:");
+        sb.AppendLine("</table>");
+    }
+
+    private static void AppendSignatureRow(StringBuilder sb, string label)
+    {
+        sb.AppendLine("<tr>");
+        sb.Append("<td class=\"signature-label\">").Append(Html(label)).AppendLine("</td>");
+        sb.AppendLine("<td><span class=\"signature-line\">&nbsp;</span></td>");
+        sb.AppendLine("</tr>");
     }
 
     private static void AppendEquipmentStateSection(StringBuilder sb, ActExportProfile profile, EquipmentStateFlags st)

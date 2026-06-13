@@ -5,7 +5,7 @@ namespace MRS.Infrastructure.Sqlite;
 
 public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 {
-	public const int CurrentSchemaVersion = 6;
+	public const int CurrentSchemaVersion = 7;
 
 	private const string SchemaResourceName = "MRS.Infrastructure.Sqlite.Schema.sql";
 	private const string SeedResourceName = "MRS.Infrastructure.Sqlite.Seed.sql";
@@ -14,6 +14,7 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 	private const string EquipmentFullResourceName = "MRS.Infrastructure.Sqlite.EquipmentFull.sql";
 	private const string TemplatesDemoResourceName = "MRS.Infrastructure.Sqlite.TemplatesDemo.sql";
 	private const string MosarchiveTemplatesResourceName = "MRS.Infrastructure.Sqlite.MosarchiveTemplates.sql";
+	private const string AdminSupportResourceName = "MRS.Infrastructure.Sqlite.AdminSupport.sql";
 
 	public async Task<LocalDatabaseStatus> EnsureReadyAsync(string databaseFilePath, CancellationToken cancellationToken = default)
 	{
@@ -83,6 +84,14 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 				await SqliteScriptRunner.ExecuteScriptAsync(connection, mos, cancellationToken).ConfigureAwait(false);
 				await WriteUserVersionAsync(connection, 6, cancellationToken).ConfigureAwait(false);
 				version = 6;
+			}
+
+			if (version < 7)
+			{
+				var adminSupport = await ReadEmbeddedResourceAsync(AdminSupportResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, adminSupport, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 7, cancellationToken).ConfigureAwait(false);
+				version = 7;
 			}
 
 			var fieldTypes = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM field_types;", cancellationToken).ConfigureAwait(false);
