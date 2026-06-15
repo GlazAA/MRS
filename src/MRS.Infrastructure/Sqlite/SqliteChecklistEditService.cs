@@ -1,20 +1,13 @@
 using System.Globalization;
 using Microsoft.Data.Sqlite;
 using MRS.Application.Checklists;
+using MRS.Application.Facilities;
 using MRS.Application.Storage;
 
 namespace MRS.Infrastructure.Sqlite;
 
 public sealed class SqliteChecklistEditService : IChecklistEditService
 {
-	private static readonly HashSet<string> LockedFieldCodes = new(StringComparer.OrdinalIgnoreCase)
-	{
-		"unit_number",
-		"equipment_pick",
-		"start_time",
-		"end_time"
-	};
-
 	private readonly ILocalDatabasePath _paths;
 	private readonly ILocalDatabaseBootstrapper _bootstrapper;
 
@@ -37,7 +30,9 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 				c.start_at,
 				c.end_at,
 				c.status,
-				COALESCE(o.short_name, o.full_name) AS organization_name,
+				o.full_name AS org_full_name,
+				o.short_name AS org_short_name,
+				o.legal_form_code AS org_legal_form_code,
 				f.name AS facility_name,
 				et.type_name AS equipment_type_name,
 				COALESCE(NULLIF(TRIM(i.custom_name), ''), CAST(i.id AS TEXT)) AS installation_label,
@@ -66,25 +61,25 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 
 		var id = infoReader.GetInt32(0);
 		var installationId = infoReader.GetInt32(1);
-		if (!infoReader.IsDBNull(2) && DateTimeOffset.TryParse(infoReader.GetString(2), out var s))
+		if (!infoReader.IsDBNull(2) && SqliteDateTimeParsing.TryParseStored(infoReader.GetString(2), out var s))
 			startAt = s;
-		if (!infoReader.IsDBNull(3) && DateTimeOffset.TryParse(infoReader.GetString(3), out var e))
+		if (!infoReader.IsDBNull(3) && SqliteDateTimeParsing.TryParseStored(infoReader.GetString(3), out var e))
 			endAt = e;
 
 		var statusCode = infoReader.GetString(4);
-		var org = infoReader.GetString(5);
-		var facility = infoReader.GetString(6);
-		var equipmentType = infoReader.GetString(7);
-		var installationLabel = infoReader.GetString(8);
-		var maintenanceType = infoReader.GetString(9);
-		int? templateId = infoReader.IsDBNull(12) ? null : infoReader.GetInt32(12);
+		var org = SqliteOrganizationName.ReadListName(infoReader, 5, 6, 7);
+		var facility = infoReader.GetString(8);
+		var equipmentType = infoReader.GetString(9);
+		var installationLabel = infoReader.GetString(10);
+		var maintenanceType = infoReader.GetString(11);
+		int? templateId = infoReader.IsDBNull(14) ? null : infoReader.GetInt32(14);
 
 		// demo-данные могут хранить checklist_template_id = NULL.
 		// Тогда находим актуальный шаблон по (equipment_type_id, maintenance_type_id).
 		if (templateId is null)
 		{
-			var equipmentTypeId = infoReader.GetInt32(10);
-			var maintenanceTypeId = infoReader.GetInt32(11);
+			var equipmentTypeId = infoReader.GetInt32(12);
+			var maintenanceTypeId = infoReader.GetInt32(13);
 
 			using var resolve = connection.CreateCommand();
 			resolve.CommandText = """
@@ -159,7 +154,7 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 			var hint = itemReader.IsDBNull(3) ? null : itemReader.GetString(3);
 			var fieldType = itemReader.GetString(4);
 
-			var isLocked = fieldCode is not null && LockedFieldCodes.Contains(fieldCode);
+			var isLocked = ChecklistEditFieldRules.IsLocked(fieldCode);
 
 			var options = await LoadOptionsAsync(connection, templateItemId, cancellationToken).ConfigureAwait(false);
 
@@ -249,28 +244,167 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 	}
 
+	public async Task<int> BeginInProgressAsync(BeginInProgressChecklistRequest request, CancellationToken cancellationToken = default)
+	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			INSERT INTO checklists (
+				installation_id, maintenance_type_id, engineer_id, checklist_template_id,
+				start_at, end_at, status, sync_state, local_updated_at)
+			VALUES (
+				$i, $m, $e, $t,
+				$start, NULL, 'in_progress', 'local', datetime('now'));
+			SELECT last_insert_rowid();
+			""";
+		cmd.Parameters.AddWithValue("$i", request.InstallationId);
+		cmd.Parameters.AddWithValue("$m", request.MaintenanceTypeId);
+		cmd.Parameters.AddWithValue("$e", request.EngineerUserId);
+		cmd.Parameters.AddWithValue("$t", request.ChecklistTemplateId);
+		cmd.Parameters.AddWithValue("$start", request.WorkStartedAt.ToString("O", CultureInfo.InvariantCulture));
+		var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+		return scalar is long l ? (int)l : Convert.ToInt32(scalar ?? throw new InvalidOperationException("Не удалось создать контрольный лист."));
+	}
+
+	public async Task PauseWorkAsync(int checklistId, CancellationToken cancellationToken = default)
+	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		var now = DateTimeOffset.Now;
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			UPDATE checklists
+			SET end_at = $end,
+			    local_updated_at = datetime('now')
+			WHERE id = $id
+			  AND is_active = 1
+			  AND status = 'in_progress'
+			  AND end_at IS NULL;
+			""";
+		cmd.Parameters.AddWithValue("$id", checklistId);
+		cmd.Parameters.AddWithValue("$end", now.ToString("O", CultureInfo.InvariantCulture));
+		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+	}
+
+	public async Task ResumeWorkAsync(int checklistId, CancellationToken cancellationToken = default)
+	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		var timing = await ReadWorkTimingAsync(connection, checklistId, cancellationToken).ConfigureAwait(false);
+		if (timing is not { StartedAt: { } startedAt, EndedAt: { } endedAt, StatusCode: "in_progress" })
+			return;
+
+		var elapsed = endedAt - startedAt;
+		if (elapsed < TimeSpan.Zero)
+			elapsed = TimeSpan.Zero;
+
+		var now = DateTimeOffset.Now;
+		var newStartAt = now - elapsed;
+
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			UPDATE checklists
+			SET start_at = $start,
+			    end_at = NULL,
+			    local_updated_at = datetime('now')
+			WHERE id = $id AND is_active = 1 AND status = 'in_progress';
+			""";
+		cmd.Parameters.AddWithValue("$id", checklistId);
+		cmd.Parameters.AddWithValue("$start", newStartAt.ToString("O", CultureInfo.InvariantCulture));
+		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+	}
+
+	public async Task CompleteWorkAsync(int checklistId, CancellationToken cancellationToken = default)
+	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		var timing = await ReadWorkTimingAsync(connection, checklistId, cancellationToken).ConfigureAwait(false);
+		if (timing is not { } work)
+			throw new InvalidOperationException("Контрольный лист не найден (или неактивен).");
+
+		var endAt = work.EndedAt ?? DateTimeOffset.Now;
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			UPDATE checklists
+			SET status = 'completed',
+			    sync_state = 'pending_upload',
+			    end_at = $end,
+			    start_at = COALESCE(start_at, $end),
+			    local_updated_at = datetime('now')
+			WHERE id = $id AND is_active = 1;
+			""";
+		cmd.Parameters.AddWithValue("$id", checklistId);
+		cmd.Parameters.AddWithValue("$end", endAt.ToString("O", CultureInfo.InvariantCulture));
+		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+	}
+
+	private static async Task<(DateTimeOffset? StartedAt, DateTimeOffset? EndedAt, string StatusCode)?> ReadWorkTimingAsync(
+		SqliteConnection connection,
+		int checklistId,
+		CancellationToken cancellationToken)
+	{
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			SELECT start_at, end_at, status
+			FROM checklists
+			WHERE id = $id AND is_active = 1;
+			""";
+		cmd.Parameters.AddWithValue("$id", checklistId);
+		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+		if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+			return null;
+
+		DateTimeOffset? started = null;
+		if (!reader.IsDBNull(0) && SqliteDateTimeParsing.TryParseStored(reader.GetString(0), out var s))
+			started = s;
+
+		DateTimeOffset? ended = null;
+		if (!reader.IsDBNull(1) && SqliteDateTimeParsing.TryParseStored(reader.GetString(1), out var e))
+			ended = e;
+
+		return (started, ended, reader.GetString(2));
+	}
+
 	public async Task<ChecklistUpdateDryRunResult> ValidateAsync(UpdateChecklistAnswersRequest request, CancellationToken cancellationToken = default)
 	{
 		var model = await GetForEditAsync(request.ChecklistId, cancellationToken).ConfigureAwait(false);
 
-		// Editable = all template items except those locked by fork-dependent selections.
-		var editable = model.Fields.Where(f => !f.IsLocked).ToList();
-
 		var canSave = new List<ChecklistUpdateDryRunField>();
 		var cannotSave = new List<ChecklistUpdateDryRunField>();
 
-		foreach (var field in editable)
+		foreach (var field in model.Fields)
 		{
 			var raw = request.AnswersByTemplateItemId.TryGetValue(field.TemplateItemId, out var v) ? v : field.ValueRaw;
+			if (ChecklistEditFieldRules.ValuesEqual(raw, field.ValueRaw))
+				continue;
+
+			if (field.IsLocked)
+			{
+				cannotSave.Add(new ChecklistUpdateDryRunField(
+					field.TemplateItemId,
+					field.QuestionText,
+					field.FieldCode,
+					ChecklistEditFieldRules.GetLockReason(field.FieldCode),
+					TrimDisplay(raw)));
+				continue;
+			}
+
 			try
 			{
 				await TryApplySingleInternalAsync(request.ChecklistId, model.Info.ChecklistTemplateId, field, raw, dryRun: true, cancellationToken)
 					.ConfigureAwait(false);
-				canSave.Add(new ChecklistUpdateDryRunField(field.TemplateItemId, field.QuestionText));
+				canSave.Add(new ChecklistUpdateDryRunField(
+					field.TemplateItemId,
+					field.QuestionText,
+					field.FieldCode,
+					null,
+					TrimDisplay(raw)));
 			}
-			catch
+			catch (Exception ex)
 			{
-				cannotSave.Add(new ChecklistUpdateDryRunField(field.TemplateItemId, field.QuestionText));
+				cannotSave.Add(new ChecklistUpdateDryRunField(
+					field.TemplateItemId,
+					field.QuestionText,
+					field.FieldCode,
+					ex.Message,
+					TrimDisplay(raw)));
 			}
 		}
 
@@ -278,6 +412,12 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 			cannotSave.Count == 0,
 			canSave,
 			cannotSave);
+	}
+
+	private static string? TrimDisplay(string? value)
+	{
+		var t = (value ?? string.Empty).Trim();
+		return t.Length == 0 ? null : t;
 	}
 
 	public async Task<ChecklistUpdateApplyResult> ApplyAsync(
@@ -550,7 +690,7 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		await updText.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 	}
 
-	private static async Task UpdateChecklistDatesIfNeededAsync(
+	private static Task UpdateChecklistDatesIfNeededAsync(
 		SqliteConnection connection,
 		SqliteTransaction tx,
 		int checklistId,
@@ -558,52 +698,14 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		string raw,
 		CancellationToken cancellationToken)
 	{
-		if (field.FieldCode is null)
-			return;
-
-		var now = DateTimeOffset.Now;
-		if (field.FieldCode.Equals("start_date", StringComparison.OrdinalIgnoreCase))
-		{
-			var date = ParseDateOnly(raw);
-			if (date is null)
-				throw new InvalidOperationException("Некорректная дата начала.");
-
-			var local = new DateTime(date.Value.Year, date.Value.Month, date.Value.Day, now.Hour, now.Minute, 0, DateTimeKind.Local);
-			var dto = new DateTimeOffset(local);
-
-			using var cmd = connection.CreateCommand();
-			cmd.Transaction = tx;
-			cmd.CommandText = """
-				UPDATE checklists
-				SET start_at = $s, local_updated_at = datetime('now')
-				WHERE id = $cid;
-				""";
-			cmd.Parameters.AddWithValue("$cid", checklistId);
-			cmd.Parameters.AddWithValue("$s", dto.ToString("O", CultureInfo.InvariantCulture));
-			await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-			return;
-		}
-
-		if (field.FieldCode.Equals("end_date", StringComparison.OrdinalIgnoreCase))
-		{
-			var date = ParseDateOnly(raw);
-			if (date is null)
-				throw new InvalidOperationException("Некорректная дата окончания.");
-
-			var local = new DateTime(date.Value.Year, date.Value.Month, date.Value.Day, now.Hour, now.Minute, 0, DateTimeKind.Local);
-			var dto = new DateTimeOffset(local);
-
-			using var cmd = connection.CreateCommand();
-			cmd.Transaction = tx;
-			cmd.CommandText = """
-				UPDATE checklists
-				SET end_at = $e, local_updated_at = datetime('now')
-				WHERE id = $cid;
-				""";
-			cmd.Parameters.AddWithValue("$cid", checklistId);
-			cmd.Parameters.AddWithValue("$e", dto.ToString("O", CultureInfo.InvariantCulture));
-			await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-		}
+		// start_at / end_at управляются сессией учёта (Begin/Pause/Resume/Complete), не полями формы.
+		_ = connection;
+		_ = tx;
+		_ = checklistId;
+		_ = field;
+		_ = raw;
+		_ = cancellationToken;
+		return Task.CompletedTask;
 	}
 
 	private static DateOnly? ParseDateOnly(string raw)

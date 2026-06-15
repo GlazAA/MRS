@@ -38,10 +38,6 @@ else
                 <button type="button" class="mrs-fork-item" @onclick="() => GoCreate(fork.MaintenanceTypeId)">
                     <span class="mrs-fork-title">@fork.MaintenanceTypeName</span>
                     <span class="mrs-fork-sub">@fork.TemplateName</span>
-                    @if (!string.IsNullOrWhiteSpace(fork.MaintenanceCode))
-                    {
-                        <span class="mrs-fork-code">@fork.MaintenanceCode</span>
-                    }
                 </button>
             </li>
         }

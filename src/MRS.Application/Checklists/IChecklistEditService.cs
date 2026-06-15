@@ -13,5 +13,17 @@ public interface IChecklistEditService
 
 	/// <summary>Обновляет статус и состояние синхронизации листа (например, при завершении).</summary>
 	Task SetStatusAsync(int checklistId, string status, string syncState, CancellationToken cancellationToken = default);
+
+	/// <summary>Создаёт лист «В работе» и фиксирует момент начала учёта времени.</summary>
+	Task<int> BeginInProgressAsync(BeginInProgressChecklistRequest request, CancellationToken cancellationToken = default);
+
+	/// <summary>Ставит учёт времени на паузу (end_at = сейчас), статус остаётся in_progress.</summary>
+	Task PauseWorkAsync(int checklistId, CancellationToken cancellationToken = default);
+
+	/// <summary>Возобновляет учёт времени с накопленным ранее интервалом.</summary>
+	Task ResumeWorkAsync(int checklistId, CancellationToken cancellationToken = default);
+
+	/// <summary>Завершает лист и фиксирует end_at (если ещё не зафиксирован).</summary>
+	Task CompleteWorkAsync(int checklistId, CancellationToken cancellationToken = default);
 }
 

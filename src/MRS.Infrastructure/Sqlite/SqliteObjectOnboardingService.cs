@@ -38,7 +38,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
     {
         var installationLabel = (request.InstallationLabel ?? string.Empty).Trim();
         if (installationLabel.Length == 0)
-            throw new InvalidOperationException("Укажите номер/название установки.");
+            throw new InvalidOperationException("Укажите проектный номер установки.");
 
         await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
         await using var tx = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
@@ -86,10 +86,14 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
             return (existingId, false);
         }
 
-        var full = (request.NewOrganizationFullName ?? string.Empty).Trim();
-        if (full.Length == 0)
-            throw new InvalidOperationException("Укажите название организации.");
-        var shortName = (request.NewOrganizationShortName ?? string.Empty).Trim();
+        var legalFormCode = (request.NewOrganizationLegalFormCode ?? string.Empty).Trim();
+        var companyName = (request.NewOrganizationCompanyName ?? string.Empty).Trim();
+        if (legalFormCode.Length == 0)
+            throw new InvalidOperationException("Укажите юридический статус.");
+        if (!OrganizationLegalForm.IsValidCode(legalFormCode))
+            throw new InvalidOperationException("Некорректный юридический статус.");
+        if (companyName.Length == 0)
+            throw new InvalidOperationException("Укажите название компании.");
 
         using (var find = connection.CreateCommand())
         {
@@ -98,10 +102,11 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
                 SELECT id
                 FROM organizations
                 WHERE is_active = 1
-                  AND (TRIM(full_name) = $full OR TRIM(COALESCE(short_name, '')) = $short);
+                  AND legal_form_code = $form
+                  AND TRIM(full_name) = $name;
                 """;
-            find.Parameters.AddWithValue("$full", full);
-            find.Parameters.AddWithValue("$short", shortName);
+            find.Parameters.AddWithValue("$form", legalFormCode);
+            find.Parameters.AddWithValue("$name", companyName);
             var existing = await find.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             if (existing is not null)
                 return (Convert.ToInt32(existing), false);
@@ -110,12 +115,12 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         using var insert = connection.CreateCommand();
         insert.Transaction = tx;
         insert.CommandText = """
-            INSERT INTO organizations (full_name, short_name, is_active)
-            VALUES ($full, $short, 1);
+            INSERT INTO organizations (full_name, short_name, legal_form_code, is_active)
+            VALUES ($name, NULL, $form, 1);
             SELECT last_insert_rowid();
             """;
-        insert.Parameters.AddWithValue("$full", full);
-        insert.Parameters.AddWithValue("$short", shortName.Length == 0 ? DBNull.Value : shortName);
+        insert.Parameters.AddWithValue("$name", companyName);
+        insert.Parameters.AddWithValue("$form", legalFormCode);
         var scalar = await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return (scalar is long l ? (int)l : Convert.ToInt32(scalar), true);
     }
@@ -146,7 +151,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
 
         var facilityName = (request.NewFacilityName ?? string.Empty).Trim();
         if (facilityName.Length == 0)
-            throw new InvalidOperationException("Укажите название объекта.");
+            throw new InvalidOperationException("Укажите название объекта для акта.");
 
         using (var find = connection.CreateCommand())
         {
@@ -164,26 +169,28 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
                 return (Convert.ToInt32(existing), false);
         }
 
+        var contractAddress = (request.ContractAddress ?? string.Empty).Trim();
         var city = (request.AddressCity ?? string.Empty).Trim();
         var street = (request.AddressStreet ?? string.Empty).Trim();
         var building = (request.AddressBuilding ?? string.Empty).Trim();
         if (city.Length == 0 || street.Length == 0 || building.Length == 0)
-            throw new InvalidOperationException("Для нового объекта заполните адрес: город, улица и дом.");
+            throw new InvalidOperationException("Для нового объекта заполните реальный адрес: город, улица и дом.");
 
         int addressId;
         using (var insertAddress = connection.CreateCommand())
         {
             insertAddress.Transaction = tx;
             insertAddress.CommandText = """
-                INSERT INTO organization_addresses (zip_code, country, region, city, street, building)
-                VALUES ($zip, 'Россия', $region, $city, $street, $building);
+                INSERT INTO organization_addresses (zip_code, country, city, street, building, structure, block)
+                VALUES ($zip, 'Россия', $city, $street, $building, $structure, $block);
                 SELECT last_insert_rowid();
                 """;
             insertAddress.Parameters.AddWithValue("$zip", NullIfEmpty(request.AddressZipCode));
-            insertAddress.Parameters.AddWithValue("$region", NullIfEmpty(request.AddressRegion));
             insertAddress.Parameters.AddWithValue("$city", city);
             insertAddress.Parameters.AddWithValue("$street", street);
             insertAddress.Parameters.AddWithValue("$building", building);
+            insertAddress.Parameters.AddWithValue("$structure", NullIfEmpty(request.AddressStructure));
+            insertAddress.Parameters.AddWithValue("$block", NullIfEmpty(request.AddressBlock));
             var s = await insertAddress.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             addressId = s is long l ? (int)l : Convert.ToInt32(s);
         }
@@ -191,13 +198,14 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         using var insertFacility = connection.CreateCommand();
         insertFacility.Transaction = tx;
         insertFacility.CommandText = """
-            INSERT INTO facilities (organization_id, name, address_id, ui_flow, is_active)
-            VALUES ($org, $name, $addr, 'hierarchical', 1);
+            INSERT INTO facilities (organization_id, name, address_id, contract_address, ui_flow, is_active)
+            VALUES ($org, $name, $addr, $contract, 'hierarchical', 1);
             SELECT last_insert_rowid();
             """;
         insertFacility.Parameters.AddWithValue("$org", organizationId);
         insertFacility.Parameters.AddWithValue("$name", facilityName);
         insertFacility.Parameters.AddWithValue("$addr", addressId);
+        insertFacility.Parameters.AddWithValue("$contract", NullIfEmpty(contractAddress));
         var scalar = await insertFacility.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return (scalar is long l2 ? (int)l2 : Convert.ToInt32(scalar), true);
     }
@@ -209,26 +217,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         int facilityId,
         CancellationToken cancellationToken)
     {
-        if (request.ExistingSystemId is int existingId)
-        {
-            using var check = connection.CreateCommand();
-            check.Transaction = tx;
-            check.CommandText = """
-                SELECT COUNT(1)
-                FROM facility_systems
-                WHERE id = $id AND facility_id = $fid AND is_active = 1;
-                """;
-            check.Parameters.AddWithValue("$id", existingId);
-            check.Parameters.AddWithValue("$fid", facilityId);
-            var ok = Convert.ToInt32(await check.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) > 0;
-            if (!ok)
-                throw new InvalidOperationException("Выбранная система не принадлежит выбранному объекту.");
-            return (existingId, false);
-        }
-
-        var systemName = (request.NewSystemName ?? string.Empty).Trim();
-        if (systemName.Length == 0)
-            throw new InvalidOperationException("Укажите название системы.");
+        var systemName = DefaultFacilitySystem.Name;
 
         using (var find = connection.CreateCommand())
         {
@@ -243,7 +232,12 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
             find.Parameters.AddWithValue("$name", systemName);
             var existing = await find.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             if (existing is not null)
-                return (Convert.ToInt32(existing), false);
+            {
+                var id = Convert.ToInt32(existing);
+                await UpdateSystemDescriptionAsync(connection, tx, id, request.SystemDescription, cancellationToken)
+                    .ConfigureAwait(false);
+                return (id, false);
+            }
         }
 
         using var insert = connection.CreateCommand();
@@ -255,9 +249,32 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
             """;
         insert.Parameters.AddWithValue("$fid", facilityId);
         insert.Parameters.AddWithValue("$name", systemName);
-        insert.Parameters.AddWithValue("$descr", NullIfEmpty(request.NewSystemDescription));
+        insert.Parameters.AddWithValue("$descr", NullIfEmpty(request.SystemDescription));
         var scalar = await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return (scalar is long l ? (int)l : Convert.ToInt32(scalar), true);
+    }
+
+    private static async Task UpdateSystemDescriptionAsync(
+        SqliteConnection connection,
+        SqliteTransaction tx,
+        int systemId,
+        string? description,
+        CancellationToken cancellationToken)
+    {
+        var text = (description ?? string.Empty).Trim();
+        if (text.Length == 0)
+            return;
+
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = """
+            UPDATE facility_systems
+            SET description = $descr
+            WHERE id = $id;
+            """;
+        cmd.Parameters.AddWithValue("$id", systemId);
+        cmd.Parameters.AddWithValue("$descr", text);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<(int Id, bool Created)> EnsureEquipmentTypeAsync(
@@ -281,7 +298,6 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         var typeName = (request.NewEquipmentTypeName ?? string.Empty).Trim();
         if (typeName.Length == 0)
             throw new InvalidOperationException("Укажите тип оборудования.");
-        var code = (request.NewEquipmentTypeCode ?? string.Empty).Trim();
 
         using (var find = connection.CreateCommand())
         {
@@ -302,11 +318,10 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         insert.Transaction = tx;
         insert.CommandText = """
             INSERT INTO equipment_types (type_name, code)
-            VALUES ($name, $code);
+            VALUES ($name, NULL);
             SELECT last_insert_rowid();
             """;
         insert.Parameters.AddWithValue("$name", typeName);
-        insert.Parameters.AddWithValue("$code", NullIfEmpty(code));
         var scalar = await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return (scalar is long l ? (int)l : Convert.ToInt32(scalar), true);
     }

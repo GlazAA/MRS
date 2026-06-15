@@ -44,13 +44,7 @@ else
 
     <div class="mrs-field">
         <label class="mrs-label">Выбор системы</label>
-        <select class="mrs-select" @onchange="OnSystemChange" disabled="@(_busy || _facilityId is null)">
-            <option value="" selected="@(_systemId is null)">Введите/выберете…</option>
-            @foreach (var s in _systems)
-            {
-                <option value="@s.Id" selected="@(_systemId == s.Id)">@s.Name</option>
-            }
-        </select>
+        <input class="mrs-select" type="text" value="@DefaultFacilitySystem.Name" disabled readonly />
     </div>
 
     <div class="mrs-actions">
@@ -85,6 +79,7 @@ else
             {
                 @foreach (var row in _historyRows)
                 {
+                    var duration = FormatDuration(row.StartedAt, row.EndedAt);
                     if (row.IsClickable)
                     {
                         <button type="button"
@@ -93,7 +88,7 @@ else
                                 @onclick="() => OpenInProgressChecklist(row)">
                             <span>@row.Type</span>
                             <span>@row.Date</span>
-                            <span>@row.Duration</span>
+                            <span>@duration</span>
                             <span class="mrs-info-status mrs-info-status-progress">@row.Status</span>
                         </button>
                     }
@@ -102,14 +97,13 @@ else
                         <div class="mrs-info-row mrs-info-row-readonly" role="row" aria-disabled="true">
                             <span>@row.Type</span>
                             <span>@row.Date</span>
-                            <span>@row.Duration</span>
+                            <span>@duration</span>
                             <span class="mrs-info-status mrs-info-status-done">@row.Status</span>
                         </div>
                     }
                 }
             }
         </div>
-        @* поясняющая подпись убрана по требованию ТЗ *@
     </section>
 }
 
@@ -120,7 +114,6 @@ else
 
 	private readonly List<HierarchyOption> _organizations = [];
 	private readonly List<HierarchyOption> _facilities = [];
-	private readonly List<HierarchyOption> _systems = [];
 	private readonly List<HistoryRow> _historyRows = [];
 
 	private int? _organizationId;
@@ -166,27 +159,24 @@ else
 			_facilityId = null;
 			_systemId = null;
 			_facilities.Clear();
-			_systems.Clear();
 			_historyRows.Clear();
-			_facilities.AddRange(await Hierarchy.GetFacilitiesAsync(qOrg).ConfigureAwait(false));
+			_facilities.AddRange(await Hierarchy.GetFacilitiesWithAddressAsync(qOrg).ConfigureAwait(false));
 		}
 
 		if (FacilityId is int qFac && _facilities.Any(f => f.Id == qFac) && _facilityId != qFac)
 		{
 			_facilityId = qFac;
-			_systemId = null;
-			_systems.Clear();
 			_historyRows.Clear();
-			_systems.AddRange(await Hierarchy.GetSystemsAsync(qFac).ConfigureAwait(false));
+			await SelectDefaultSystemAsync(qFac, SystemId).ConfigureAwait(false);
+		}
+		else if (FacilityId is int qFac2 && _facilityId == qFac2 && _systemId is null)
+		{
+			await SelectDefaultSystemAsync(qFac2, SystemId).ConfigureAwait(false);
 		}
 
-		if (SystemId is int qSys && _systems.Any(s => s.Id == qSys))
+		if (SystemId is int qSys && _systemId == qSys && _historyRows.Count == 0)
 		{
-			if (_systemId != qSys)
-			{
-				_systemId = qSys;
-				await ReloadHistoryAsync(qSys).ConfigureAwait(false);
-			}
+			await ReloadHistoryAsync(qSys).ConfigureAwait(false);
 		}
 	}
 
@@ -196,7 +186,6 @@ else
 		_facilityId = null;
 		_systemId = null;
 		_facilities.Clear();
-		_systems.Clear();
 		_historyRows.Clear();
 		_historyError = null;
 		if (_organizationId is int oid)
@@ -204,7 +193,7 @@ else
 			_busy = true;
 			try
 			{
-				_facilities.AddRange(await Hierarchy.GetFacilitiesAsync(oid).ConfigureAwait(false));
+				_facilities.AddRange(await Hierarchy.GetFacilitiesWithAddressAsync(oid).ConfigureAwait(false));
 			}
 			finally
 			{
@@ -217,7 +206,6 @@ else
 	{
 		ParseSelection(e.Value, out _facilityId);
 		_systemId = null;
-		_systems.Clear();
 		_historyRows.Clear();
 		_historyError = null;
 		if (_facilityId is int fid)
@@ -225,7 +213,7 @@ else
 			_busy = true;
 			try
 			{
-				_systems.AddRange(await Hierarchy.GetSystemsAsync(fid).ConfigureAwait(false));
+				await SelectDefaultSystemAsync(fid, preferredSystemId: null).ConfigureAwait(false);
 			}
 			finally
 			{
@@ -234,23 +222,27 @@ else
 		}
 	}
 
-	private async Task OnSystemChange(ChangeEventArgs e)
+	private async Task SelectDefaultSystemAsync(int facilityId, int? preferredSystemId)
 	{
-		ParseSelection(e.Value, out _systemId);
+		_systemId = null;
 		_historyRows.Clear();
 		_historyError = null;
-		if (_systemId is not int sid)
-			return;
 
-		_busy = true;
-		try
+		var systems = await Hierarchy.GetSystemsAsync(facilityId).ConfigureAwait(false);
+		var match = preferredSystemId is int preferred && systems.Any(s => s.Id == preferred)
+			? systems.First(s => s.Id == preferred)
+			: systems.FirstOrDefault(s =>
+				string.Equals(s.Name, DefaultFacilitySystem.Name, StringComparison.OrdinalIgnoreCase))
+			  ?? systems.FirstOrDefault();
+
+		if (match is null)
 		{
-			await ReloadHistoryAsync(sid).ConfigureAwait(false);
+			_historyError = "На объекте не найдена система.";
+			return;
 		}
-		finally
-		{
-			_busy = false;
-		}
+
+		_systemId = match.Id;
+		await ReloadHistoryAsync(match.Id).ConfigureAwait(false);
 	}
 
 	private async Task ReloadHistoryAsync(int facilitySystemId)
@@ -264,7 +256,6 @@ else
 			{
 				var local = r.StartedAt?.ToLocalTime();
 				var d = local?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "—";
-				var duration = FormatDuration(r.StartedAt, r.EndedAt);
 				var statusLabel = FormatStatus(r.StatusCode);
 				var clickable = r.StatusCode == "in_progress";
 				_historyRows.Add(new HistoryRow(
@@ -273,7 +264,8 @@ else
 					r.MaintenanceTypeId,
 					r.EquipmentTypeName,
 					d,
-					duration,
+					r.StartedAt,
+					r.EndedAt,
 					statusLabel,
 					r.StatusCode,
 					clickable));
@@ -292,20 +284,8 @@ else
 		_ => code
 	};
 
-	private static string FormatDuration(DateTimeOffset? started, DateTimeOffset? ended)
-	{
-		if (started is null || ended is null)
-			return "—";
-
-		var span = ended.Value - started.Value;
-		if (span.TotalMinutes < 1)
-			return "< 1 мин";
-
-		if (span.TotalHours < 1)
-			return $"{(int)span.TotalMinutes} мин";
-
-		return $"{(int)span.TotalHours} ч {(int)span.Minutes} мин";
-	}
+	private static string FormatDuration(DateTimeOffset? started, DateTimeOffset? ended) =>
+		ChecklistDurationFormatter.Format(started, ended);
 
 	private void OpenInProgressChecklist(HistoryRow row)
 	{
@@ -338,7 +318,8 @@ else
 		int MaintenanceTypeId,
 		string Type,
 		string Date,
-		string Duration,
+		DateTimeOffset? StartedAt,
+		DateTimeOffset? EndedAt,
 		string Status,
 		string StatusCode,
 		bool IsClickable);

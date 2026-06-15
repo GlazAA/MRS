@@ -27,15 +27,26 @@ public sealed class SqliteChecklistSaveService : IChecklistSaveService
 			if (items.Count == 0)
 				return new ChecklistSaveResult(false, null, "В шаблоне нет полей для сохранения.");
 
-			var startAt = CombineDateTime(request.AnswersByTemplateItemId, items, "start_date", "start_time");
-			var endAt = CombineDateTime(request.AnswersByTemplateItemId, items, "end_date", "end_time");
-
+			var now = DateTimeOffset.Now;
 			var (status, syncState) = request.PersistenceMode switch
 			{
-				ChecklistPersistenceMode.LocalDraft => ("draft", "local"),
+				ChecklistPersistenceMode.LocalDraft => ("in_progress", "local"),
 				ChecklistPersistenceMode.UploadQueue => ("completed", "pending_upload"),
-				_ => ("draft", "local")
+				_ => ("in_progress", "local")
 			};
+
+			DateTimeOffset? startAt;
+			DateTimeOffset? endAt;
+			if (request.PersistenceMode == ChecklistPersistenceMode.LocalDraft)
+			{
+				startAt = now;
+				endAt = now;
+			}
+			else
+			{
+				startAt = CombineDateTime(request.AnswersByTemplateItemId, items, "start_date", "start_time") ?? now;
+				endAt = CombineDateTime(request.AnswersByTemplateItemId, items, "end_date", "end_time") ?? now;
+			}
 
 			var checklistId = await InsertChecklistAsync(
 				connection,

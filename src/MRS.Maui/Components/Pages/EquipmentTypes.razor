@@ -36,10 +36,6 @@ else
             <li>
                 <button type="button" class="mrs-equipment-item" @onclick="() => GoMaintenance(item.Id)">
                     <span class="mrs-equipment-name">@item.Name</span>
-                    @if (!string.IsNullOrWhiteSpace(item.Code))
-                    {
-                        <span class="mrs-equipment-code">@item.Code</span>
-                    }
                 </button>
             </li>
         }

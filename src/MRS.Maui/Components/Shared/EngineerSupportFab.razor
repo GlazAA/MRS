@@ -2,6 +2,7 @@
 @using MRS.Application.Security
 @inject ICurrentUserSession Session
 @inject IAdminSupportRequestService SupportRequests
+@implements IDisposable
 
 @if (Session.IsEngineer)
 {
@@ -20,6 +21,7 @@
                 <p class="mrs-hint" style="margin-top: 0">
                     Опишите проблему: конфликт данных, ошибку сохранения или запрос на ручное вмешательство администратора.
                 </p>
+                <p class="mrs-support-from">От инженера: <strong>@Session.Current.DisplayName</strong></p>
                 <textarea class="mrs-sql-input" rows="5" @bind="_body" placeholder="Текст обращения…"></textarea>
                 @if (_error is not null)
                 {
@@ -27,12 +29,15 @@
                 }
                 @if (_sent)
                 {
-                    <p class="mrs-save-msg">Обращение отправлено. Администратор увидит его в SQL-окне.</p>
+                    <p class="mrs-save-msg">Обращение №@_sentRequestId сохранено. Администратор увидит его в SQL-окне → «Обращения».</p>
                 }
             </div>
             <div class="mrs-form-actions" style="margin-top: 0">
-                <button type="button" class="mrs-btn-secondary" @onclick="CloseModal">Отменить</button>
-                <button type="button" class="mrs-btn-primary" disabled="@_busy || _sent" @onclick="Send">Отправить</button>
+                <button type="button" class="mrs-btn-secondary" @onclick="CloseModal">@(_sent ? "Закрыть" : "Отменить")</button>
+                @if (!_sent)
+                {
+                    <button type="button" class="mrs-btn-primary" disabled="@_busy" @onclick="Send">Отправить</button>
+                }
             </div>
         </div>
     </div>
@@ -42,13 +47,22 @@
     private bool _showModal;
     private bool _busy;
     private bool _sent;
+    private int _sentRequestId;
     private string? _error;
     private string _body = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        Session.Changed += OnSessionChanged;
+    }
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
 
     private void OpenModal()
     {
         _showModal = true;
         _sent = false;
+        _sentRequestId = 0;
         _error = null;
         _body = string.Empty;
     }
@@ -72,7 +86,7 @@
         try
         {
             var user = Session.Current;
-            await SupportRequests.SubmitAsync(user.UserId, user.DisplayName, _body);
+            _sentRequestId = await SupportRequests.SubmitAsync(user.UserId, user.DisplayName, _body);
             _sent = true;
         }
         catch (Exception ex)
@@ -84,4 +98,6 @@
             _busy = false;
         }
     }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
 }

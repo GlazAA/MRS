@@ -7,5 +7,8 @@ public interface IFacilityHierarchyService
 
 	Task<IReadOnlyList<HierarchyOption>> GetFacilitiesAsync(int organizationId, CancellationToken cancellationToken = default);
 
+	/// <summary>Объекты организации с подписью «город, улица, дом» для экрана контрольных листов.</summary>
+	Task<IReadOnlyList<HierarchyOption>> GetFacilitiesWithAddressAsync(int organizationId, CancellationToken cancellationToken = default);
+
 	Task<IReadOnlyList<HierarchyOption>> GetSystemsAsync(int facilityId, CancellationToken cancellationToken = default);
 }

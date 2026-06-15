@@ -1,10 +1,12 @@
 @page "/sql"
+@using System.Globalization
 @using MRS.Application.Admin
 @using MRS.Application.Security
 @inject ICurrentUserSession Session
 @inject ISqlConsoleService SqlConsoleService
 @inject IAdminSupportRequestService SupportRequests
 @inject NavigationManager Nav
+@implements IDisposable
 
 <PageTitle>SQL-окно</PageTitle>
 
@@ -22,8 +24,8 @@ else
     </div>
 
     <div class="mrs-sql-tabs">
-        <button type="button" class="mrs-sql-tab @(_tab == "sql" ? "active" : null)" @onclick='() => _tab = "sql"'>SQL-запросы</button>
-        <button type="button" class="mrs-sql-tab @(_tab == "requests" ? "active" : null)" @onclick='() => _tab = "requests"'>
+        <button type="button" class="mrs-sql-tab @(_tab == "sql" ? "active" : null)" @onclick='() => SelectTabAsync("sql")'>SQL-запросы</button>
+        <button type="button" class="mrs-sql-tab @(_tab == "requests" ? "active" : null)" @onclick='() => SelectTabAsync("requests")'>
             Обращения
             @if (_openCount > 0)
             {
@@ -81,9 +83,13 @@ else
     else
     {
         <div class="mrs-sql-panel">
+            <div class="mrs-form-actions">
+                <button type="button" class="mrs-btn-secondary" disabled="@_busy" @onclick="LoadRequestsAsync">Обновить список</button>
+            </div>
+
             @if (_requests.Count == 0)
             {
-                <p class="mrs-muted">Обращений от пользователей пока нет.</p>
+                <p class="mrs-muted">Обращений от инженеров пока нет.</p>
             }
             else
             {
@@ -91,13 +97,20 @@ else
                 {
                     <div class="mrs-support-card @(req.Status == "open" ? "open" : "resolved")">
                         <div class="mrs-support-head">
-                            <strong>@req.AuthorDisplayName</strong>
-                            <span class="mrs-support-date">@req.CreatedAt</span>
+                            <div>
+                                <strong>@req.AuthorDisplayName</strong>
+                                <span class="mrs-support-status">@(req.Status == "open" ? "Открыто" : "Решено")</span>
+                            </div>
+                            <span class="mrs-support-date">@FormatWhen(req.CreatedAt)</span>
                         </div>
                         <p class="mrs-support-body">@req.Body</p>
                         @if (req.Status == "resolved")
                         {
                             <p class="mrs-support-reply"><span>Ответ:</span> @(req.AdminReply ?? "—")</p>
+                            @if (!string.IsNullOrWhiteSpace(req.ResolvedAt))
+                            {
+                                <p class="mrs-support-date">Закрыто: @FormatWhen(req.ResolvedAt)</p>
+                            }
                         }
                         else
                         {
@@ -125,6 +138,8 @@ else
     private List<AdminSupportRequest> _requests = [];
     private Dictionary<int, string> _replyDrafts = [];
     private int _openCount;
+    private PeriodicTimer? _refreshTimer;
+    private CancellationTokenSource? _refreshCts;
 
     protected override async Task OnInitializedAsync()
     {
@@ -132,6 +147,54 @@ else
             return;
 
         await LoadRequestsAsync();
+        if (_openCount > 0)
+            _tab = "requests";
+
+        StartAutoRefresh();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Session.IsDbAdministrator && _tab == "requests")
+            await LoadRequestsAsync();
+    }
+
+    private async Task SelectTabAsync(string tab)
+    {
+        _tab = tab;
+        if (tab == "requests")
+            await LoadRequestsAsync();
+    }
+
+    private void StartAutoRefresh()
+    {
+        _refreshCts = new CancellationTokenSource();
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        _ = PollRequestsAsync(_refreshCts.Token);
+    }
+
+    private async Task PollRequestsAsync(CancellationToken cancellationToken)
+    {
+        if (_refreshTimer is null)
+            return;
+
+        try
+        {
+            while (await _refreshTimer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (_tab != "requests")
+                    continue;
+
+                await InvokeAsync(async () =>
+                {
+                    await LoadRequestsAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private async Task RunSql()
@@ -165,8 +228,9 @@ else
     {
         _requests = (await SupportRequests.ListAsync()).ToList();
         _openCount = _requests.Count(r => r.Status == "open");
-        foreach (var req in _requests.Where(r => r.Status == "open"))
-            _replyDrafts.TryAdd(req.Id, string.Empty);
+        _replyDrafts = _requests
+            .Where(r => r.Status == "open")
+            .ToDictionary(r => r.Id, r => _replyDrafts.TryGetValue(r.Id, out var draft) ? draft : string.Empty);
     }
 
     private async Task Resolve(int requestId)
@@ -182,5 +246,24 @@ else
         {
             _busy = false;
         }
+    }
+
+    private static string FormatWhen(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return "—";
+
+        if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var dt)
+            || DateTime.TryParse(raw, out dt))
+            return dt.ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
+
+        return raw;
+    }
+
+    public void Dispose()
+    {
+        _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
+        _refreshTimer?.Dispose();
     }
 }

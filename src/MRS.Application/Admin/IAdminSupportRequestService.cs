@@ -6,5 +6,7 @@ public interface IAdminSupportRequestService
 
     Task<IReadOnlyList<AdminSupportRequest>> ListAsync(CancellationToken cancellationToken = default);
 
+    Task<int> CountOpenAsync(CancellationToken cancellationToken = default);
+
     Task ResolveAsync(int requestId, string? adminReply, CancellationToken cancellationToken = default);
 }

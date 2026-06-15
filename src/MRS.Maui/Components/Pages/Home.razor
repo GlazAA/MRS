@@ -1,10 +1,12 @@
 @page "/"
+@using MRS.Application.Admin
 @using MRS.Application.Security
 @using MRS.Application.Storage
 @implements IDisposable
 @inject ILocalDatabasePath DatabasePath
 @inject ILocalDatabaseBootstrapper DatabaseBootstrapper
 @inject ICurrentUserSession Session
+@inject IAdminSupportRequestService SupportRequests
 
 <PageTitle>Главная</PageTitle>
 
@@ -15,9 +17,30 @@
         <a class="mrs-home-btn" href="objects">Управление объектами</a>
         @if (Session.IsDbAdministrator)
         {
-            <a class="mrs-home-btn" href="sql">SQL-окно</a>
+            <a class="mrs-home-btn" href="sql">
+                SQL-окно
+                @if (_openSupportCount > 0)
+                {
+                    <span class="mrs-home-badge">@_openSupportCount</span>
+                }
+            </a>
         }
     </div>
+
+    @if (Session.IsEngineer)
+    {
+        <div class="mrs-home-engineer">
+            <label class="mrs-label" for="engineer-name">Ваше ФИО (для обращений администратору)</label>
+            <div class="mrs-home-engineer-row">
+                <input id="engineer-name" class="mrs-select" type="text" @bind="_engineerName" @bind:event="oninput" />
+                <button type="button" class="mrs-home-role-switch" @onclick="SaveEngineerNameAsync">Сохранить</button>
+            </div>
+            @if (_engineerNameSaved)
+            {
+                <p class="mrs-save-msg mrs-home-note">ФИО сохранено — будет подставляться в обращения автоматически.</p>
+            }
+        </div>
+    }
 
     <div class="mrs-home-role">
         <span>Роль: <strong>@Session.Current.RoleName</strong></span>
@@ -32,25 +55,55 @@
     }
 </div>
 
-<EngineerSupportFab />
-
 @code {
     private LocalDatabaseStatus? _status;
+    private string _engineerName = string.Empty;
+    private bool _engineerNameSaved;
+    private int _openSupportCount;
 
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += OnSessionChanged;
         var path = DatabasePath.GetDatabaseFilePath();
         _status = await DatabaseBootstrapper.EnsureReadyAsync(path);
+        await RefreshSessionUiAsync();
+    }
+
+    private async Task RefreshSessionUiAsync()
+    {
+        _engineerName = Session.Current.DisplayName;
+        _engineerNameSaved = false;
+        _openSupportCount = Session.IsDbAdministrator
+            ? await SupportRequests.CountOpenAsync().ConfigureAwait(false)
+            : 0;
+    }
+
+    private async Task SaveEngineerNameAsync()
+    {
+        try
+        {
+            await Session.SetEngineerDisplayNameAsync(_engineerName).ConfigureAwait(false);
+            _engineerNameSaved = true;
+        }
+        catch (Exception ex)
+        {
+            _engineerNameSaved = false;
+            _status = new LocalDatabaseStatus(false, 0, 0, 0, ex.Message);
+        }
     }
 
     private async Task ToggleRole()
     {
         var next = Session.IsEngineer ? UserRoleNames.DbAdministrator : UserRoleNames.Engineer;
         await Session.SetRoleAsync(next);
+        await RefreshSessionUiAsync();
     }
 
-    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+    private async void OnSessionChanged() => await InvokeAsync(async () =>
+    {
+        await RefreshSessionUiAsync();
+        StateHasChanged();
+    });
 
     public void Dispose() => Session.Changed -= OnSessionChanged;
 }

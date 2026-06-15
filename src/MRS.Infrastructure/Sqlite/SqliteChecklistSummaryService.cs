@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using MRS.Application.Checklists;
 using MRS.Application.Storage;
@@ -45,7 +46,7 @@ public sealed class SqliteChecklistSummaryService : IChecklistSummaryService
 			if (!reader.IsDBNull(4))
 			{
 				var raw = reader.GetString(4);
-				if (DateTimeOffset.TryParse(raw, out var dto))
+				if (SqliteDateTimeParsing.TryParseStored(raw, out var dto))
 					started = dto;
 			}
 
@@ -53,7 +54,7 @@ public sealed class SqliteChecklistSummaryService : IChecklistSummaryService
 			if (!reader.IsDBNull(5))
 			{
 				var raw = reader.GetString(5);
-				if (DateTimeOffset.TryParse(raw, out var dto))
+				if (SqliteDateTimeParsing.TryParseStored(raw, out var dto))
 					ended = dto;
 			}
 

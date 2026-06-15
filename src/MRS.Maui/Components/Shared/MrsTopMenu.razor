@@ -1,6 +1,9 @@
 @using MRS.Application.Security
+@using MRS.Application.Sync
 @inject NavigationManager Nav
 @inject ICurrentUserSession Session
+@inject IServerSyncService ServerSync
+@implements IDisposable
 
 <button type="button" class="mrs-menu-button" @onclick="ToggleMenu" aria-label="Меню">
     ☰
@@ -9,6 +12,17 @@
 @if (_showMenu)
 {
     <div class="mrs-menu-panel">
+        <button type="button" class="mrs-menu-item mrs-menu-sync" disabled="@_syncing" @onclick="SyncAsync">
+            <span class="mrs-menu-sync-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <circle cx="5" cy="12" r="2"/>
+                    <circle cx="19" cy="6" r="2"/>
+                    <circle cx="19" cy="18" r="2"/>
+                    <path d="M7 11h8l2-4M7 13h8l2 4" stroke="currentColor" stroke-width="1.6" fill="none"/>
+                </svg>
+            </span>
+            <span class="mrs-menu-sync-text">@(_syncing ? "Обновление…" : "Обновить с сервера")</span>
+        </button>
         <button type="button" class="mrs-menu-item" @onclick="GoToChecklistWork">Контрольный лист</button>
         <button type="button" class="mrs-menu-item" @onclick="GoToManagement">Управление листами</button>
         <button type="button" class="mrs-menu-item" @onclick="GoToFacilities">Управление объектами</button>
@@ -19,13 +33,51 @@
     </div>
 }
 
+@if (_showSyncResult && _syncResult is not null)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseSyncResult">
+        <div class="mrs-modal" @onclick:stopPropagation="true" style="max-width: 420px">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseSyncResult">×</button>
+            <h3 class="mrs-modal-title">@(_syncResult.Ok ? "Обновление выполнено" : "Обновление недоступно")</h3>
+            <p class="mrs-modal-body mrs-pre-wrap">@_syncResult.Message</p>
+            <div class="mrs-form-actions" style="margin-top: 0">
+                <button type="button" class="mrs-btn-primary" @onclick="CloseSyncResult">Ок</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private bool _showMenu;
+    private bool _syncing;
+    private bool _showSyncResult;
+    private ServerSyncResult? _syncResult;
 
-    private void ToggleMenu()
+    protected override void OnInitialized()
     {
-        _showMenu = !_showMenu;
+        ServerSync.Changed += OnSyncChanged;
     }
+
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
+
+    private void ToggleMenu() => _showMenu = !_showMenu;
+
+    private async Task SyncAsync()
+    {
+        _showMenu = false;
+        _syncing = true;
+        try
+        {
+            _syncResult = await ServerSync.SyncAsync();
+            _showSyncResult = true;
+        }
+        finally
+        {
+            _syncing = false;
+        }
+    }
+
+    private void CloseSyncResult() => _showSyncResult = false;
 
     private void GoToChecklistWork()
     {
@@ -50,4 +102,6 @@
         _showMenu = false;
         Nav.NavigateTo("/sql");
     }
+
+    public void Dispose() => ServerSync.Changed -= OnSyncChanged;
 }

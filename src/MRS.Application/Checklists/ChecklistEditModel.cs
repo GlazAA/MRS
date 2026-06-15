@@ -33,7 +33,12 @@ public sealed record UpdateChecklistAnswersRequest(
 	int ChecklistId,
 	IReadOnlyDictionary<int, string> AnswersByTemplateItemId);
 
-public sealed record ChecklistUpdateDryRunField(int TemplateItemId, string QuestionText);
+public sealed record ChecklistUpdateDryRunField(
+	int TemplateItemId,
+	string QuestionText,
+	string? FieldCode = null,
+	string? Reason = null,
+	string? AttemptedValue = null);
 
 public sealed record ChecklistUpdateDryRunResult(
 	bool AllFieldsCanBeSaved,

@@ -16,5 +16,8 @@ public interface ICurrentUserSession
 
     Task SetRoleAsync(string roleName, CancellationToken cancellationToken = default);
 
+    /// <summary>Сохранить ФИО инженера для подписи обращений.</summary>
+    Task SetEngineerDisplayNameAsync(string displayName, CancellationToken cancellationToken = default);
+
     event Action? Changed;
 }

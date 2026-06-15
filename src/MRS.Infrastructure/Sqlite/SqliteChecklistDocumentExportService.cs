@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Text;
 using Microsoft.Data.Sqlite;
 using MRS.Application.Checklists;
+using MRS.Application.Facilities;
 using MRS.Application.Storage;
 
 namespace MRS.Infrastructure.Sqlite;
@@ -210,6 +211,9 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         sb.AppendLine("<td>");
         sb.AppendLine("<span class=\"lbl\">Дата проведения работ:</span><span class=\"val-line\">").Append(Html(workDates)).Append("</span></td>");
         sb.AppendLine("</tr><tr>");
+        sb.AppendLine("<td colspan=\"2\">");
+        sb.AppendLine("<span class=\"lbl\">Объект:</span><span class=\"val-line\">").Append(Html(FormatActObjectDisplay(model.Header))).Append("</span></td>");
+        sb.AppendLine("</tr><tr>");
         sb.AppendLine("<td>");
         sb.AppendLine("<span class=\"lbl\">Тип оборудования:</span><span class=\"val-line\">").Append(Html(equipmentType)).Append("</span></td>");
         sb.AppendLine("<td>");
@@ -229,7 +233,7 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
 
         // Второй блок отличается по профилю оборудования.
         AppendSecondBlock(sb, model, profile, stateFlags);
-        AppendBottomConstantBlock(sb);
+        AppendBottomConstantBlock(sb, answers);
 
         sb.AppendLine("</body></html>");
         return sb.ToString();
@@ -327,15 +331,30 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
     /// - подписи исполнителя/заказчика
     /// - нижняя красная линия + сайт/ИНН.
     /// </summary>
-    private static void AppendBottomConstantBlock(StringBuilder sb)
+    private static string FormatActObjectDisplay(ChecklistDocumentHeader header)
+    {
+        var actObject = FacilityAddressFormatter.FormatActObject(
+            header.FacilityCity,
+            header.FacilityStreet,
+            header.FacilityBuilding,
+            header.FacilityStructure,
+            header.FacilityBlock);
+
+        if (!string.IsNullOrWhiteSpace(actObject) && actObject != "—")
+            return actObject;
+
+        return header.FacilityName;
+    }
+
+    private static void AppendBottomConstantBlock(StringBuilder sb, IReadOnlyList<ChecklistDocumentAnswer> answers)
     {
         sb.AppendLine("<div class=\"bottom-const\">");
 
         sb.AppendLine("<p class=\"bottom-section-title\">ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ:</p>");
-        AppendLinedRows(sb, rowCount: 4, firstLineText: string.Empty);
+        AppendLinedRows(sb, rowCount: 4, text: GetSectionAnswerText(answers, "extra_"));
 
         sb.AppendLine("<p class=\"bottom-section-title\">ЗАМЕЧАНИЯ И РЕКОМЕНДАЦИИ:</p>");
-        AppendLinedRows(sb, rowCount: 4, firstLineText: string.Empty);
+        AppendLinedRows(sb, rowCount: 4, text: GetSectionAnswerText(answers, "remarks_"));
 
         sb.AppendLine("<table class=\"signature-grid\" cellspacing=\"0\" cellpadding=\"0\"><tr>");
         sb.AppendLine("<td style=\"width:48%;padding-right:18pt;\">");
@@ -364,16 +383,69 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
     /// Рисует несколько горизонтальных строк.
     /// Текст можно печатать прямо поверх линии (line не пропадает, остается границей строки).
     /// </summary>
-    private static void AppendLinedRows(StringBuilder sb, int rowCount, string? firstLineText)
+    private static void AppendLinedRows(StringBuilder sb, int rowCount, string? text)
     {
+        var lines = SplitTextLines(text, rowCount);
         sb.AppendLine("<table class=\"lined-table\" cellspacing=\"0\" cellpadding=\"0\">");
         for (var i = 0; i < rowCount; i++)
-        {
-            var text = i == 0 ? firstLineText : string.Empty;
-            sb.Append("<tr><td>").Append(Html(text)).AppendLine("</td></tr>");
-        }
+            sb.Append("<tr><td>").Append(Html(lines[i])).AppendLine("</td></tr>");
 
         sb.AppendLine("</table>");
+    }
+
+    private static List<string> SplitTextLines(string? text, int rowCount)
+    {
+        var result = new List<string>(rowCount);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            for (var i = 0; i < rowCount; i++)
+                result.Add(string.Empty);
+            return result;
+        }
+
+        var parts = text
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        if (parts.Count == 0)
+        {
+            for (var i = 0; i < rowCount; i++)
+                result.Add(string.Empty);
+            return result;
+        }
+
+        if (parts.Count <= rowCount)
+        {
+            result.AddRange(parts);
+            while (result.Count < rowCount)
+                result.Add(string.Empty);
+            return result;
+        }
+
+        result.AddRange(parts.Take(rowCount - 1));
+        result.Add(string.Join(" ", parts.Skip(rowCount - 1)));
+        return result;
+    }
+
+    private static string? GetSectionAnswerText(IReadOnlyList<ChecklistDocumentAnswer> answers, string fieldCodePrefix)
+    {
+        foreach (var answer in answers)
+        {
+            if (answer.FieldCode is null)
+                continue;
+
+            var code = answer.FieldCode;
+            var matches = code.StartsWith(fieldCodePrefix, StringComparison.OrdinalIgnoreCase)
+                || (fieldCodePrefix.Equals("remarks_", StringComparison.OrdinalIgnoreCase)
+                    && code.Equals("comments", StringComparison.OrdinalIgnoreCase));
+            if (!matches)
+                continue;
+
+            var value = string.IsNullOrWhiteSpace(answer.ValueDisplay) ? answer.ValueRaw : answer.ValueDisplay;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value.Trim();
+        }
+
+        return null;
     }
 
     private static void AppendSignatureFields(StringBuilder sb)
@@ -700,8 +772,15 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
                 c.start_at,
                 c.end_at,
                 c.status,
-                COALESCE(o.short_name, o.full_name) AS organization_name,
+                o.full_name AS org_full_name,
+                o.short_name AS org_short_name,
+                o.legal_form_code AS org_legal_form_code,
                 f.name AS facility_name,
+                a.city AS facility_city,
+                a.street AS facility_street,
+                a.building AS facility_building,
+                a.structure AS facility_structure,
+                a.block AS facility_block,
                 et.type_name AS equipment_type_name,
                 COALESCE(NULLIF(TRIM(i.custom_name), ''), CAST(i.id AS TEXT)) AS installation_label,
                 mt.type_name AS maintenance_type_name
@@ -710,6 +789,7 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
             INNER JOIN equipment_types et ON et.id = i.equipment_type_id
             INNER JOIN facility_systems fs ON fs.id = i.system_id
             INNER JOIN facilities f ON f.id = fs.facility_id
+            INNER JOIN organization_addresses a ON a.id = f.address_id
             INNER JOIN organizations o ON o.id = f.organization_id
             INNER JOIN maintenance_types mt ON mt.id = c.maintenance_type_id
             WHERE c.id = $cid AND c.is_active = 1;
@@ -729,11 +809,16 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
 
         return new ChecklistDocumentHeader(
             reader.GetInt32(0),
-            reader.GetString(4),
-            reader.GetString(5),
-            reader.GetString(6),
+            SqliteOrganizationName.ReadActName(reader, 4, 5, 6),
             reader.GetString(7),
             reader.GetString(8),
+            reader.GetString(9),
+            reader.GetString(10),
+            reader.IsDBNull(11) ? null : reader.GetString(11),
+            reader.IsDBNull(12) ? null : reader.GetString(12),
+            reader.GetString(13),
+            reader.GetString(14),
+            reader.GetString(15),
             startedAt,
             endedAt,
             reader.GetString(3));

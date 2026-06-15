@@ -54,6 +54,8 @@ public class SqliteDatabaseBootstrapperTests
 			var facilities = await svc.GetFacilitiesAsync(mir.Id);
 			Assert.Contains(facilities, f => f.Name == "Курск");
 			var kursk = Assert.Single(facilities, f => f.Name == "Курск");
+			var byAddress = await svc.GetFacilitiesWithAddressAsync(mir.Id);
+			Assert.Contains(byAddress, f => f.Name == "Курск, ул. Демо, 2");
 			var systems = await svc.GetSystemsAsync(kursk.Id);
 			Assert.NotEmpty(systems);
 		}

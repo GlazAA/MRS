@@ -1,7 +1,11 @@
 @page "/checklists/work/edit"
 @using System.Globalization
+@using MRS.Application.Admin
 @using MRS.Application.Checklists
+@using MRS.Application.Security
 @inject IChecklistEditService ChecklistEdit
+@inject IAdminSupportRequestService SupportRequests
+@inject ICurrentUserSession Session
 @inject NavigationManager Nav
 
 <PageTitle>Изменить контрольный лист</PageTitle>
@@ -12,7 +16,7 @@
     <MrsTopMenu />
 </div>
 
-@if (_busy)
+@if (_loading && _model is null)
 {
     <p>Загрузка…</p>
 }
@@ -45,11 +49,22 @@ else
         </div>
     </div>
 
-    <div style="margin-top: 1rem">
+    @if (_isEditing)
+    {
+        <div class="mrs-edit-banner">Режим редактирования — измените нужные поля и нажмите «Сохранить».</div>
+    }
+    else
+    {
+        <p class="mrs-hint" style="margin-top: 1rem">
+            Лист открыт для просмотра. Чтобы изменить данные перед скачиванием, нажмите «Внести изменения».
+        </p>
+    }
+
+    <div class="mrs-edit-fields" style="margin-top: 1rem">
         @foreach (var field in _model.Fields)
         {
-            var disabled = _busy || _saving || !_isEditing || field.IsLocked;
-            var wrapperClass = field.IsLocked ? "mrs-locked" : null;
+            var disabled = _loading || _saving || !_isEditing || field.IsLocked;
+            var wrapperClass = field.IsLocked ? "mrs-locked" : (!_isEditing ? "mrs-readonly" : null);
 
             <div class="mrs-field">
                 <div class="@wrapperClass">
@@ -60,13 +75,17 @@ else
                     {
                         <p class="mrs-hint">@field.HintText</p>
                     }
+                    @if (field.IsLocked)
+                    {
+                        <p class="mrs-hint mrs-lock-hint">@ChecklistEditFieldRules.GetLockReason(field.FieldCode)</p>
+                    }
 
                     @switch (field.FieldTypeName.ToLowerInvariant())
                     {
                         case "textarea":
                             <textarea class="mrs-select" rows="4" disabled="@disabled"
                                       value="@GetValue(field.TemplateItemId)"
-                                      @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))"></textarea>
+                                      @oninput="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))"></textarea>
                             break;
                         case "date":
                             <input type="date" class="mrs-select" disabled="@disabled"
@@ -108,7 +127,7 @@ else
                             {
                                 <input type="text" class="mrs-select" disabled="@disabled"
                                        value="@GetValue(field.TemplateItemId)"
-                                       @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                                       @oninput="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
                             }
                             break;
                         case "checkbox":
@@ -132,7 +151,7 @@ else
                         default:
                             <input type="text" class="mrs-select" disabled="@disabled"
                                    value="@GetValue(field.TemplateItemId)"
-                                   @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                                   @oninput="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
                             break;
                     }
                 </div>
@@ -140,29 +159,92 @@ else
         }
     </div>
 
-    <div class="mrs-form-actions">
-        <button type="button" class="mrs-btn-secondary" disabled="@_busy || _saving || _isEditing" @onclick="EnableEdit">Внести изменения</button>
-        <button type="button" class="mrs-btn-primary" disabled="@_busy || _saving || !_isEditing" @onclick="OpenSaveConfirm">Сохранить</button>
-    </div>
-
-    <div style="margin-top: 0.75rem">
-        <button type="button" class="mrs-btn-equipment" disabled>Отправить администратору</button>
+    <div class="mrs-sticky-actions">
+        <div class="mrs-form-actions mrs-sticky-actions-inner">
+            @if (!_isEditing)
+            {
+                <button type="button" class="mrs-btn-secondary" disabled="@(_loading || _saving)" @onclick="GoBack">Назад к списку</button>
+                <button type="button" class="mrs-btn-primary" disabled="@(_loading || _saving || _model is null)" @onclick="EnableEditAsync">Внести изменения</button>
+            }
+            else
+            {
+                <button type="button" class="mrs-btn-secondary" disabled="@(_loading || _saving)" @onclick="CancelEditingAsync">Отменить</button>
+                <button type="button" class="mrs-btn-primary" disabled="@(_loading || _saving)" @onclick="StartSave">
+                    @(_saving ? "Сохранение…" : "Сохранить")
+                </button>
+            }
+        </div>
     </div>
 }
 
-@* Confirm save *@
-@if (_showConfirmSave && _model is not null)
+@* Conflict / partial save *@
+@if (_showValidation && _model is not null && _dryRun is not null)
 {
-    <div class="mrs-modal-backdrop" @onclick="() => _showConfirmSave = false">
-        <div class="mrs-modal" @onclick:stopPropagation="true">
-            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="() => _showConfirmSave = false">×</button>
-            <h3 class="mrs-modal-title">Вы вносите изменения в базу данных. Продолжить?</h3>
+    <div class="mrs-modal-backdrop" @onclick="CloseValidation">
+        <div class="mrs-modal" @onclick:stopPropagation="true" style="max-width: 560px">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseValidation">×</button>
+            <h3 class="mrs-modal-title">@(_noChanges ? "Нет изменений" : "Не все изменения можно сохранить")</h3>
             <div class="mrs-modal-body">
-                <div style="font-size: 0.95rem; margin-bottom: 1rem">Подтвердите, чтобы выполнить сохранение.</div>
-                <div class="mrs-form-actions" style="margin-top: 0">
-                    <button type="button" class="mrs-btn-secondary" disabled="@_busy || _saving" @onclick="CancelConfirm">Отменить</button>
-                    <button type="button" class="mrs-btn-primary" disabled="@_busy || _saving" @onclick="ConfirmSave">Да</button>
-                </div>
+                @if (_noChanges)
+                {
+                    <p style="margin-top: 0">Вы не изменили ни одного поля.</p>
+                }
+                else
+                {
+                    <p style="margin-top: 0; margin-bottom: 0.75rem">
+                        Часть изменений сохранить нельзя — они могут нарушить целостность данных. Выберите действие ниже.
+                    </p>
+                    @if (_dryRun.CanSaveFields.Count > 0)
+                    {
+                        <div class="mrs-validate-section-title">Можно сохранить:</div>
+                        <ul class="mrs-validate-list">
+                            @foreach (var f in _dryRun.CanSaveFields)
+                            {
+                                <li class="mrs-validate-ok">@FormatFieldSummary(f)</li>
+                            }
+                        </ul>
+                    }
+                    @if (_dryRun.CannotSaveFields.Count > 0)
+                    {
+                        <div class="mrs-validate-section-title">Нельзя сохранить:</div>
+                        <ul class="mrs-validate-list">
+                            @foreach (var f in _dryRun.CannotSaveFields)
+                            {
+                                <li class="mrs-validate-blocked">
+                                    <strong>@f.QuestionText</strong>
+                                    @if (!string.IsNullOrWhiteSpace(f.AttemptedValue))
+                                    {
+                                        <span> → «@f.AttemptedValue»</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(f.Reason))
+                                    {
+                                        <div class="mrs-validate-reason">@f.Reason</div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                }
+            </div>
+            <div class="mrs-form-actions mrs-validate-actions" style="margin-top: 0">
+                @if (_noChanges)
+                {
+                    <button type="button" class="mrs-btn-primary" @onclick="CloseValidation">Ок</button>
+                }
+                else
+                {
+                    <button type="button" class="mrs-btn-secondary" disabled="@_saving" @onclick="RevertChangesAsync">Оставить без изменений</button>
+                    @if (_dryRun.CanSaveFields.Count > 0)
+                    {
+                        <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="SaveAllowedOnly">Сохранить допустимые</button>
+                    }
+                    @if (_dryRun.CannotSaveFields.Count > 0)
+                    {
+                        <button type="button" class="mrs-btn-equipment" disabled="@_saving" @onclick="SaveAllowedAndNotifyAdmin">
+                            @(_dryRun.CanSaveFields.Count > 0 ? "Сохранить и сообщить администратору" : "Сообщить администратору")
+                        </button>
+                    }
+                }
             </div>
         </div>
     </div>
@@ -174,8 +256,17 @@ else
     <div class="mrs-modal-backdrop" @onclick="CloseSuccess">
         <div class="mrs-modal" @onclick:stopPropagation="true">
             <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseSuccess">×</button>
-            <h3 class="mrs-modal-title">2.1.2.1 Изменения сохранены</h3>
-            <p class="mrs-modal-body mrs-pre-wrap">Готово. Контрольный лист обновлён.</p>
+            <h3 class="mrs-modal-title">Данные успешно изменены</h3>
+            <p class="mrs-modal-body mrs-pre-wrap">
+                @if (_adminNotified)
+                {
+                    <text>Допустимые изменения сохранены. Администратору отправлено обращение №@_adminRequestId с описанием конфликтующих полей.</text>
+                }
+                else
+                {
+                    <text>Контрольный лист обновлён. Можно вернуться к списку и скачать акт.</text>
+                }
+            </p>
             <div class="mrs-form-actions" style="margin-top: 0">
                 <button type="button" class="mrs-btn-primary" @onclick="CloseSuccess">Ок</button>
             </div>
@@ -183,60 +274,33 @@ else
     </div>
 }
 
-@* DB error partial save *@
-@if (_showDbError && _model is not null && _dryRun is not null)
-{
-    <div class="mrs-modal-backdrop" @onclick="CloseDbError">
-        <div class="mrs-modal" @onclick:stopPropagation="true" style="max-width: 520px">
-            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseDbError">×</button>
-            <h3 class="mrs-modal-title">2.1.2.2</h3>
-            <div class="mrs-modal-body mrs-pre-wrap">
-                <p style="margin-top: 0; margin-bottom: 0.75rem">
-                    Сохранение выполнено не для всех полей. Ниже показано, что можно сохранить успешно, а что изменить нельзя.
-                </p>
-                <div style="margin-bottom: 0.75rem">
-                    Можно сохранить успешно:
-                </div>
-                <ul style="margin: 0 0 0.75rem 1.1rem">
-                    @foreach (var f in _dryRun.CanSaveFields)
-                    {
-                        <li class="text-success">@f.QuestionText</li>
-                    }
-                </ul>
-                <div style="margin-bottom: 0.75rem">
-                    Нельзя сохранить (попробуем позже по выбору):
-                </div>
-                <ul style="margin: 0 0 0 1.1rem">
-                    @foreach (var f in _dryRun.CannotSaveFields)
-                    {
-                        <li class="text-danger">@f.QuestionText</li>
-                    }
-                </ul>
-            </div>
-            <div class="mrs-form-actions" style="margin-top: 0">
-                <button type="button" class="mrs-btn-secondary" @onclick="CancelDbError">Отменить</button>
-                <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="SaveSubset">Сохранить доступные поля</button>
-            </div>
-        </div>
-    </div>
-}
-
 @code {
-    [SupplyParameterFromQuery] public int? checklistId { get; set; }
+    [SupplyParameterFromQuery(Name = "checklistId")]
+    public int? ChecklistId { get; set; }
 
     private ChecklistEditModel? _model;
     private Dictionary<int, string> _values = [];
     private Dictionary<int, string> _originalValues = [];
 
-    private bool _busy;
+    private bool _loading;
     private bool _saving;
     private string? _error;
-
+    private int? _loadedChecklistId;
     private bool _isEditing;
-    private bool _showConfirmSave;
+
+    private bool _showValidation;
     private bool _showSuccess;
-    private bool _showDbError;
+    private bool _noChanges;
+    private bool _adminNotified;
+    private int _adminRequestId;
     private ChecklistUpdateDryRunResult? _dryRun;
+
+    private static string FormatFieldSummary(ChecklistUpdateDryRunField field)
+    {
+        if (string.IsNullOrWhiteSpace(field.AttemptedValue))
+            return field.QuestionText;
+        return $"{field.QuestionText} → «{field.AttemptedValue}»";
+    }
 
     private string GetValue(int templateItemId) =>
         _values.TryGetValue(templateItemId, out var v) ? v : string.Empty;
@@ -285,28 +349,34 @@ else
         _values[itemId] = set.Count == 0 ? string.Empty : string.Join(",", set.OrderBy(x => x));
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(bool resetEditing = true)
     {
-        if (checklistId is not int id)
+        if (ChecklistId is not int id)
         {
+            if (ChecklistId is null)
+                return;
             _error = "Не передан id контрольного листа.";
             return;
         }
 
-        _busy = true;
+        _loading = true;
         _saving = false;
         _error = null;
-        _showConfirmSave = false;
+        _showValidation = false;
         _showSuccess = false;
-        _showDbError = false;
+        _noChanges = false;
+        _adminNotified = false;
+        _adminRequestId = 0;
         _dryRun = null;
 
         try
         {
-            _model = await ChecklistEdit.GetForEditAsync(id).ConfigureAwait(false);
+            _model = await ChecklistEdit.GetForEditAsync(id);
             _values = _model.Fields.ToDictionary(f => f.TemplateItemId, f => f.ValueRaw);
             _originalValues = new Dictionary<int, string>(_values);
-            _isEditing = false;
+            _loadedChecklistId = id;
+            if (resetEditing)
+                _isEditing = false;
         }
         catch (Exception ex)
         {
@@ -314,63 +384,86 @@ else
         }
         finally
         {
-            _busy = false;
+            _loading = false;
         }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await EnsureLoadedAsync();
     }
 
     protected override async Task OnParametersSetAsync()
     {
-        await LoadAsync().ConfigureAwait(false);
+        await EnsureLoadedAsync();
     }
 
-    private void EnableEdit()
+    private async Task EnsureLoadedAsync()
+    {
+        if (ChecklistId is not int id)
+            return;
+
+        if (_loadedChecklistId == id && _model is not null)
+            return;
+
+        await LoadAsync();
+    }
+
+    private void GoBack() => Nav.NavigateTo("/checklists/work");
+
+    private Task EnableEditAsync()
     {
         if (_model is null)
-            return;
+            return Task.CompletedTask;
+
         _isEditing = true;
+        _error = null;
+        return InvokeAsync(StateHasChanged);
     }
 
-    private void OpenSaveConfirm()
+    private Task CancelEditingAsync()
     {
-        _showConfirmSave = true;
+        _values = new Dictionary<int, string>(_originalValues);
+        _isEditing = false;
+        _showValidation = false;
+        _dryRun = null;
+        _error = null;
+        return InvokeAsync(StateHasChanged);
     }
 
-    private void CancelConfirm()
+    private async Task StartSave()
     {
-        _showConfirmSave = false;
-    }
-
-    private async Task ConfirmSave()
-    {
-        if (_model is null)
+        if (_model is null || !_isEditing)
             return;
 
-        _showConfirmSave = false;
         _showSuccess = false;
-        _showDbError = false;
-        _dryRun = null;
+        _adminNotified = false;
+        _adminRequestId = 0;
+        _noChanges = false;
+        _error = null;
 
         _saving = true;
         try
         {
             var request = new UpdateChecklistAnswersRequest(_model.Info.ChecklistId, _values);
-            _dryRun = await ChecklistEdit.ValidateAsync(request).ConfigureAwait(false);
+            _dryRun = await ChecklistEdit.ValidateAsync(request);
 
-            if (_dryRun.AllFieldsCanBeSaved)
+            _noChanges = _dryRun.CanSaveFields.Count == 0 && _dryRun.CannotSaveFields.Count == 0;
+            if (_noChanges)
             {
-                var ids = _dryRun.CanSaveFields.Select(f => f.TemplateItemId).ToList();
-                var apply = await ChecklistEdit.ApplyAsync(request, ids).ConfigureAwait(false);
-                if (!apply.Ok)
-                    throw new InvalidOperationException(apply.ErrorMessage ?? "Ошибка применения изменений.");
-
-                _isEditing = false;
-                await LoadAsync().ConfigureAwait(false);
-                _showSuccess = true;
+                _showValidation = true;
                 return;
             }
 
-            // Partial: user will decide in 2.1.2.2 modal.
-            _showDbError = true;
+            if (_dryRun.AllFieldsCanBeSaved)
+            {
+                await ApplyChangesAsync(
+                    _dryRun.CanSaveFields.Select(f => f.TemplateItemId).ToList(),
+                    notifyAdmin: false);
+                return;
+            }
+
+            _showValidation = true;
         }
         catch (Exception ex)
         {
@@ -382,24 +475,45 @@ else
         }
     }
 
-    private async Task SaveSubset()
+    private async Task ApplyChangesAsync(IReadOnlyList<int> templateItemIds, bool notifyAdmin)
     {
         if (_model is null || _dryRun is null)
             return;
 
         _saving = true;
+        _error = null;
         try
         {
-            var request = new UpdateChecklistAnswersRequest(_model.Info.ChecklistId, _values);
-            var ids = _dryRun.CanSaveFields.Select(f => f.TemplateItemId).ToList();
-            var apply = await ChecklistEdit.ApplyAsync(request, ids).ConfigureAwait(false);
-            if (!apply.Ok)
-                throw new InvalidOperationException(apply.ErrorMessage ?? "Ошибка сохранения части полей.");
+            if (templateItemIds.Count > 0)
+            {
+                var request = new UpdateChecklistAnswersRequest(_model.Info.ChecklistId, _values);
+                var apply = await ChecklistEdit.ApplyAsync(request, templateItemIds);
+                if (!apply.Ok)
+                    throw new InvalidOperationException(apply.ErrorMessage ?? "Ошибка сохранения изменений.");
+            }
+
+            if (notifyAdmin && _dryRun.CannotSaveFields.Count > 0)
+            {
+                var user = Session.Current;
+                var body = ChecklistEditConflictReport.FormatForAdmin(
+                    _model.Info,
+                    user.DisplayName,
+                    templateItemIds.Count > 0
+                        ? _dryRun.CanSaveFields.Where(f => templateItemIds.Contains(f.TemplateItemId)).ToList()
+                        : [],
+                    _dryRun.CannotSaveFields);
+                _adminRequestId = await SupportRequests.SubmitAsync(user.UserId, user.DisplayName, body);
+                _adminNotified = true;
+            }
 
             _isEditing = false;
-            await LoadAsync().ConfigureAwait(false);
-            _showDbError = false;
+            _showValidation = false;
+            await LoadAsync(resetEditing: false);
             _showSuccess = true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
         }
         finally
         {
@@ -407,23 +521,22 @@ else
         }
     }
 
-    private void CancelDbError()
+    private Task SaveAllowedOnly() =>
+        ApplyChangesAsync(_dryRun!.CanSaveFields.Select(f => f.TemplateItemId).ToList(), notifyAdmin: false);
+
+    private Task SaveAllowedAndNotifyAdmin() =>
+        ApplyChangesAsync(_dryRun!.CanSaveFields.Select(f => f.TemplateItemId).ToList(), notifyAdmin: true);
+
+    private Task RevertChangesAsync()
     {
-        // No DB write performed yet; local changes are discarded by navigation.
-        _showDbError = false;
-        _showConfirmSave = false;
-        _showSuccess = false;
-        Nav.NavigateTo("/checklists/work");
+        _values = new Dictionary<int, string>(_originalValues);
+        _isEditing = false;
+        _showValidation = false;
+        _dryRun = null;
+        return InvokeAsync(StateHasChanged);
     }
 
-    private void CloseDbError()
-    {
-        _showDbError = false;
-    }
+    private void CloseValidation() => _showValidation = false;
 
-    private void CloseSuccess()
-    {
-        _showSuccess = false;
-    }
+    private void CloseSuccess() => _showSuccess = false;
 }
-

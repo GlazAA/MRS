@@ -1,0 +1,455 @@
+@page "/objects/visits"
+@using System.Globalization
+@using MRS.Application.Contacts
+@using MRS.Application.Facilities
+@using MRS.Application.Notes
+@using MRS.Application.Security
+@using MRS.Application.Users
+@using MRS.Application.Visits
+@inject IScheduledVisitService Visits
+@inject IFacilityHierarchyService Hierarchy
+@inject IOrganizationEmployeeQueryService Contacts
+@inject IEngineerDirectoryService Engineers
+@inject IEngineerNoteService Notes
+@inject ICurrentUserSession Session
+
+<PageTitle>Планирование выезда</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="/objects">←</a>
+    <h1 class="mrs-title">Планирование выезда</h1>
+    <MrsTopMenu />
+</div>
+
+@if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+
+<div class="mrs-cal-toolbar">
+    <button type="button" class="mrs-btn-secondary" @onclick="PrevMonth">←</button>
+    <div class="mrs-cal-title">@_monthTitle</div>
+    <button type="button" class="mrs-btn-secondary" @onclick="NextMonth">→</button>
+    <button type="button" class="mrs-btn-primary" @onclick="OpenCreate">+ Выезд</button>
+</div>
+
+<div class="mrs-cal-legend">
+    <span class="mrs-cal-legend-item mrs-cal-tone-ready">Готов</span>
+    <span class="mrs-cal-legend-item mrs-cal-tone-prep">Подготовка</span>
+    <span class="mrs-cal-legend-item mrs-cal-tone-past">Завершён</span>
+</div>
+
+@if (_loading)
+{
+    <p>Загрузка календаря…</p>
+}
+else
+{
+    <div class="mrs-cal-grid">
+        @foreach (var wd in _weekdays)
+        {
+            <div class="mrs-cal-weekday">@wd</div>
+        }
+        @foreach (var cell in _cells)
+        {
+            <div class="mrs-cal-cell @(cell.InMonth ? null : "mrs-cal-cell-out")">
+                <div class="mrs-cal-day">@cell.Day.Day</div>
+                @foreach (var v in cell.Visits)
+                {
+                    <button type="button" class="mrs-cal-visit @ToneClass(v.Tone)" @onclick="() => OpenVisit(v.VisitId)">
+                        @v.OrganizationName
+                    </button>
+                }
+            </div>
+        }
+    </div>
+}
+
+@* Create visit *@
+@if (_showCreate)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseCreate">
+        <div class="mrs-modal mrs-modal-wide" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" @onclick="CloseCreate">×</button>
+            <h3 class="mrs-modal-title">Новый выезд</h3>
+            <div class="mrs-modal-body">
+                <div class="mrs-field">
+                    <label class="mrs-label">Организация *</label>
+                    <select class="mrs-select" value="@_orgId" @onchange="OnOrgChanged">
+                        <option value="">—</option>
+                        @foreach (var o in _organizations)
+                        {
+                            <option value="@o.Id">@o.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Объект (адрес) *</label>
+                    <select class="mrs-select" value="@_facilityId" @onchange="OnFacilityChanged" disabled="@(_orgId == 0)">
+                        <option value="">—</option>
+                        @foreach (var f in _facilities)
+                        {
+                            <option value="@f.Id">@f.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Контактное лицо заказчика</label>
+                    <div class="mrs-combobox">
+                        <input class="mrs-select" placeholder="Должность, ФИО или фрагмент телефона…"
+                               value="@_contactSearch" @oninput="OnContactSearch" autocomplete="off" disabled="@(_orgId == 0)" />
+                        @if (_contactDropdown)
+                        {
+                            <ul class="mrs-combobox-list" @onmousedown:preventDefault="true">
+                                @foreach (var c in _contactOptions)
+                                {
+                                    <li class="mrs-combobox-item" @onclick="() => SelectContact(c)">
+                                        <strong>@c.DisplayName</strong>
+                                        @if (!string.IsNullOrWhiteSpace(c.Position)) { <span> — @c.Position</span> }
+                                        @if (!string.IsNullOrWhiteSpace(c.Phone)) { <span> • @c.Phone</span> }
+                                    </li>
+                                }
+                                @if (_contactOptions.Count == 0 && !string.IsNullOrWhiteSpace(_contactSearch))
+                                {
+                                    <li class="mrs-combobox-empty">Совпадений нет — укажите данные ниже</li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                    <textarea class="mrs-select" rows="2" placeholder="Если контакт не найден — ФИО, должность, телефон (сохранится в комментарии к выезду)"
+                              @bind="_contactManual"></textarea>
+                </div>
+                <div class="mrs-field mrs-field-inline-row">
+                    <div>
+                        <label class="mrs-label">С даты *</label>
+                        <input type="date" class="mrs-select" @bind="_startDate" />
+                    </div>
+                    <div>
+                        <label class="mrs-label">По дату</label>
+                        <input type="date" class="mrs-select" @bind="_endDate" />
+                    </div>
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Инженеры на выезд</label>
+                    <div class="mrs-check-grid">
+                        @foreach (var e in _engineerOptions)
+                        {
+                            var cid = $"eng_{e.UserId}";
+                            <label class="mrs-check-label" for="@cid">
+                                <input id="@cid" type="checkbox" class="mrs-check" checked="@_selectedEngineers.Contains(e.UserId)"
+                                       @onchange="ev => ToggleEngineer(e.UserId, ev)" />
+                                @e.DisplayName
+                            </label>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="mrs-form-actions">
+                <button type="button" class="mrs-btn-secondary" @onclick="CloseCreate">Отменить</button>
+                <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="CreateVisitAsync">Создать</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Prep modal *@
+@if (_showPrep && _createdVisitId is int prepVisitId)
+{
+    <div class="mrs-modal-backdrop">
+        <div class="mrs-modal" @onclick:stopPropagation="true">
+            <h3 class="mrs-modal-title">Подготовка к выезду</h3>
+            <p class="mrs-hint">Уточните, нужно ли заранее подготовить расходные материалы, документы или выполнить другие действия до выезда.</p>
+            <textarea class="mrs-select" rows="4" placeholder="Что нужно сделать заранее…" @bind="_prepBody"></textarea>
+            <div class="mrs-field">
+                <label class="mrs-label">Срок подготовки (дедлайн)</label>
+                <input type="date" class="mrs-select" @bind="_prepDeadline" />
+            </div>
+            <div class="mrs-form-actions">
+                <button type="button" class="mrs-btn-secondary" @onclick="() => SkipPrepAsync(prepVisitId)">Не требуется</button>
+                <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="() => SavePrepAsync(prepVisitId)">Добавить заметку</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Visit detail *@
+@if (_showDetail && _detail is not null)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseDetail">
+        <div class="mrs-modal mrs-modal-wide" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" @onclick="CloseDetail">×</button>
+            <h3 class="mrs-modal-title">Выезд • @_detail.OrganizationName</h3>
+            <div class="mrs-modal-body">
+                <p><strong>Объект:</strong> @_detail.FacilityLabel</p>
+                @if (_detail.ContactEmployeeLabel is not null)
+                {
+                    <p><strong>Контакт:</strong> @_detail.ContactEmployeeLabel</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(_detail.ContactManualText))
+                {
+                    <p><strong>Контакт (вручную):</strong> @_detail.ContactManualText</p>
+                }
+                <div class="mrs-field mrs-field-inline-row">
+                    <div>
+                        <label class="mrs-label">С</label>
+                        <input type="date" class="mrs-select" @bind="_editStart" />
+                    </div>
+                    <div>
+                        <label class="mrs-label">По</label>
+                        <input type="date" class="mrs-select" @bind="_editEnd" />
+                    </div>
+                </div>
+                <p><strong>Инженеры:</strong> @string.Join(", ", _detail.EngineerLabels)</p>
+                @if (_detail.PrepNotes.Count > 0)
+                {
+                    <div class="mrs-validate-section-title">Заметки к подготовке</div>
+                    <ul class="mrs-validate-list">
+                        @foreach (var n in _detail.PrepNotes)
+                        {
+                            <li class="@(n.IsCompleted ? "mrs-note-done" : "mrs-note-open")">
+                                @n.Body
+                                @if (n.DeadlineDate is not null) { <span> (до @n.DeadlineDate.Value.ToString("dd.MM.yyyy"))</span> }
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+            <div class="mrs-form-actions">
+                <button type="button" class="mrs-btn-secondary" @onclick="CloseDetail">Закрыть</button>
+                <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="SaveVisitDatesAsync">Сохранить даты</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private int _viewYear;
+    private int _viewMonth;
+    private string _monthTitle = string.Empty;
+    private bool _loading;
+    private bool _saving;
+    private string? _error;
+
+    private readonly string[] _weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+    private List<CalendarCell> _cells = [];
+
+    private bool _showCreate;
+    private List<HierarchyOption> _organizations = [];
+    private List<HierarchyOption> _facilities = [];
+    private int _orgId;
+    private int _facilityId;
+    private string _contactSearch = string.Empty;
+    private bool _contactDropdown;
+    private List<OrganizationEmployeeOption> _contactOptions = [];
+    private int? _selectedContactId;
+    private string _contactManual = string.Empty;
+    private DateOnly _startDate = DateOnly.FromDateTime(DateTime.Today);
+    private DateOnly? _endDate;
+    private List<EngineerDirectoryEntry> _engineerOptions = [];
+    private readonly HashSet<int> _selectedEngineers = [];
+
+    private bool _showPrep;
+    private int? _createdVisitId;
+    private string _prepBody = string.Empty;
+    private DateOnly? _prepDeadline;
+
+    private bool _showDetail;
+    private ScheduledVisitDetail? _detail;
+    private DateOnly _editStart;
+    private DateOnly? _editEnd;
+
+    private sealed record CalendarCell(DateOnly Day, bool InMonth, List<ScheduledVisitCalendarItem> Visits);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        _viewYear = today.Year;
+        _viewMonth = today.Month;
+        _organizations = (await Hierarchy.GetOrganizationsAsync()).ToList();
+        _engineerOptions = (await Engineers.ListActiveAsync()).ToList();
+        var user = Session.Current;
+        _selectedEngineers.Add(user.UserId);
+        await ReloadCalendarAsync();
+    }
+
+    private async Task ReloadCalendarAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var items = await Visits.GetCalendarMonthAsync(_viewYear, _viewMonth);
+            _monthTitle = new DateOnly(_viewYear, _viewMonth, 1).ToString("MMMM yyyy", new CultureInfo("ru-RU"));
+            _cells = BuildCells(_viewYear, _viewMonth, items);
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private static List<CalendarCell> BuildCells(int year, int month, IReadOnlyList<ScheduledVisitCalendarItem> items)
+    {
+        var first = new DateOnly(year, month, 1);
+        var startOffset = ((int)first.DayOfWeek + 6) % 7;
+        var gridStart = first.AddDays(-startOffset);
+        var list = new List<CalendarCell>();
+        for (var i = 0; i < 42; i++)
+        {
+            var day = gridStart.AddDays(i);
+            var dayItems = items.Where(x => x.Day == day).ToList();
+            list.Add(new CalendarCell(day, day.Month == month, dayItems));
+        }
+        return list;
+    }
+
+    private static string ToneClass(VisitCalendarTone tone) => tone switch
+    {
+        VisitCalendarTone.PrepPending => "mrs-cal-tone-prep",
+        VisitCalendarTone.Past => "mrs-cal-tone-past",
+        _ => "mrs-cal-tone-ready"
+    };
+
+    private async Task PrevMonth() { ShiftMonth(-1); await ReloadCalendarAsync(); }
+    private async Task NextMonth() { ShiftMonth(1); await ReloadCalendarAsync(); }
+
+    private void ShiftMonth(int delta)
+    {
+        var d = new DateOnly(_viewYear, _viewMonth, 1).AddMonths(delta);
+        _viewYear = d.Year;
+        _viewMonth = d.Month;
+    }
+
+    private void OpenCreate()
+    {
+        _showCreate = true;
+        _error = null;
+        _startDate = DateOnly.FromDateTime(DateTime.Today);
+        _endDate = null;
+        _contactSearch = string.Empty;
+        _contactManual = string.Empty;
+        _selectedContactId = null;
+    }
+
+    private void CloseCreate() => _showCreate = false;
+
+    private async Task OnOrgChanged(ChangeEventArgs e)
+    {
+        _orgId = int.TryParse(e.Value?.ToString(), out var id) ? id : 0;
+        _facilityId = 0;
+        _facilities = _orgId > 0
+            ? (await Hierarchy.GetFacilitiesWithAddressAsync(_orgId)).ToList()
+            : [];
+        _contactOptions = [];
+        _contactSearch = string.Empty;
+        _selectedContactId = null;
+    }
+
+    private void OnFacilityChanged(ChangeEventArgs e) =>
+        _facilityId = int.TryParse(e.Value?.ToString(), out var id) ? id : 0;
+
+    private async Task OnContactSearch(ChangeEventArgs e)
+    {
+        _contactSearch = e.Value?.ToString() ?? string.Empty;
+        _contactDropdown = true;
+        if (_orgId > 0)
+            _contactOptions = (await Contacts.SearchAsync(_orgId, _contactSearch)).ToList();
+    }
+
+    private void SelectContact(OrganizationEmployeeOption c)
+    {
+        _selectedContactId = c.Id;
+        _contactSearch = c.DisplayName;
+        _contactDropdown = false;
+    }
+
+    private void ToggleEngineer(int userId, ChangeEventArgs e)
+    {
+        var on = e.Value is bool b && b;
+        if (on) _selectedEngineers.Add(userId);
+        else _selectedEngineers.Remove(userId);
+    }
+
+    private async Task CreateVisitAsync()
+    {
+        if (_facilityId <= 0) { _error = "Выберите объект."; return; }
+        if (_selectedEngineers.Count == 0) { _error = "Выберите хотя бы одного инженера."; return; }
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            var end = _endDate.HasValue && _endDate.Value >= _startDate ? _endDate : null;
+            var id = await Visits.CreateAsync(new CreateScheduledVisitRequest(
+                _facilityId, _selectedContactId,
+                string.IsNullOrWhiteSpace(_contactManual) ? null : _contactManual.Trim(),
+                _startDate, end,
+                _selectedEngineers.ToList(), null));
+
+            _showCreate = false;
+            _createdVisitId = id;
+            _prepBody = string.Empty;
+            _prepDeadline = _startDate.AddDays(-1);
+            _showPrep = true;
+            await ReloadCalendarAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _saving = false; }
+    }
+
+    private async Task SkipPrepAsync(int visitId)
+    {
+        _saving = true;
+        try
+        {
+            await Visits.SetPrepSkippedAsync(visitId, true);
+            _showPrep = false;
+            _createdVisitId = null;
+            await ReloadCalendarAsync();
+        }
+        finally { _saving = false; }
+    }
+
+    private async Task SavePrepAsync(int visitId)
+    {
+        if (string.IsNullOrWhiteSpace(_prepBody)) { _error = "Введите текст заметки."; return; }
+        _saving = true;
+        try
+        {
+            var user = Session.Current;
+            await Notes.CreateAsync(new CreateEngineerNoteRequest(
+                user.UserId, _prepBody.Trim(), _prepDeadline,
+                "Подготовка к выезду", _facilityId > 0 ? _facilityId : null, visitId, null));
+            await Visits.SetPrepSkippedAsync(visitId, false);
+            _showPrep = false;
+            _createdVisitId = null;
+            await ReloadCalendarAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _saving = false; }
+    }
+
+    private async Task OpenVisit(int visitId)
+    {
+        _detail = await Visits.GetDetailAsync(visitId);
+        if (_detail is null) return;
+        _editStart = _detail.PlannedStart;
+        _editEnd = _detail.PlannedEnd;
+        _showDetail = true;
+    }
+
+    private void CloseDetail() => _showDetail = false;
+
+    private async Task SaveVisitDatesAsync()
+    {
+        if (_detail is null) return;
+        _saving = true;
+        try
+        {
+            await Visits.UpdateDatesAsync(new UpdateScheduledVisitDatesRequest(
+                _detail.VisitId, _editStart, _editEnd));
+            _showDetail = false;
+            await ReloadCalendarAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _saving = false; }
+    }
+}

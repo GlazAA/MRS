@@ -132,8 +132,36 @@ h1:focus {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
     padding: 0.4rem 0;
     z-index: 10;
-    min-width: 190px;
-    max-width: 220px;
+    min-width: 210px;
+    max-width: 240px;
+}
+
+.mrs-menu-sync {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    margin-bottom: 0.15rem;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+}
+
+.mrs-menu-sync-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background: #1b6ec2;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.mrs-menu-sync-text {
+    font-weight: 600;
+    font-size: 0.88rem;
+    line-height: 1.2;
 }
 
 .mrs-menu-item {
@@ -379,6 +407,11 @@ h1:focus {
     font-weight: 600;
 }
 
+.mrs-btn-secondary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .mrs-btn-primary {
     flex: 1;
     min-width: 140px;
@@ -388,6 +421,14 @@ h1:focus {
     background: #43a047;
     color: #fff;
     font-weight: 600;
+}
+
+.mrs-btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: #a5d6a7;
+    border-color: #a5d6a7;
+    color: #fff;
 }
 
 .mrs-safety-fab {
@@ -549,6 +590,51 @@ h1:focus {
     padding: 0.4rem 0.65rem;
     font-size: 0.85rem;
     cursor: pointer;
+}
+
+.mrs-home-engineer {
+    margin-top: 1rem;
+    max-width: 420px;
+}
+
+.mrs-home-engineer-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.mrs-home-engineer-row .mrs-select {
+    flex: 1;
+}
+
+.mrs-home-badge {
+    display: inline-block;
+    margin-left: 0.45rem;
+    min-width: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: #d32f2f;
+    color: #fff;
+    font-size: 0.78rem;
+    line-height: 1.25rem;
+    vertical-align: middle;
+}
+
+.mrs-support-from {
+    margin: 0 0 0.65rem;
+    font-size: 0.92rem;
+}
+
+.mrs-support-status {
+    display: inline-block;
+    margin-left: 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #666;
+}
+
+.mrs-support-card.open .mrs-support-status {
+    color: #1565c0;
 }
 
 .mrs-support-fab {
@@ -755,6 +841,75 @@ h1:focus {
     cursor: not-allowed !important;
 }
 
+.mrs-readonly {
+    opacity: 0.92;
+}
+
+.mrs-edit-banner {
+    margin-top: 1rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 8px;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.mrs-edit-fields {
+    padding-bottom: 5.5rem;
+}
+
+.mrs-sticky-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 850;
+    background: rgba(255, 255, 255, 0.97);
+    border-top: 1px solid #ddd;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    padding: 0.75rem 5rem 0.85rem 0.85rem;
+}
+
+.mrs-sticky-actions-inner {
+    margin-top: 0;
+    max-width: 960px;
+}
+
+.mrs-lock-hint {
+    color: #8a6d3b;
+    font-style: italic;
+}
+
+.mrs-validate-section-title {
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.mrs-validate-list {
+    margin: 0 0 0.85rem 0;
+    padding-left: 1.1rem;
+}
+
+.mrs-validate-ok {
+    color: #2e7d32;
+}
+
+.mrs-validate-blocked {
+    color: #c62828;
+    margin-bottom: 0.45rem;
+}
+
+.mrs-validate-reason {
+    font-size: 0.88rem;
+    opacity: 0.92;
+}
+
+.mrs-validate-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
 .mrs-export-arrow {
     position: absolute;
     left: 0.75rem;
@@ -788,18 +943,135 @@ h1:focus {
     margin-top: 0.75rem;
 }
 
+.mrs-comments-toolbar .mrs-filter-row {
+    margin-top: 0;
+}
+
+.mrs-comments-toolbar {
+    margin-top: 0.75rem;
+}
+
+.mrs-comments-actions {
+    display: flex;
+    gap: 0.45rem;
+    margin-top: 0.55rem;
+}
+
+.mrs-btn-compact {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.88rem;
+}
+
 .mrs-field-inline {
     margin-bottom: 0;
     flex: 1 1 0;
     min-width: 0;
 }
 
+.mrs-field-inline .mrs-label {
+    font-size: 0.78rem;
+    margin-bottom: 0.2rem;
+}
+
+.mrs-field-inline .mrs-select {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.35rem;
+    min-height: 2.35rem;
+}
+
+@media (max-width: 640px) {
+    .mrs-comments-toolbar .mrs-field-inline .mrs-label {
+        font-size: 0.72rem;
+    }
+
+    .mrs-comments-toolbar .mrs-field-inline .mrs-select {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.4rem;
+        min-height: 2.4rem;
+    }
+
+    .mrs-comments-actions {
+        margin-top: 0.65rem;
+    }
+
+    .mrs-btn-compact {
+        padding: 0.55rem 0.65rem;
+        font-size: 0.9rem;
+    }
+}
+
 /* 3.1 Управление объектами */
 .mrs-object-form {
-    margin-top: 0.75rem;
+    max-width: 640px;
+    margin: 0.75rem auto 0;
     background: #f7f7f4;
     border-radius: 12px;
     padding: 0.9rem;
+}
+.mrs-combobox {
+    position: relative;
+}
+
+.mrs-combobox-list {
+    position: absolute;
+    z-index: 20;
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    margin: 0.25rem 0 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.mrs-combobox-item {
+    padding: 0.55rem 0.65rem;
+    cursor: pointer;
+}
+
+.mrs-combobox-item:hover,
+.mrs-combobox-item-new {
+    background: #f5f0e8;
+}
+
+.mrs-combobox-empty {
+    padding: 0.55rem 0.65rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.mrs-field-hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.mrs-address-hint {
+    margin: 0.25rem 0 0.35rem;
+    font-size: 0.9rem;
+    color: #c62828;
+}
+
+.mrs-address-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.mrs-address-row .mrs-field {
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 640px) {
+    .mrs-address-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .mrs-object-details {
@@ -840,4 +1112,194 @@ h1:focus {
     border-radius: 8px;
     padding: 0.25rem 0.5rem;
     font-size: 0.8rem;
+}
+
+.mrs-modal-wide {
+    max-width: 640px;
+}
+
+.mrs-field-inline-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.mrs-field-inline-row > div {
+    flex: 1;
+    min-width: 140px;
+}
+
+.mrs-cal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem 0 0.5rem;
+    flex-wrap: wrap;
+}
+
+.mrs-cal-title {
+    flex: 1;
+    text-align: center;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.mrs-cal-legend {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.mrs-cal-legend-item {
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+}
+
+.mrs-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    background: #ddd;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.mrs-cal-weekday {
+    background: #f0ebe0;
+    padding: 0.35rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.mrs-cal-cell {
+    background: #fff;
+    min-height: 4.5rem;
+    padding: 0.25rem;
+    vertical-align: top;
+}
+
+.mrs-cal-cell-out {
+    background: #fafafa;
+    opacity: 0.65;
+}
+
+.mrs-cal-day {
+    font-size: 0.75rem;
+    color: #666;
+    margin-bottom: 0.2rem;
+}
+
+.mrs-cal-visit {
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 4px;
+    padding: 0.15rem 0.25rem;
+    margin-bottom: 0.15rem;
+    font-size: 0.68rem;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mrs-cal-tone-ready {
+    background: #f5e6c8;
+    color: #5d4037;
+}
+
+.mrs-cal-tone-prep {
+    background: #ffb74d;
+    color: #4e342e;
+}
+
+.mrs-cal-tone-past {
+    background: #e0e0e0;
+    color: #757575;
+}
+
+.mrs-notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.mrs-note-card {
+    text-align: left;
+    border: 1px solid #d0d0d0;
+    border-radius: 10px;
+    padding: 0.75rem;
+    background: #fff;
+    cursor: pointer;
+}
+
+.mrs-note-card-done {
+    background: #f3f3f3;
+    color: #777;
+    order: 1;
+}
+
+.mrs-notes-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.mrs-note-card:not(.mrs-note-card-done) {
+    order: 0;
+}
+
+.mrs-note-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+}
+
+.mrs-note-deadline {
+    font-size: 0.82rem;
+    color: #c62828;
+}
+
+.mrs-note-card-done .mrs-note-deadline {
+    color: #999;
+}
+
+.mrs-note-preview {
+    font-size: 0.9rem;
+    margin-bottom: 0.35rem;
+}
+
+.mrs-note-meta {
+    font-size: 0.78rem;
+    color: #666;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.mrs-note-revision {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: #f7f7f7;
+    border-radius: 8px;
+    border-left: 3px solid #bbb;
+}
+
+.mrs-note-revision-head {
+    font-size: 0.82rem;
+    color: #666;
+    margin-bottom: 0.35rem;
+}
+
+.mrs-note-open {
+    color: #e65100;
+}
+
+.mrs-note-done {
+    color: #757575;
 }

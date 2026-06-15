@@ -65,6 +65,15 @@ public sealed class SqliteAdminSupportRequestService : IAdminSupportRequestServi
         return list;
     }
 
+    public async Task<int> CountOpenAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(1) FROM admin_support_requests WHERE status = 'open';";
+        var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt32(scalar);
+    }
+
     public async Task ResolveAsync(int requestId, string? adminReply, CancellationToken cancellationToken = default)
     {
         await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);

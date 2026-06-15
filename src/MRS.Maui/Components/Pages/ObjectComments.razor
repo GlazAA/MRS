@@ -1,0 +1,348 @@
+@page "/objects/comments"
+@using System.Globalization
+@using MRS.Application.Checklists
+@using MRS.Application.Facilities
+@using MRS.Application.Notes
+@using MRS.Application.Security
+@using MRS.Application.Visits
+@inject IEngineerNoteService Notes
+@inject IFacilityHierarchyService Hierarchy
+@inject IScheduledVisitService Visits
+@inject IChecklistManagementService Checklists
+@inject ICurrentUserSession Session
+
+<PageTitle>Комментарии и заметки</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="/objects">←</a>
+    <h1 class="mrs-title">Комментарии и заметки</h1>
+    <MrsTopMenu />
+</div>
+
+@if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+
+<div class="mrs-comments-toolbar">
+    <div class="mrs-filter-row">
+        <div class="mrs-field mrs-field-inline">
+            <label class="mrs-label">Объект</label>
+            <select class="mrs-select" @bind="_filterFacilityId">
+                <option value="">Все</option>
+                @foreach (var f in _facilityFilterOptions)
+                {
+                    <option value="@f.Id">@f.Name</option>
+                }
+            </select>
+        </div>
+        <div class="mrs-field mrs-field-inline">
+            <label class="mrs-label">Выезд</label>
+            <select class="mrs-select" @bind="_filterVisitId">
+                <option value="">Все</option>
+                @foreach (var v in _visitFilterOptions)
+                {
+                    <option value="@v.VisitId">@v.Label</option>
+                }
+            </select>
+        </div>
+        <div class="mrs-field mrs-field-inline">
+            <label class="mrs-label">Дедлайн</label>
+            <input type="date" class="mrs-select" @bind="_filterDeadlineDay" />
+        </div>
+    </div>
+    <div class="mrs-comments-actions">
+        <button type="button" class="mrs-btn-secondary mrs-btn-compact" @onclick="LoadNotesAsync">Применить</button>
+        <button type="button" class="mrs-btn-primary mrs-btn-compact" @onclick="OpenCreate">+ Заметка</button>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <p>Загрузка…</p>
+}
+else if (_notes.Count == 0)
+{
+    <p class="mrs-hint">Заметок нет. Создайте заметку или добавьте подготовку при планировании выезда.</p>
+}
+else
+{
+    <div class="mrs-notes-list">
+        @foreach (var n in _notes)
+        {
+            <button type="button" class="mrs-note-card @(n.IsCompleted ? "mrs-note-card-done" : null)" @onclick="() => OpenDetail(n.NoteId)">
+                <div class="mrs-note-card-head">
+                    <strong>@(n.Title ?? "Заметка")</strong>
+                    @if (n.DeadlineDate is not null)
+                    {
+                        <span class="mrs-note-deadline">до @n.DeadlineDate.Value.ToString("dd.MM.yyyy")</span>
+                    }
+                </div>
+                <div class="mrs-note-preview">@n.BodyPreview</div>
+                <div class="mrs-note-meta">
+                    @if (n.VisitLabel is not null) { <span>@n.VisitLabel</span> }
+                    @if (n.ChecklistLabel is not null) { <span>@n.ChecklistLabel</span> }
+                    @if (n.FacilityLabel is not null) { <span>@n.FacilityLabel</span> }
+                </div>
+            </button>
+        }
+    </div>
+}
+
+@* Editor *@
+@if (_showEditor)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseEditor">
+        <div class="mrs-modal mrs-modal-wide" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" @onclick="CloseEditor">×</button>
+            <h3 class="mrs-modal-title">@(_editingId is null ? "Новая заметка" : "Редактирование заметки")</h3>
+            <div class="mrs-modal-body">
+                <div class="mrs-field">
+                    <label class="mrs-label">Заголовок</label>
+                    <input class="mrs-select" @bind="_editTitle" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Текст *</label>
+                    <textarea class="mrs-select" rows="5" @bind="_editBody"></textarea>
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Дедлайн</label>
+                    <input type="date" class="mrs-select" @bind="_editDeadline" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Объект</label>
+                    <select class="mrs-select" @bind="_editFacilityId">
+                        <option value="">—</option>
+                        @foreach (var f in _facilityFilterOptions)
+                        {
+                            <option value="@f.Id">@f.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Выезд</label>
+                    <select class="mrs-select" @bind="_editVisitId">
+                        <option value="">—</option>
+                        @foreach (var v in _visitFilterOptions)
+                        {
+                            <option value="@v.VisitId">@v.Label</option>
+                        }
+                    </select>
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Контрольный лист</label>
+                    <select class="mrs-select" @bind="_editChecklistId">
+                        <option value="">—</option>
+                        @foreach (var c in _checklistFilterOptions)
+                        {
+                            <option value="@c.ChecklistId">@c.Label</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="mrs-form-actions">
+                @if (_editingId is not null)
+                {
+                    <button type="button" class="mrs-btn-equipment" @onclick="DeleteNoteAsync">Удалить</button>
+                }
+                <button type="button" class="mrs-btn-secondary" @onclick="CloseEditor">Отменить</button>
+                <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="SaveNoteAsync">Сохранить</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Detail *@
+@if (_showDetail && _detail is not null)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseDetail">
+        <div class="mrs-modal mrs-modal-wide" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" @onclick="CloseDetail">×</button>
+            <h3 class="mrs-modal-title">@(_detail.Title ?? "Заметка")</h3>
+            <div class="mrs-modal-body mrs-pre-wrap">
+                <p class="mrs-note-meta">Автор: @_detail.AuthorLabel • обновлено @_detail.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+                @if (_detail.DeadlineDate is not null)
+                {
+                    <p><strong>Дедлайн:</strong> @_detail.DeadlineDate.Value.ToString("dd.MM.yyyy")</p>
+                }
+                <p>@_detail.Body</p>
+                @if (_detail.Revisions.Count > 0)
+                {
+                    <div class="mrs-validate-section-title">История изменений</div>
+                    @foreach (var r in _detail.Revisions)
+                    {
+                        <div class="mrs-note-revision">
+                            <div class="mrs-note-revision-head">Изменено @r.EditedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") — @r.EditedByLabel</div>
+                            <div class="mrs-pre-wrap">@r.Body</div>
+                        </div>
+                    }
+                }
+            </div>
+            <div class="mrs-form-actions">
+                <button type="button" class="mrs-btn-secondary" @onclick="() => EditFromDetail()">Изменить</button>
+                @if (!_detail.IsCompleted)
+                {
+                    <button type="button" class="mrs-btn-primary" @onclick="MarkDoneAsync">Выполнено</button>
+                }
+                else
+                {
+                    <button type="button" class="mrs-btn-secondary" @onclick="MarkUndoneAsync">Вернуть в работу</button>
+                }
+                <button type="button" class="mrs-btn-secondary" @onclick="CloseDetail">Закрыть</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading;
+    private bool _saving;
+    private string? _error;
+    private List<EngineerNoteListItem> _notes = [];
+
+    private string _filterFacilityId = string.Empty;
+    private string _filterVisitId = string.Empty;
+    private DateOnly? _filterDeadlineDay;
+
+    private List<HierarchyOption> _facilityFilterOptions = [];
+    private List<VisitFilterOption> _visitFilterOptions = [];
+    private List<ChecklistFilterRow> _checklistFilterOptions = [];
+
+    private bool _showEditor;
+    private int? _editingId;
+    private string _editTitle = string.Empty;
+    private string _editBody = string.Empty;
+    private DateOnly? _editDeadline;
+    private string _editFacilityId = string.Empty;
+    private string _editVisitId = string.Empty;
+    private string _editChecklistId = string.Empty;
+
+    private bool _showDetail;
+    private EngineerNoteDetail? _detail;
+
+    private sealed record ChecklistFilterRow(int ChecklistId, string Label);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFilterOptionsAsync();
+        await LoadNotesAsync();
+    }
+
+    private async Task LoadFilterOptionsAsync()
+    {
+        var orgs = await Hierarchy.GetOrganizationsAsync();
+        var facilities = new List<HierarchyOption>();
+        foreach (var o in orgs)
+            facilities.AddRange(await Hierarchy.GetFacilitiesWithAddressAsync(o.Id));
+        _facilityFilterOptions = facilities;
+        _visitFilterOptions = (await Visits.ListForFilterAsync()).ToList();
+        _checklistFilterOptions = (await Checklists.GetAllAsync())
+            .OrderByDescending(c => c.StartedAt)
+            .Take(100)
+            .Select(c => new ChecklistFilterRow(c.ChecklistId, $"КЛ №{c.ChecklistId} • {c.FacilityName} • {c.StartedAt?.ToLocalTime():dd.MM.yyyy}"))
+            .ToList();
+    }
+
+    private async Task LoadNotesAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            int? fid = int.TryParse(_filterFacilityId, out var f) && f > 0 ? f : null;
+            int? vid = int.TryParse(_filterVisitId, out var v) && v > 0 ? v : null;
+            _notes = (await Notes.ListAsync(new EngineerNoteFilter(fid, vid, null, null, _filterDeadlineDay))).ToList();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private void OpenCreate()
+    {
+        _editingId = null;
+        _editTitle = string.Empty;
+        _editBody = string.Empty;
+        _editDeadline = null;
+        _editFacilityId = _filterFacilityId;
+        _editVisitId = _filterVisitId;
+        _editChecklistId = string.Empty;
+        _showEditor = true;
+    }
+
+    private void CloseEditor() => _showEditor = false;
+
+    private async Task SaveNoteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_editBody)) { _error = "Введите текст заметки."; return; }
+        _saving = true;
+        try
+        {
+            var user = Session.Current;
+            int? fid = int.TryParse(_editFacilityId, out var f) && f > 0 ? f : null;
+            int? vid = int.TryParse(_editVisitId, out var v) && v > 0 ? v : null;
+            int? cid = int.TryParse(_editChecklistId, out var c) && c > 0 ? c : null;
+
+            if (_editingId is null)
+            {
+                await Notes.CreateAsync(new CreateEngineerNoteRequest(
+                    user.UserId, _editBody.Trim(), _editDeadline,
+                    string.IsNullOrWhiteSpace(_editTitle) ? null : _editTitle.Trim(),
+                    fid, vid, cid));
+            }
+            else
+            {
+                await Notes.UpdateAsync(new UpdateEngineerNoteRequest(
+                    _editingId.Value, user.UserId, _editBody.Trim(), _editDeadline,
+                    string.IsNullOrWhiteSpace(_editTitle) ? null : _editTitle.Trim(),
+                    fid, vid, cid));
+            }
+
+            _showEditor = false;
+            await LoadNotesAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _saving = false; }
+    }
+
+    private async Task OpenDetail(int noteId)
+    {
+        _detail = await Notes.GetDetailAsync(noteId);
+        if (_detail is not null)
+            _showDetail = true;
+    }
+
+    private void CloseDetail() { _showDetail = false; _detail = null; }
+
+    private void EditFromDetail()
+    {
+        if (_detail is null) return;
+        _editingId = _detail.NoteId;
+        _editTitle = _detail.Title ?? string.Empty;
+        _editBody = _detail.Body;
+        _editDeadline = _detail.DeadlineDate;
+        _editFacilityId = _detail.FacilityId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        _editVisitId = _detail.ScheduledVisitId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        _editChecklistId = _detail.ChecklistId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        _showDetail = false;
+        _showEditor = true;
+    }
+
+    private async Task MarkDoneAsync() => await SetCompletedAsync(true);
+    private async Task MarkUndoneAsync() => await SetCompletedAsync(false);
+
+    private async Task SetCompletedAsync(bool done)
+    {
+        if (_detail is null) return;
+        await Notes.SetCompletedAsync(_detail.NoteId, done);
+        _showDetail = false;
+        await LoadNotesAsync();
+    }
+
+    private async Task DeleteNoteAsync()
+    {
+        if (_editingId is null) return;
+        await Notes.DeleteAsync(_editingId.Value);
+        _showEditor = false;
+        await LoadNotesAsync();
+    }
+}

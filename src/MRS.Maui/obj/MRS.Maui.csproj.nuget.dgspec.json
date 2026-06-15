@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Development\\MRS\\src\\MRS.Maui\\MRS.Maui.csproj": {}
+    "C:\\Development\\MRS\\src\\MRS.Maui\\MRS.Maui.csproj": {}
   },
   "projects": {
-    "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
+    "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj",
+        "projectUniqueName": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj",
         "projectName": "MRS.Application",
-        "projectPath": "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj",
+        "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj",
         "packagesPath": "C:\\Users\\Glaz0112\\.nuget\\packages\\",
-        "outputPath": "c:\\Development\\MRS\\src\\MRS.Application\\obj\\",
+        "outputPath": "C:\\Development\\MRS\\src\\MRS.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -72,14 +72,14 @@
         }
       }
     },
-    "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+    "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
+        "projectUniqueName": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
         "projectName": "MRS.Infrastructure",
-        "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
+        "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\Glaz0112\\.nuget\\packages\\",
-        "outputPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\obj\\",
+        "outputPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -102,8 +102,8 @@
             "framework": "net9.0",
             "targetAlias": "net9.0",
             "projectReferences": {
-              "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
-                "projectPath": "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
+              "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
+                "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
               }
             }
           }
@@ -150,14 +150,14 @@
         }
       }
     },
-    "c:\\Development\\MRS\\src\\MRS.Maui\\MRS.Maui.csproj": {
+    "C:\\Development\\MRS\\src\\MRS.Maui\\MRS.Maui.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Development\\MRS\\src\\MRS.Maui\\MRS.Maui.csproj",
+        "projectUniqueName": "C:\\Development\\MRS\\src\\MRS.Maui\\MRS.Maui.csproj",
         "projectName": "MRS.Maui",
-        "projectPath": "c:\\Development\\MRS\\src\\MRS.Maui\\MRS.Maui.csproj",
+        "projectPath": "C:\\Development\\MRS\\src\\MRS.Maui\\MRS.Maui.csproj",
         "packagesPath": "C:\\Users\\Glaz0112\\.nuget\\packages\\",
-        "outputPath": "c:\\Development\\MRS\\src\\MRS.Maui\\obj\\",
+        "outputPath": "C:\\Development\\MRS\\src\\MRS.Maui\\obj\\",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "fallbackFolders": [
@@ -181,11 +181,11 @@
             "framework": "net9.0-windows10.0.19041",
             "targetAlias": "net9.0-windows10.0.19041.0",
             "projectReferences": {
-              "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
-                "projectPath": "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
+              "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
+                "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
               },
-              "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-                "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+              "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+                "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
               }
             }
           }

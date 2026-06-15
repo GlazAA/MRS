@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {}
+    "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {}
   },
   "projects": {
-    "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
+    "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj",
+        "projectUniqueName": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj",
         "projectName": "MRS.Application",
-        "projectPath": "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj",
+        "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj",
         "packagesPath": "C:\\Users\\Glaz0112\\.nuget\\packages\\",
-        "outputPath": "c:\\Development\\MRS\\src\\MRS.Application\\obj\\",
+        "outputPath": "C:\\Development\\MRS\\src\\MRS.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

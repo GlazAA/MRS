@@ -2,9 +2,9 @@
 @using System.Globalization
 @using MRS.Application.Checklists
 @using MRS.Application.Facilities
+@implements IAsyncDisposable
 @inject IEquipmentTypeCatalogService EquipmentCatalog
 @inject IChecklistFlowService Flow
-@inject IChecklistSaveService SaveService
 @inject IChecklistEditService ChecklistEdit
 @inject IInstallationQueryService InstallationQuery
 @inject IInstallationEnsureService InstallationEnsure
@@ -13,7 +13,7 @@
 <PageTitle>Создание контрольного листа</PageTitle>
 
 <div class="mrs-toolbar">
-    <a class="mrs-back" href="@BackLink">←</a>
+    <button type="button" class="mrs-back" @onclick="NavigateBackAsync">←</button>
     <h1 class="mrs-title">@(_existingChecklistId is null ? "Создание контрольного листа" : "Контрольный лист")</h1>
     <MrsTopMenu />
 </div>
@@ -44,10 +44,15 @@ else
 
     <p class="mrs-muted">@(_meta?.TemplateName)</p>
 
+    @if (_pageWorkStartedAt is not null || _sessionStartedAt is not null)
+    {
+        <p class="mrs-info-note">Затраченное время: <strong>@_elapsedDisplay</strong></p>
+    }
+
     <div class="mrs-field">
         <label class="mrs-label">Установка *</label>
         <p class="mrs-hint">Выберите существующую или создайте по номеру (например G301).</p>
-        <select class="mrs-select" value="@_installationChoice" @onchange="OnInstallationSelect" disabled="@(_existingChecklistId is not null)">
+        <select class="mrs-select" value="@_installationChoice" @onchange="OnInstallationSelectAsync" disabled="@(_existingChecklistId is not null)">
             <option value="">—</option>
             @foreach (var ins in _installations)
             {
@@ -57,7 +62,7 @@ else
         </select>
         @if (_installationChoice == "new")
         {
-            <input type="text" class="mrs-select mrs-mt" placeholder="Номер установки" @bind="_newUnitNumber" @bind:event="oninput" />
+            <input type="text" class="mrs-select mrs-mt" placeholder="Номер установки" @bind="_newUnitNumber" @bind:event="oninput" @bind:after="OnNewUnitNumberChangedAsync" />
         }
     </div>
 
@@ -137,7 +142,7 @@ else
         <button type="button" class="mrs-btn-secondary" disabled="@_saving" @onclick="@(() => SaveAsync(ChecklistPersistenceMode.LocalDraft))">Сохранить локально</button>
         <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="@(() => SaveAsync(ChecklistPersistenceMode.UploadQueue))">Сохранить в БД</button>
     </div>
-    <p class="mrs-info-note">«Сохранить локально» — черновик на устройстве. «Сохранить в БД» — завершённый лист в очереди на выгрузку.</p>
+    <p class="mrs-info-note">«Сохранить локально» — сохраняет ответы и ставит учёт времени на паузу (лист «В работе»). «Сохранить в БД» — завершает лист и фиксирует затраченное время.</p>
 }
 
 @if (_meta?.RedButtonEnabled == true && !string.IsNullOrWhiteSpace(_meta.SafetyModalText))
@@ -187,15 +192,51 @@ else
 	private bool _saving;
 	private bool _showSafety;
 	private bool _showIntro;
+	private bool _skipPauseOnDispose;
 	private string _installationChoice = "";
 	private string _newUnitNumber = "";
+	private DateTimeOffset? _pageWorkStartedAt;
+	private DateTimeOffset? _sessionStartedAt;
+	private Timer? _elapsedTimer;
+	private string _elapsedDisplay = "0:00:00";
+	private string? _loadedContextKey;
+	private IDisposable? _locationChangingRegistration;
 
 	private string BackLink =>
 		OrganizationId is int o && FacilityId is int f && SystemId is int s && EquipmentTypeId is int e
 			? $"/checklists/maintenance?organizationId={o}&facilityId={f}&systemId={s}&equipmentTypeId={e}"
 			: "checklists";
 
+	private string BuildContextKey() =>
+		$"{OrganizationId}|{FacilityId}|{SystemId}|{EquipmentTypeId}|{MaintenanceTypeId}|{ChecklistId}";
+
+	protected override void OnInitialized()
+	{
+		_locationChangingRegistration = Nav.RegisterLocationChangingHandler(OnLocationChangingAsync);
+	}
+
+	private async ValueTask OnLocationChangingAsync(LocationChangingContext context)
+	{
+		if (_skipPauseOnDispose)
+			return;
+
+		if (string.Equals(Nav.Uri, context.TargetLocation, StringComparison.OrdinalIgnoreCase))
+			return;
+
+		await PauseWorkSessionAsync().ConfigureAwait(false);
+	}
+
 	protected override async Task OnParametersSetAsync()
+	{
+		var contextKey = BuildContextKey();
+		if (contextKey == _loadedContextKey && _templateId is not null)
+			return;
+
+		_loadedContextKey = contextKey;
+		await LoadPageAsync().ConfigureAwait(false);
+	}
+
+	private async Task LoadPageAsync()
 	{
 		_error = null;
 		_saveMessage = null;
@@ -206,6 +247,11 @@ else
 		_existingChecklistId = null;
 		_showSafety = false;
 		_showIntro = false;
+		_skipPauseOnDispose = false;
+		_pageWorkStartedAt = null;
+		_sessionStartedAt = null;
+		_elapsedDisplay = "0:00:00";
+		StopElapsedTimer();
 		_installationChoice = "";
 		_newUnitNumber = "";
 		_values.Clear();
@@ -243,14 +289,25 @@ else
 					return;
 				}
 
+				if (editModel.Info.EndedAt is not null)
+					await ChecklistEdit.ResumeWorkAsync(resumeId).ConfigureAwait(false);
+
+				editModel = await ChecklistEdit.GetForEditAsync(resumeId).ConfigureAwait(false);
+
 				_existingChecklistId = resumeId;
+				_pageWorkStartedAt = editModel.Info.StartedAt ?? DateTimeOffset.Now;
+				_sessionStartedAt = editModel.Info.StartedAt;
 				_installationChoice = editModel.Info.InstallationId.ToString(CultureInfo.InvariantCulture);
 				foreach (var field in editModel.Fields)
 					_values[field.TemplateItemId] = field.ValueRaw;
+
+				StartElapsedTimer();
 			}
 			else
 			{
+				_pageWorkStartedAt = DateTimeOffset.Now;
 				_showIntro = !string.IsNullOrWhiteSpace(_meta?.IntroModalText);
+				StartElapsedTimer();
 			}
 		}
 		catch (Exception ex)
@@ -263,11 +320,136 @@ else
 		}
 	}
 
-	private void OnInstallationSelect(ChangeEventArgs e)
+	private async Task OnInstallationSelectAsync(ChangeEventArgs e)
 	{
 		_installationChoice = e.Value?.ToString() ?? "";
 		if (_installationChoice != "new")
 			_newUnitNumber = "";
+
+		await TryEnsureWorkSessionAsync().ConfigureAwait(false);
+	}
+
+	private async Task OnNewUnitNumberChangedAsync()
+	{
+		if (_installationChoice == "new")
+			await TryEnsureWorkSessionAsync().ConfigureAwait(false);
+	}
+
+	private void StartElapsedTimer()
+	{
+		StopElapsedTimer();
+		RecalcElapsedDisplay();
+		_elapsedTimer = new Timer(_ =>
+		{
+			_ = InvokeAsync(() =>
+			{
+				RecalcElapsedDisplay();
+				StateHasChanged();
+				return Task.CompletedTask;
+			});
+		}, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+	}
+
+	private void StopElapsedTimer()
+	{
+		_elapsedTimer?.Dispose();
+		_elapsedTimer = null;
+	}
+
+	private void RecalcElapsedDisplay()
+	{
+		var start = _sessionStartedAt ?? _pageWorkStartedAt;
+		if (start is null)
+		{
+			_elapsedDisplay = "—";
+			return;
+		}
+
+		_elapsedDisplay = ChecklistDurationFormatter.FormatActive(start);
+	}
+
+	private async Task PauseWorkSessionAsync()
+	{
+		if (_templateId is null)
+			return;
+
+		if (_existingChecklistId is int existingId)
+		{
+			await ChecklistEdit.PauseWorkAsync(existingId).ConfigureAwait(false);
+			return;
+		}
+
+		var installationId = await ResolveInstallationIdAsync().ConfigureAwait(false);
+		if (installationId is null || _templateId is not int tid || MaintenanceTypeId is not int mtId)
+			return;
+
+		var startedAt = _pageWorkStartedAt ?? DateTimeOffset.Now;
+		var checklistId = await ChecklistEdit.BeginInProgressAsync(new BeginInProgressChecklistRequest(
+			installationId.Value,
+			tid,
+			mtId,
+			1,
+			startedAt)).ConfigureAwait(false);
+		_existingChecklistId = checklistId;
+		await ChecklistEdit.PauseWorkAsync(checklistId).ConfigureAwait(false);
+	}
+
+	private async Task NavigateBackAsync()
+	{
+		await PauseWorkSessionAsync().ConfigureAwait(false);
+		_skipPauseOnDispose = true;
+		Nav.NavigateTo(BackLink);
+	}
+
+	private async Task TryEnsureWorkSessionAsync()
+	{
+		if (_existingChecklistId is not null || _templateId is not int tid || MaintenanceTypeId is not int mtId)
+			return;
+
+		var installationId = await ResolveInstallationIdAsync().ConfigureAwait(false);
+		if (installationId is null)
+			return;
+
+		var startedAt = _pageWorkStartedAt ?? DateTimeOffset.Now;
+		var checklistId = await ChecklistEdit.BeginInProgressAsync(new BeginInProgressChecklistRequest(
+			installationId.Value,
+			tid,
+			mtId,
+			1,
+			startedAt)).ConfigureAwait(false);
+
+		var editModel = await ChecklistEdit.GetForEditAsync(checklistId).ConfigureAwait(false);
+		_existingChecklistId = checklistId;
+		_sessionStartedAt = editModel.Info.StartedAt ?? startedAt;
+		RecalcElapsedDisplay();
+	}
+
+	private async Task<int?> ResolveInstallationIdAsync()
+	{
+		if (SystemId is not int sysId || EquipmentTypeId is not int etId)
+			return null;
+
+		if (string.IsNullOrEmpty(_installationChoice))
+			return null;
+
+		if (_installationChoice == "new")
+		{
+			if (string.IsNullOrWhiteSpace(_newUnitNumber))
+				return null;
+
+			try
+			{
+				return await InstallationEnsure.EnsureAsync(sysId, etId, _newUnitNumber).ConfigureAwait(false);
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		return int.TryParse(_installationChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var installationId)
+			? installationId
+			: null;
 	}
 
 	private string GetValue(int itemId) =>
@@ -324,24 +506,34 @@ else
 			return;
 		}
 
-		if (_existingChecklistId is int existingId)
-		{
-			await SaveExistingAsync(existingId, orgId, facId, sysId, mode).ConfigureAwait(false);
-			return;
-		}
-
-		int installationId;
 		if (string.IsNullOrEmpty(_installationChoice))
 		{
 			_saveMessage = "Выберите установку или создайте новую по номеру.";
 			return;
 		}
 
-		if (_installationChoice == "new")
+		var installationId = await ResolveInstallationIdAsync().ConfigureAwait(false);
+		if (installationId is null)
+		{
+			_saveMessage = _installationChoice == "new"
+				? "Укажите номер или название установки."
+				: "Некорректный выбор установки.";
+			return;
+		}
+
+		if (_existingChecklistId is null)
 		{
 			try
 			{
-				installationId = await InstallationEnsure.EnsureAsync(sysId, etId, _newUnitNumber).ConfigureAwait(false);
+				var startedAt = _pageWorkStartedAt ?? DateTimeOffset.Now;
+				var checklistId = await ChecklistEdit.BeginInProgressAsync(new BeginInProgressChecklistRequest(
+					installationId.Value,
+					tid,
+					mtId,
+					1,
+					startedAt)).ConfigureAwait(false);
+				_existingChecklistId = checklistId;
+				_sessionStartedAt = startedAt;
 			}
 			catch (Exception ex)
 			{
@@ -349,35 +541,8 @@ else
 				return;
 			}
 		}
-		else if (!int.TryParse(_installationChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out installationId))
-		{
-			_saveMessage = "Некорректный выбор установки.";
-			return;
-		}
 
-		_saving = true;
-		try
-		{
-			var req = new SaveChecklistRequest(
-				installationId,
-				tid,
-				mtId,
-				1,
-				_values,
-				mode);
-			var res = await SaveService.SaveAsync(req).ConfigureAwait(false);
-			if (!res.Ok)
-			{
-				_saveMessage = res.ErrorMessage ?? "Ошибка сохранения.";
-				return;
-			}
-
-			Nav.NavigateTo($"/checklists?organizationId={orgId}&facilityId={facId}&systemId={sysId}", forceLoad: true);
-		}
-		finally
-		{
-			_saving = false;
-		}
+		await SaveExistingAsync(_existingChecklistId.Value, orgId, facId, sysId, mode).ConfigureAwait(false);
 	}
 
 	private async Task SaveExistingAsync(int checklistId, int orgId, int facId, int sysId, ChecklistPersistenceMode mode)
@@ -395,15 +560,35 @@ else
 			}
 
 			if (mode == ChecklistPersistenceMode.UploadQueue)
-			{
-				await ChecklistEdit.SetStatusAsync(checklistId, "completed", "pending_upload").ConfigureAwait(false);
-			}
+				await ChecklistEdit.CompleteWorkAsync(checklistId).ConfigureAwait(false);
+			else
+				await ChecklistEdit.PauseWorkAsync(checklistId).ConfigureAwait(false);
 
+			_skipPauseOnDispose = true;
 			Nav.NavigateTo($"/checklists?organizationId={orgId}&facilityId={facId}&systemId={sysId}", forceLoad: true);
 		}
 		finally
 		{
 			_saving = false;
+		}
+	}
+
+	public async ValueTask DisposeAsync()
+	{
+		StopElapsedTimer();
+		_locationChangingRegistration?.Dispose();
+		_locationChangingRegistration = null;
+
+		if (_skipPauseOnDispose)
+			return;
+
+		try
+		{
+			await PauseWorkSessionAsync().ConfigureAwait(false);
+		}
+		catch
+		{
+			// Не блокируем выход при ошибке паузы.
 		}
 	}
 }

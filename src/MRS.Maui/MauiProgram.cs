@@ -1,9 +1,14 @@
 using Microsoft.Extensions.Logging;
 using MRS.Application.Admin;
 using MRS.Application.Checklists;
+using MRS.Application.Contacts;
 using MRS.Application.Facilities;
+using MRS.Application.Notes;
 using MRS.Application.Security;
 using MRS.Application.Storage;
+using MRS.Application.Sync;
+using MRS.Application.Users;
+using MRS.Application.Visits;
 using MRS.Infrastructure.Sqlite;
 using MRS.Maui.Services;
 
@@ -40,6 +45,11 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IObjectOnboardingService, SqliteObjectOnboardingService>();
 		builder.Services.AddSingleton<IChecklistManagementService, SqliteChecklistManagementService>();
 		builder.Services.AddSingleton<IChecklistEditService, SqliteChecklistEditService>();
+		builder.Services.AddSingleton<IScheduledVisitService, SqliteScheduledVisitService>();
+		builder.Services.AddSingleton<IEngineerNoteService, SqliteEngineerNoteService>();
+		builder.Services.AddSingleton<IOrganizationEmployeeQueryService, SqliteOrganizationEmployeeQueryService>();
+		builder.Services.AddSingleton<ISyncOutboxQueryService, SqliteSyncOutboxQueryService>();
+		builder.Services.AddSingleton<IServerSyncService, MauiServerSyncService>();
 		// Регистрация сервиса экспорта DOC/ZIP.
 		// Если появится другая реализация (например, API-based), меняется только эта строка.
 		builder.Services.AddSingleton<IChecklistDocumentExportService, SqliteChecklistDocumentExportService>();

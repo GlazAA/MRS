@@ -27,7 +27,9 @@ public sealed class SqliteChecklistManagementService : IChecklistManagementServi
 			SELECT
 				c.id,
 				c.start_at,
-				COALESCE(o.short_name, o.full_name) AS organization_name,
+				o.full_name AS org_full_name,
+				o.short_name AS org_short_name,
+				o.legal_form_code AS org_legal_form_code,
 				f.name AS facility_name,
 				et.type_name AS equipment_type_name,
 				COALESCE(NULLIF(TRIM(i.custom_name), ''), CAST(i.id AS TEXT)) AS installation_label,
@@ -42,7 +44,7 @@ public sealed class SqliteChecklistManagementService : IChecklistManagementServi
 			INNER JOIN maintenance_types mt ON mt.id = c.maintenance_type_id
 			WHERE c.is_active = 1
 			ORDER BY
-				COALESCE(o.short_name, o.full_name),
+				o.full_name,
 				f.name,
 				et.type_name,
 				COALESCE(NULLIF(TRIM(i.custom_name), ''), CAST(i.id AS TEXT));
@@ -64,12 +66,12 @@ public sealed class SqliteChecklistManagementService : IChecklistManagementServi
 			list.Add(new ChecklistManagementRow(
 				id,
 				startedAt,
-				reader.GetString(2),
-				reader.GetString(3),
-				reader.GetString(4),
+				SqliteOrganizationName.ReadListName(reader, 2, 3, 4),
 				reader.GetString(5),
 				reader.GetString(6),
-				reader.GetString(7)));
+				reader.GetString(7),
+				reader.GetString(8),
+				reader.GetString(9)));
 		}
 
 		return list;

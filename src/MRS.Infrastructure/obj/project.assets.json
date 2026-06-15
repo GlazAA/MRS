@@ -389,8 +389,8 @@
           "framework": "net9.0",
           "targetAlias": "net9.0",
           "projectReferences": {
-            "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
-              "projectPath": "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
+            "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
+              "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
             }
           }
         }

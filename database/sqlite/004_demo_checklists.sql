@@ -16,5 +16,5 @@ INSERT OR IGNORE INTO installations (id, system_id, equipment_type_id, is_active
 
 INSERT OR IGNORE INTO checklists (id, installation_id, maintenance_type_id, engineer_id, start_at, end_at, status, is_active, sync_state) VALUES
     (1, 1, 1, 1, '2025-12-22T09:30:00Z', '2025-12-22T11:00:00Z', 'completed', 1, 'local'),
-    (2, 2, 2, 1, '2025-12-23T08:15:00Z', NULL, 'in_progress', 1, 'local'),
+    (2, 2, 2, 1, '2025-12-23T08:15:00Z', '2025-12-23T09:45:00Z', 'in_progress', 1, 'local'),
     (3, 1, 1, 1, '2025-12-20T14:00:00Z', NULL, 'draft', 1, 'local');
