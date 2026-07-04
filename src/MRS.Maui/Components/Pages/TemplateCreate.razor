@@ -2,7 +2,9 @@
 @using System.Globalization
 @using MRS.Application.Checklists
 @using MRS.Application.Facilities
+@using Microsoft.Maui.ApplicationModel.DataTransfer
 @inject IChecklistTemplateAuthoringService TemplateAuthoring
+@implements IDisposable
 
 <PageTitle>Создание шаблона ТО</PageTitle>
 
@@ -50,14 +52,17 @@
         <div class="mrs-field">
             <label class="mrs-label">Название нового вида ТО *</label>
             <input class="mrs-select" type="text" @bind="_newMaintenanceName" @bind:event="oninput" />
+            <p class="mrs-hint-dashed">@TemplateFieldTypeHints.NewMaintenanceNameHint</p>
         </div>
         <div class="mrs-field">
             <label class="mrs-label">Код вида ТО</label>
-            <input class="mrs-select" type="text" @bind="_newMaintenanceCode" @bind:event="oninput" />
+            <input class="mrs-select" type="text" placeholder="Оставьте пустым — подставится автоматически" @bind="_newMaintenanceCode" @bind:event="oninput" />
+            <p class="mrs-hint-dashed">@TemplateFieldTypeHints.MaintenanceTypeCodeHint</p>
         </div>
         <div class="mrs-field">
             <label class="mrs-label">Описание вида ТО</label>
             <textarea class="mrs-select" rows="3" @bind="_newMaintenanceDescription" @bind:event="oninput"></textarea>
+            <p class="mrs-hint-dashed">@TemplateFieldTypeHints.MaintenanceTypeDescriptionHint</p>
         </div>
     }
 
@@ -66,30 +71,82 @@
         <input class="mrs-select" type="text" @bind="_templateName" @bind:event="oninput" />
     </div>
 
-    <details class="mrs-object-details">
+    <details class="mrs-object-details" @ontoggle="OnTemplateDetailsToggle">
         <summary>Доп. параметры шаблона</summary>
-        <div class="mrs-field mrs-mt">
-            <label class="mrs-label">Сценарный код</label>
-            <input class="mrs-select" type="text" @bind="_scenarioCode" @bind:event="oninput" />
-        </div>
-        <div class="mrs-field">
-            <label class="mrs-label">Верхняя плашка (top plate)</label>
-            <textarea class="mrs-select" rows="2" @bind="_topPlateText" @bind:event="oninput"></textarea>
-        </div>
-        <div class="mrs-field">
-            <label class="mrs-label">Текст вводного окна</label>
-            <textarea class="mrs-select" rows="3" @bind="_introModalText" @bind:event="oninput"></textarea>
-        </div>
-        <div class="mrs-field">
-            <label class="mrs-label">Текст окна безопасности</label>
-            <textarea class="mrs-select" rows="3" @bind="_safetyModalText" @bind:event="oninput"></textarea>
-        </div>
-        <div class="mrs-field">
-            <label class="mrs-check-label">
-                <input class="mrs-check" type="checkbox" @bind="_redButtonEnabled" />
-                Показать красную кнопку безопасности
-            </label>
-        </div>
+        @if (_textSourceChoice is null)
+        {
+            <div class="mrs-field mrs-mt">
+                <p class="mrs-hint">Использовать тексты по умолчанию для верхней плашки и кнопки «!»?</p>
+                <div class="mrs-form-actions">
+                    <button type="button" class="mrs-btn-primary" @onclick="ApplyDefaultTexts">Да, по умолчанию</button>
+                    <button type="button" class="mrs-btn-secondary" @onclick="ChooseCustomTexts">Нет, задам сам</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="mrs-field mrs-mt">
+                <label class="mrs-label">Сценарный код</label>
+                <input class="mrs-select" type="text" placeholder="Оставьте пустым — подставится автоматически" @bind="_scenarioCode" @bind:event="oninput" />
+                <p class="mrs-hint-dashed">@TemplateFieldTypeHints.ScenarioCodeHint</p>
+            </div>
+            <div class="mrs-field">
+                <label class="mrs-label">Верхняя плашка</label>
+                <p class="mrs-hint-dashed">@TemplateFieldTypeHints.TopPlateHint</p>
+                @if (_textSourceChoice == TextSourceMode.Custom)
+                {
+                    <p class="mrs-hint">Нажмите строку, чтобы вставить текст. Удерживайте более 3 секунд — скопировать в буфер.</p>
+                    <div class="mrs-text-preset-list">
+                        @foreach (var preset in ChecklistTemplateTexts.TopPlatePresets)
+                        {
+                            <button type="button" class="mrs-text-preset-item"
+                                    @onpointerdown="@(() => StartLongPress(preset))"
+                                    @onpointerup="CancelLongPress"
+                                    @onpointerleave="CancelLongPress"
+                                    @onpointercancel="CancelLongPress"
+                                    @onclick="@(() => InsertTopPlatePreset(preset))">
+                                <span class="mrs-text-preset-label">@preset.Label</span>
+                                <span class="mrs-text-preset-preview mrs-pre-wrap">@preset.Text</span>
+                            </button>
+                        }
+                    </div>
+                }
+                <textarea class="mrs-select mrs-mt" rows="3" @bind="_topPlateText" @bind:event="oninput"></textarea>
+            </div>
+            <div class="mrs-field">
+                <label class="mrs-label">Текст кнопки «!» (безопасность)</label>
+                <p class="mrs-hint-dashed">@TemplateFieldTypeHints.SafetyButtonHint</p>
+                @if (_textSourceChoice == TextSourceMode.Custom)
+                {
+                    <p class="mrs-hint">Нажмите строку, чтобы вставить текст. Удерживайте более 3 секунд — скопировать в буфер.</p>
+                    <div class="mrs-text-preset-list">
+                        @foreach (var preset in ChecklistTemplateTexts.SafetyModalPresets)
+                        {
+                            <button type="button" class="mrs-text-preset-item"
+                                    @onpointerdown="@(() => StartLongPress(preset))"
+                                    @onpointerup="CancelLongPress"
+                                    @onpointerleave="CancelLongPress"
+                                    @onpointercancel="CancelLongPress"
+                                    @onclick="@(() => InsertSafetyPreset(preset))">
+                                <span class="mrs-text-preset-label">@preset.Label</span>
+                                <span class="mrs-text-preset-preview mrs-pre-wrap">@preset.Text</span>
+                            </button>
+                        }
+                    </div>
+                }
+                <textarea class="mrs-select mrs-mt" rows="6" @bind="_safetyModalText" @bind:event="oninput"></textarea>
+            </div>
+            <div class="mrs-field">
+                <label class="mrs-check-label">
+                    <input class="mrs-check" type="checkbox" @bind="_redButtonEnabled" />
+                    Показать красную кнопку «!»
+                </label>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_copyNotice))
+            {
+                <p class="mrs-info-note">@_copyNotice</p>
+            }
+        }
     </details>
 
     <p class="mrs-info-title">Поля шаблона</p>
@@ -103,16 +160,32 @@
             </div>
 
             <div class="mrs-field">
-                <label class="mrs-label">Код поля (field_code)</label>
-                <input class="mrs-select" type="text" @bind="field.FieldCode" @bind:event="oninput" />
-            </div>
-            <div class="mrs-field">
                 <label class="mrs-label">Текст вопроса *</label>
-                <input class="mrs-select" type="text" @bind="field.QuestionText" @bind:event="oninput" />
+                <input class="mrs-select" type="text" @bind="field.QuestionText" @bind:event="oninput" @bind:after="() => OnQuestionTextChanged(i)" />
             </div>
             <div class="mrs-field">
-                <label class="mrs-label">Подсказка</label>
+                <label class="mrs-label">Служебный код поля</label>
+                @if (field.FieldCodeManual)
+                {
+                    <input class="mrs-select" type="text" @bind="field.FieldCode" @bind:event="oninput" />
+                    <button type="button" class="mrs-btn-secondary mrs-mt" @onclick="() => ResetFieldCodeToAuto(i)">Вернуть автоподбор</button>
+                    <p class="mrs-hint-dashed">@TemplateFieldTypeHints.FieldCodeManualHint</p>
+                }
+                else
+                {
+                    <input class="mrs-select mrs-readonly" type="text" readonly value="@field.FieldCode" />
+                    <button type="button" class="mrs-btn-secondary mrs-mt" @onclick="() => EnableManualFieldCode(i)">Задать код вручную</button>
+                    <p class="mrs-hint-dashed">@TemplateFieldTypeHints.FieldCodeAutoHint</p>
+                }
+                @if (TemplateFieldTypeHints.GetForFieldCode(field.FieldCode) is { } codeHint)
+                {
+                    <p class="mrs-hint-dashed">@codeHint</p>
+                }
+            </div>
+            <div class="mrs-field">
+                <label class="mrs-label">Подсказка для инженера</label>
                 <input class="mrs-select" type="text" @bind="field.HintText" @bind:event="oninput" />
+                <p class="mrs-hint-dashed">Серый текст под полем при заполнении контрольного листа (не путать с подсказками здесь, при создании шаблона).</p>
             </div>
             <div class="mrs-field">
                 <label class="mrs-label">Тип поля *</label>
@@ -122,6 +195,10 @@
                         <option value="@t">@t</option>
                     }
                 </select>
+                @if (TemplateFieldTypeHints.GetForFieldType(field.FieldTypeName) is { } typeHint)
+                {
+                    <p class="mrs-hint-dashed">@typeHint</p>
+                }
             </div>
             <div class="mrs-field">
                 <label class="mrs-check-label">
@@ -177,9 +254,15 @@
     private string _templateName = string.Empty;
     private string _scenarioCode = string.Empty;
     private string _topPlateText = string.Empty;
-    private string _introModalText = string.Empty;
     private string _safetyModalText = string.Empty;
     private bool _redButtonEnabled;
+    private TextSourceMode? _textSourceChoice;
+    private string? _copyNotice;
+    private Timer? _longPressTimer;
+    private ChecklistTemplateTextPreset? _longPressPreset;
+    private bool _longPressTriggered;
+
+    private enum TextSourceMode { Default, Custom }
 
     protected override async Task OnInitializedAsync()
     {
@@ -207,6 +290,72 @@
         {
             FieldTypeName = "text"
         });
+        SyncAllFieldCodes();
+    }
+
+    private void OnQuestionTextChanged(int index) => SyncFieldCode(index);
+
+    private void EnableManualFieldCode(int index)
+    {
+        if (index < 0 || index >= _fields.Count)
+            return;
+        _fields[index].FieldCodeManual = true;
+    }
+
+    private void ResetFieldCodeToAuto(int index)
+    {
+        if (index < 0 || index >= _fields.Count)
+            return;
+        _fields[index].FieldCodeManual = false;
+        SyncFieldCode(index);
+    }
+
+    private void SyncFieldCode(int index)
+    {
+        if (index < 0 || index >= _fields.Count)
+            return;
+
+        var field = _fields[index];
+        if (field.FieldCodeManual)
+            return;
+
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < _fields.Count; i++)
+        {
+            if (i == index)
+                continue;
+            if (!string.IsNullOrWhiteSpace(_fields[i].FieldCode))
+                used.Add(_fields[i].FieldCode);
+        }
+
+        field.FieldCode = TemplateFieldCodeGenerator.SuggestFromQuestion(field.QuestionText, used);
+    }
+
+    private void SyncAllFieldCodes()
+    {
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var field in _fields)
+        {
+            if (field.FieldCodeManual)
+            {
+                if (!string.IsNullOrWhiteSpace(field.FieldCode))
+                    used.Add(field.FieldCode);
+                continue;
+            }
+
+            field.FieldCode = TemplateFieldCodeGenerator.SuggestFromQuestion(field.QuestionText, used);
+            if (!string.IsNullOrWhiteSpace(field.FieldCode))
+                used.Add(field.FieldCode);
+        }
+    }
+
+    private void EnsureMaintenanceAndScenarioCodes(int equipmentTypeId)
+    {
+        if (_maintenanceChoice == "new" && string.IsNullOrWhiteSpace(_newMaintenanceCode))
+            _newMaintenanceCode = TemplateFieldCodeGenerator.SuggestMaintenanceTypeCode(_newMaintenanceName);
+
+        if (string.IsNullOrWhiteSpace(_scenarioCode))
+            _scenarioCode = TemplateFieldCodeGenerator.SuggestScenarioCode(_templateName, equipmentTypeId);
     }
 
     private void RemoveField(int index)
@@ -223,6 +372,72 @@
         || string.Equals(fieldTypeName, "dropdown", StringComparison.OrdinalIgnoreCase)
         || string.Equals(fieldTypeName, "dropdown_multiple", StringComparison.OrdinalIgnoreCase)
         || string.Equals(fieldTypeName, "checkbox", StringComparison.OrdinalIgnoreCase);
+
+    private void OnTemplateDetailsToggle() { }
+
+    private void ApplyDefaultTexts()
+    {
+        _textSourceChoice = TextSourceMode.Default;
+        _topPlateText = ChecklistTemplateTexts.DefaultTopPlateText;
+        _safetyModalText = ChecklistTemplateTexts.DefaultSafetyModalText;
+        _redButtonEnabled = true;
+    }
+
+    private void ChooseCustomTexts()
+    {
+        _textSourceChoice = TextSourceMode.Custom;
+        _redButtonEnabled = true;
+    }
+
+    private void InsertTopPlatePreset(ChecklistTemplateTextPreset preset)
+    {
+        if (_longPressTriggered)
+            return;
+        _topPlateText = preset.Text;
+    }
+
+    private void InsertSafetyPreset(ChecklistTemplateTextPreset preset)
+    {
+        if (_longPressTriggered)
+            return;
+        _safetyModalText = preset.Text;
+        _redButtonEnabled = true;
+    }
+
+    private void StartLongPress(ChecklistTemplateTextPreset preset)
+    {
+        _longPressPreset = preset;
+        _longPressTriggered = false;
+        _longPressTimer?.Dispose();
+        _longPressTimer = new Timer(_ =>
+        {
+            _ = InvokeAsync(async () =>
+            {
+                _longPressTriggered = true;
+                await Clipboard.Default.SetTextAsync(preset.Text).ConfigureAwait(false);
+                _copyNotice = $"Скопировано: {preset.Label}";
+                StateHasChanged();
+            });
+        }, null, 3000, Timeout.Infinite);
+    }
+
+    private void CancelLongPress()
+    {
+        _longPressTimer?.Dispose();
+        _longPressTimer = null;
+    }
+
+    private void EnsureTemplateTextsBeforeSave()
+    {
+        if (_textSourceChoice is null)
+            ApplyDefaultTexts();
+
+        if (string.IsNullOrWhiteSpace(_topPlateText))
+            _topPlateText = ChecklistTemplateTexts.DefaultTopPlateText;
+
+        if (_redButtonEnabled && string.IsNullOrWhiteSpace(_safetyModalText))
+            _safetyModalText = ChecklistTemplateTexts.DefaultSafetyModalText;
+    }
 
     private async Task SaveTemplateAsync()
     {
@@ -242,12 +457,21 @@
                 existingMaintenanceTypeId = mtid;
             }
 
+            EnsureTemplateTextsBeforeSave();
+            SyncAllFieldCodes();
+            EnsureMaintenanceAndScenarioCodes(equipmentTypeId);
+
             var fieldRequests = new List<CreateTemplateFieldRequest>(_fields.Count);
+            var sortOrder = 0;
             for (var i = 0; i < _fields.Count; i++)
             {
                 var f = _fields[i];
+                if (ChecklistFieldCodes.IsEndTime(f.FieldCode))
+                    throw new InvalidOperationException("Поле «Время окончания» (end_time) больше не используется — удалите его из шаблона.");
+
+                sortOrder++;
                 fieldRequests.Add(new CreateTemplateFieldRequest(
-                    SortOrder: i + 1,
+                    SortOrder: sortOrder,
                     FieldCode: f.FieldCode,
                     QuestionText: f.QuestionText,
                     HintText: f.HintText,
@@ -267,13 +491,13 @@
                 TemplateName: _templateName,
                 ScenarioCode: _scenarioCode,
                 TopPlateText: _topPlateText,
-                IntroModalText: _introModalText,
+                IntroModalText: null,
                 SafetyModalText: _safetyModalText,
                 RedButtonEnabled: _redButtonEnabled,
                 Fields: fieldRequests);
 
             var newTemplateId = await TemplateAuthoring.CreateTemplateAsync(request).ConfigureAwait(false);
-            _savedMessage = $"Шаблон создан (ID: {newTemplateId}).";
+            _savedMessage = $"Шаблон создан (ID: {newTemplateId}). Служебные коды полей подобраны автоматически — при необходимости их проверит администратор.";
         }
         catch (Exception ex)
         {
@@ -296,9 +520,15 @@
             .ToList();
     }
 
+    public void Dispose()
+    {
+        _longPressTimer?.Dispose();
+    }
+
     private sealed class FieldDraft
     {
         public string FieldCode { get; set; } = string.Empty;
+        public bool FieldCodeManual { get; set; }
         public string QuestionText { get; set; } = string.Empty;
         public string HintText { get; set; } = string.Empty;
         public string FieldTypeName { get; set; } = "text";

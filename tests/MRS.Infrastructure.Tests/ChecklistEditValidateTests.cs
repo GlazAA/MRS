@@ -37,7 +37,7 @@ public class ChecklistEditValidateTests
 			var checklistId = await edit.BeginInProgressAsync(new BeginInProgressChecklistRequest(1, 1, 1, 1, DateTimeOffset.Now));
 
 			var model = await edit.GetForEditAsync(checklistId);
-			foreach (var code in new[] { "start_date", "start_time", "end_date", "end_time" })
+			foreach (var code in new[] { "start_date", "start_time", "end_date" })
 			{
 				var field = model.Fields.First(f =>
 					string.Equals(f.FieldCode, code, StringComparison.OrdinalIgnoreCase));
@@ -167,7 +167,7 @@ public class ChecklistEditValidateTests
 	public void ConflictReport_includes_engineer_and_blocked_fields()
 	{
 		var info = new ChecklistEditInfo(
-			7, 1, null, null, "ООО Тест", "Объект 1", "Компрессор", "1", "ЕЖН", "completed", 1);
+			7, 1, null, null, "ООО Тест", "Объект 1", "Компрессор", 1, "1", "ЕЖН", "completed", 1);
 		var blocked = new List<ChecklistUpdateDryRunField>
 		{
 			new(5001, "Дата начала", "start_date", "Управляется учётом времени работы", "2020-01-01")

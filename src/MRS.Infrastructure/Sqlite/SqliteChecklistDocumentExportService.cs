@@ -110,12 +110,11 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         var equipmentType = model.Header.EquipmentTypeName;
         var serial = GetAnswerDisplay(answers, "comp_serial", "serial_number", "compressor_serial", "serial") ?? "___________";
         var workDates = FormatWorkDateRange(model.Header);
-        var modelName = GetAnswerDisplay(answers, "comp_model", "model") ?? "___________";
+        var modelName = FormatEquipmentModelDisplay(answers) ?? "___________";
         var unitNumber = GetAnswerDisplay(answers, "unit_number", "unit_no") ?? model.Header.InstallationLabel;
         if (string.IsNullOrWhiteSpace(unitNumber))
             unitNumber = "___________";
         var workKind = model.Header.MaintenanceTypeName;
-        var hours = GetAnswerDisplay(answers, "operating_hours", "hours", "runtime_hours") ?? "___________";
 
         var logoUri = GetLogoDataUri();
         var profile = DetectProfile(equipmentType);
@@ -227,8 +226,6 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
 
         sb.AppendLine("<table class=\"full-row\" cellspacing=\"0\" cellpadding=\"0\"><tr><td>");
         sb.AppendLine("<span class=\"lbl\">Вид работ:</span><span class=\"val-line\">").Append(Html(workKind)).Append("</span>");
-        sb.AppendLine("</td></tr><tr><td>");
-        sb.AppendLine("<span class=\"lbl\">Часы эксплуатации:</span><span class=\"val-line\">").Append(Html(hours)).Append("</span>");
         sb.AppendLine("</td></tr></table>");
 
         // Второй блок отличается по профилю оборудования.
@@ -577,6 +574,7 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         "unit_number",
         "equipment_pick",
         "comp_model",
+        "comp_manufacturer",
         "comp_type",
         "comp_serial",
         "serial_number",
@@ -670,6 +668,15 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
             return preferDashWhenEmpty ? "—" : "☐";
 
         return "✓";
+    }
+
+    private static string? FormatEquipmentModelDisplay(IReadOnlyList<ChecklistDocumentAnswer> answers)
+    {
+        var manufacturer = GetAnswerDisplay(answers, "comp_manufacturer");
+        var model = GetAnswerDisplay(answers, "comp_model", "model");
+        if (!string.IsNullOrWhiteSpace(manufacturer) && !string.IsNullOrWhiteSpace(model))
+            return $"{manufacturer} {model}";
+        return model ?? manufacturer;
     }
 
     private static string? GetAnswerDisplay(IReadOnlyList<ChecklistDocumentAnswer> answers, params string[] fieldCodes)

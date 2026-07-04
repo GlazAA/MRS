@@ -98,6 +98,9 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
         if (name.Length == 0)
             throw new InvalidOperationException("Выберите вид ТО или задайте новый.");
         var code = (request.NewMaintenanceTypeCode ?? string.Empty).Trim();
+        if (code.Length == 0)
+            code = TemplateFieldCodeGenerator.SuggestMaintenanceTypeCode(name);
+        code = await EnsureUniqueMaintenanceCodeAsync(connection, tx, code, cancellationToken).ConfigureAwait(false);
         var description = (request.NewMaintenanceTypeDescription ?? string.Empty).Trim();
 
         using (var find = connection.CreateCommand())
@@ -125,7 +128,7 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
             SELECT last_insert_rowid();
             """;
         insert.Parameters.AddWithValue("$name", name);
-        insert.Parameters.AddWithValue("$code", code.Length == 0 ? DBNull.Value : code);
+        insert.Parameters.AddWithValue("$code", code);
         insert.Parameters.AddWithValue("$description", description.Length == 0 ? DBNull.Value : description);
         var scalar = await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return scalar is long l ? (int)l : Convert.ToInt32(scalar);
@@ -161,7 +164,7 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
         string templateName,
         CancellationToken cancellationToken)
     {
-        var scenarioCode = (request.ScenarioCode ?? string.Empty).Trim();
+        var scenarioCode = await ResolveScenarioCodeAsync(connection, tx, request, cancellationToken).ConfigureAwait(false);
         var top = (request.TopPlateText ?? string.Empty).Trim();
         var intro = (request.IntroModalText ?? string.Empty).Trim();
         var safety = (request.SafetyModalText ?? string.Empty).Trim();
@@ -205,6 +208,7 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
         CancellationToken cancellationToken)
     {
         var typeMap = await LoadFieldTypeMapAsync(connection, tx, cancellationToken).ConfigureAwait(false);
+        var usedFieldCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var f in fields.OrderBy(x => x.SortOrder))
         {
@@ -216,6 +220,9 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
                 throw new InvalidOperationException($"Поле #{f.SortOrder}: неизвестный тип '{f.FieldTypeName}'.");
 
             var fieldCode = (f.FieldCode ?? string.Empty).Trim();
+            if (fieldCode.Length == 0)
+                fieldCode = TemplateFieldCodeGenerator.SuggestFromQuestion(question, usedFieldCodes);
+            usedFieldCodes.Add(fieldCode);
             var hint = (f.HintText ?? string.Empty).Trim();
             var group = (f.GroupName ?? string.Empty).Trim();
             var validation = (f.ValidationRuleCode ?? string.Empty).Trim();
@@ -293,5 +300,78 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             map[reader.GetString(1)] = reader.GetInt32(0);
         return map;
+    }
+
+    private static async Task<string> EnsureUniqueMaintenanceCodeAsync(
+        SqliteConnection connection,
+        SqliteTransaction tx,
+        string baseCode,
+        CancellationToken cancellationToken)
+    {
+        var code = baseCode;
+        var n = 2;
+        while (await MaintenanceCodeExistsAsync(connection, tx, code, cancellationToken).ConfigureAwait(false))
+        {
+            code = $"{baseCode}-{n}";
+            n++;
+        }
+
+        return code;
+    }
+
+    private static async Task<bool> MaintenanceCodeExistsAsync(
+        SqliteConnection connection,
+        SqliteTransaction tx,
+        string code,
+        CancellationToken cancellationToken)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = """
+            SELECT COUNT(1)
+            FROM maintenance_types
+            WHERE TRIM(COALESCE(code, '')) = $code;
+            """;
+        cmd.Parameters.AddWithValue("$code", code);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) > 0;
+    }
+
+    private static async Task<string> ResolveScenarioCodeAsync(
+        SqliteConnection connection,
+        SqliteTransaction tx,
+        CreateChecklistTemplateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var scenario = (request.ScenarioCode ?? string.Empty).Trim();
+        if (scenario.Length > 0)
+            return scenario;
+
+        var baseCode = TemplateFieldCodeGenerator.SuggestScenarioCode(request.TemplateName, request.EquipmentTypeId);
+        var code = baseCode;
+        var n = 2;
+        while (await ScenarioCodeExistsAsync(connection, tx, code, cancellationToken).ConfigureAwait(false))
+        {
+            code = $"{baseCode}-{n}";
+            n++;
+        }
+
+        return code;
+    }
+
+    private static async Task<bool> ScenarioCodeExistsAsync(
+        SqliteConnection connection,
+        SqliteTransaction tx,
+        string code,
+        CancellationToken cancellationToken)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = """
+            SELECT COUNT(1)
+            FROM checklist_templates
+            WHERE TRIM(COALESCE(scenario_code, '')) = $code;
+            """;
+        cmd.Parameters.AddWithValue("$code", code);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) > 0;
     }
 }

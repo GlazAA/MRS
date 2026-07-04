@@ -10,6 +10,7 @@ public sealed record ChecklistEditInfo(
 	string OrganizationName,
 	string FacilityName,
 	string EquipmentTypeName,
+	int EquipmentTypeId,
 	string InstallationLabel,
 	string MaintenanceTypeName,
 	string StatusCode,

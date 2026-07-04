@@ -45,7 +45,7 @@ public sealed class SqliteChecklistSaveService : IChecklistSaveService
 			else
 			{
 				startAt = CombineDateTime(request.AnswersByTemplateItemId, items, "start_date", "start_time") ?? now;
-				endAt = CombineDateTime(request.AnswersByTemplateItemId, items, "end_date", "end_time") ?? now;
+				endAt = CombineEndDateTime(request.AnswersByTemplateItemId, items) ?? now;
 			}
 
 			var checklistId = await InsertChecklistAsync(
@@ -239,11 +239,16 @@ public sealed class SqliteChecklistSaveService : IChecklistSaveService
 		return list;
 	}
 
+	private static DateTimeOffset? CombineEndDateTime(
+		IReadOnlyDictionary<int, string> answers,
+		IReadOnlyList<ItemRow> items) =>
+		CombineDateTime(answers, items, "end_date", null);
+
 	private static DateTimeOffset? CombineDateTime(
 		IReadOnlyDictionary<int, string> answers,
 		IReadOnlyList<ItemRow> items,
 		string dateCode,
-		string timeCode)
+		string? timeCode)
 	{
 		var dateItem = items.FirstOrDefault(i => string.Equals(i.FieldCode, dateCode, StringComparison.OrdinalIgnoreCase));
 		if (dateItem is null)
@@ -252,9 +257,12 @@ public sealed class SqliteChecklistSaveService : IChecklistSaveService
 			return null;
 
 		var timeRaw = "";
-		var timeItem = items.FirstOrDefault(i => string.Equals(i.FieldCode, timeCode, StringComparison.OrdinalIgnoreCase));
-		if (timeItem is not null && answers.TryGetValue(timeItem.Id, out var tr) && tr is not null)
-			timeRaw = tr;
+		if (!string.IsNullOrWhiteSpace(timeCode))
+		{
+			var timeItem = items.FirstOrDefault(i => string.Equals(i.FieldCode, timeCode, StringComparison.OrdinalIgnoreCase));
+			if (timeItem is not null && answers.TryGetValue(timeItem.Id, out var tr) && tr is not null)
+				timeRaw = tr;
+		}
 
 		if (!DateOnly.TryParse(dateRaw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
 			return null;

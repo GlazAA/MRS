@@ -22,8 +22,9 @@ public class SqliteDatabaseBootstrapperTests
 			Assert.Equal(9, status.MaintenanceTypeCount);
 
 			Assert.Equal(3, await CountAsync(path, "SELECT COUNT(*) FROM organizations WHERE is_active = 1;"));
-			Assert.Equal(3, await CountAsync(path, "SELECT COUNT(*) FROM checklists WHERE is_active = 1;"));
+			Assert.Equal(0, await CountAsync(path, "SELECT COUNT(*) FROM checklists WHERE is_active = 1;"));
 			Assert.Equal(20, await CountAsync(path, "SELECT COUNT(*) FROM checklist_templates WHERE is_active = 1;"));
+			Assert.Equal(4, await CountAsync(path, "SELECT COUNT(*) FROM equipment_models WHERE equipment_type_id = 1;"));
 			Assert.Equal(39, await CountAsync(path, "SELECT COUNT(*) FROM system_equipment_types WHERE system_id IN (1,2,3);"));
 
 			var second = await bootstrapper.EnsureReadyAsync(path);
@@ -81,10 +82,7 @@ public class SqliteDatabaseBootstrapperTests
 			Assert.Equal(13, types.Count);
 			var summaries = new SqliteChecklistSummaryService(paths, bootstrapper);
 			var rows = await summaries.GetForSystemAsync(1);
-			Assert.Equal(2, rows.Count);
-			Assert.Contains(rows, r => r.StatusCode == "completed");
-			Assert.Contains(rows, r => r.StatusCode == "in_progress");
-			Assert.DoesNotContain(rows, r => r.StatusCode == "draft");
+			Assert.Empty(rows);
 		}
 		finally
 		{

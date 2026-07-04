@@ -8,6 +8,7 @@
 @inject IChecklistEditService ChecklistEdit
 @inject IInstallationQueryService InstallationQuery
 @inject IInstallationEnsureService InstallationEnsure
+@inject IEquipmentModelCatalogService ModelCatalog
 @inject NavigationManager Nav
 
 <PageTitle>Создание контрольного листа</PageTitle>
@@ -39,10 +40,8 @@ else
 {
     @if (!string.IsNullOrWhiteSpace(_meta?.TopPlateText))
     {
-        <div class="mrs-top-plate">@_meta!.TopPlateText</div>
+        <div class="mrs-top-plate mrs-pre-wrap">@_meta!.TopPlateText</div>
     }
-
-    <p class="mrs-muted">@(_meta?.TemplateName)</p>
 
     @if (_pageWorkStartedAt is not null || _sessionStartedAt is not null)
     {
@@ -66,7 +65,12 @@ else
         }
     </div>
 
-    @foreach (var field in _fields)
+    @if (_templateHasCatalogFields && !_catalogHasModels)
+    {
+        <p class="mrs-info-note">Добавьте модели в управлении объектами. Сохранение в БД недоступно — используйте «Сохранить локально».</p>
+    }
+
+    @foreach (var field in VisibleFields)
     {
         var ft = field.FieldTypeName.ToLowerInvariant();
         <div class="mrs-field">
@@ -75,6 +79,30 @@ else
             {
                 <p class="mrs-hint">@field.HintText</p>
             }
+            @if (EquipmentModelFieldCodes.IsManufacturerField(field.FieldCode))
+            {
+                <select class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => OnManufacturerChangedAsync(field, e))">
+                    <option value="">—</option>
+                    @foreach (var mfg in _manufacturers)
+                    {
+                        <option value="@mfg">@mfg</option>
+                    }
+                </select>
+            }
+            else if (EquipmentModelFieldCodes.IsModelField(field.FieldCode))
+            {
+                var selectedMfg = GetSelectedManufacturerForModelField(field);
+                var models = GetCachedModels(selectedMfg);
+                <select class="mrs-select" value="@GetValue(field.TemplateItemId)" disabled="@(string.IsNullOrWhiteSpace(selectedMfg))" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))">
+                    <option value="">—</option>
+                    @foreach (var m in models)
+                    {
+                        <option value="@m.Name">@m.Name</option>
+                    }
+                </select>
+            }
+            else
+            {
             @switch (ft)
             {
                 case "textarea":
@@ -130,6 +158,7 @@ else
                     <input type="text" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
                     break;
             }
+            }
         </div>
     }
 
@@ -148,17 +177,6 @@ else
 @if (_meta?.RedButtonEnabled == true && !string.IsNullOrWhiteSpace(_meta.SafetyModalText))
 {
     <button type="button" class="mrs-safety-fab" aria-label="Инструкция по безопасности" @onclick="() => _showSafety = true"></button>
-}
-
-@if (_showIntro && !string.IsNullOrWhiteSpace(_meta?.IntroModalText))
-{
-    <div class="mrs-modal-backdrop" @onclick="() => _showIntro = false">
-        <div class="mrs-modal" @onclick:stopPropagation="true">
-            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="() => _showIntro = false">×</button>
-            <h3 class="mrs-modal-title">Внимание</h3>
-            <p class="mrs-modal-body mrs-pre-wrap">@_meta!.IntroModalText</p>
-        </div>
-    </div>
 }
 
 @if (_showSafety && !string.IsNullOrWhiteSpace(_meta?.SafetyModalText))
@@ -191,7 +209,6 @@ else
 	private bool _busy;
 	private bool _saving;
 	private bool _showSafety;
-	private bool _showIntro;
 	private bool _skipPauseOnDispose;
 	private string _installationChoice = "";
 	private string _newUnitNumber = "";
@@ -201,6 +218,13 @@ else
 	private string _elapsedDisplay = "0:00:00";
 	private string? _loadedContextKey;
 	private IDisposable? _locationChangingRegistration;
+	private List<string> _manufacturers = [];
+	private readonly Dictionary<string, List<EquipmentModelListItem>> _modelsByManufacturer = new(StringComparer.OrdinalIgnoreCase);
+	private bool _catalogHasModels;
+	private bool _templateHasCatalogFields;
+
+	private IEnumerable<TemplateFieldDefinition> VisibleFields =>
+		_fields.Where(f => !ChecklistFieldCodes.IsEndTime(f.FieldCode));
 
 	private string BackLink =>
 		OrganizationId is int o && FacilityId is int f && SystemId is int s && EquipmentTypeId is int e
@@ -246,7 +270,6 @@ else
 		_templateId = null;
 		_existingChecklistId = null;
 		_showSafety = false;
-		_showIntro = false;
 		_skipPauseOnDispose = false;
 		_pageWorkStartedAt = null;
 		_sessionStartedAt = null;
@@ -277,6 +300,10 @@ else
 
 			_meta = await Flow.GetTemplateMetaAsync(tid).ConfigureAwait(false);
 			_fields = (await Flow.GetTemplateFieldsAsync(tid).ConfigureAwait(false)).ToList();
+			_templateHasCatalogFields = _fields.Any(f =>
+				EquipmentModelFieldCodes.IsManufacturerField(f.FieldCode) ||
+				EquipmentModelFieldCodes.IsModelField(f.FieldCode));
+			await LoadCatalogAsync(etid).ConfigureAwait(false);
 			foreach (var f in _fields)
 				_values.TryAdd(f.TemplateItemId, string.Empty);
 
@@ -301,12 +328,12 @@ else
 				foreach (var field in editModel.Fields)
 					_values[field.TemplateItemId] = field.ValueRaw;
 
+				await PrefetchModelOptionsAsync().ConfigureAwait(false);
 				StartElapsedTimer();
 			}
 			else
 			{
 				_pageWorkStartedAt = DateTimeOffset.Now;
-				_showIntro = !string.IsNullOrWhiteSpace(_meta?.IntroModalText);
 				StartElapsedTimer();
 			}
 		}
@@ -327,6 +354,9 @@ else
 			_newUnitNumber = "";
 
 		await TryEnsureWorkSessionAsync().ConfigureAwait(false);
+
+		if (int.TryParse(_installationChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var installationId))
+			await ApplyInstallationModelPrefillAsync(installationId).ConfigureAwait(false);
 	}
 
 	private async Task OnNewUnitNumberChangedAsync()
@@ -521,6 +551,9 @@ else
 			return;
 		}
 
+		if (mode == ChecklistPersistenceMode.UploadQueue && !ValidateCatalogForUpload())
+			return;
+
 		if (_existingChecklistId is null)
 		{
 			try
@@ -550,6 +583,9 @@ else
 		_saving = true;
 		try
 		{
+			if (mode == ChecklistPersistenceMode.UploadQueue)
+				EnsureEndDateForUploadQueue();
+
 			var fieldIds = _fields.Select(f => f.TemplateItemId).ToList();
 			var request = new UpdateChecklistAnswersRequest(checklistId, _values);
 			var apply = await ChecklistEdit.ApplyAsync(request, fieldIds).ConfigureAwait(false);
@@ -571,6 +607,120 @@ else
 		{
 			_saving = false;
 		}
+	}
+
+	private void EnsureEndDateForUploadQueue()
+	{
+		var endDateField = _fields.FirstOrDefault(f =>
+			f.FieldCode is not null &&
+			f.FieldCode.Equals(ChecklistFieldCodes.EndDate, StringComparison.OrdinalIgnoreCase));
+		if (endDateField is null)
+			return;
+
+		if (!string.IsNullOrWhiteSpace(GetValue(endDateField.TemplateItemId)))
+			return;
+
+		SetValue(endDateField.TemplateItemId, MoscowRegionalClock.TodayIsoDate);
+	}
+
+	private async Task LoadCatalogAsync(int equipmentTypeId)
+	{
+		_manufacturers = (await ModelCatalog.GetManufacturersAsync(equipmentTypeId).ConfigureAwait(false)).ToList();
+		_catalogHasModels = await ModelCatalog.HasAnyModelsAsync(equipmentTypeId).ConfigureAwait(false);
+		_modelsByManufacturer.Clear();
+	}
+
+	private async Task PrefetchModelOptionsAsync()
+	{
+		foreach (var field in _fields.Where(f => EquipmentModelFieldCodes.IsModelField(f.FieldCode)))
+		{
+			var manufacturer = GetSelectedManufacturerForModelField(field);
+			if (!string.IsNullOrWhiteSpace(manufacturer))
+				await EnsureModelsCachedAsync(manufacturer).ConfigureAwait(false);
+		}
+	}
+
+	private async Task EnsureModelsCachedAsync(string manufacturer)
+	{
+		if (EquipmentTypeId is not int etId)
+			return;
+
+		var key = manufacturer.Trim();
+		if (key.Length == 0 || _modelsByManufacturer.ContainsKey(key))
+			return;
+
+		var models = (await ModelCatalog.GetModelsAsync(etId, key).ConfigureAwait(false)).ToList();
+		_modelsByManufacturer[key] = models;
+	}
+
+	private IReadOnlyList<EquipmentModelListItem> GetCachedModels(string? manufacturer)
+	{
+		if (string.IsNullOrWhiteSpace(manufacturer))
+			return [];
+
+		return _modelsByManufacturer.TryGetValue(manufacturer.Trim(), out var models)
+			? models
+			: [];
+	}
+
+	private string? GetSelectedManufacturerForModelField(TemplateFieldDefinition modelField)
+	{
+		var manufacturerCode = EquipmentModelFieldCodes.GetManufacturerFieldCode(modelField.FieldCode);
+		if (manufacturerCode is null)
+			return null;
+
+		var manufacturerField = _fields.FirstOrDefault(f =>
+			string.Equals(f.FieldCode, manufacturerCode, StringComparison.OrdinalIgnoreCase));
+		return manufacturerField is null ? null : GetValue(manufacturerField.TemplateItemId);
+	}
+
+	private async Task OnManufacturerChangedAsync(TemplateFieldDefinition field, ChangeEventArgs e)
+	{
+		var value = e.Value?.ToString() ?? string.Empty;
+		SetValue(field.TemplateItemId, value);
+
+		var modelCode = EquipmentModelFieldCodes.GetModelFieldCode(field.FieldCode);
+		if (modelCode is not null)
+		{
+			var modelField = _fields.FirstOrDefault(f =>
+				string.Equals(f.FieldCode, modelCode, StringComparison.OrdinalIgnoreCase));
+			if (modelField is not null)
+				SetValue(modelField.TemplateItemId, string.Empty);
+		}
+
+		if (!string.IsNullOrWhiteSpace(value))
+			await EnsureModelsCachedAsync(value).ConfigureAwait(false);
+	}
+
+	private async Task ApplyInstallationModelPrefillAsync(int installationId)
+	{
+		var info = await ModelCatalog.GetInstallationModelAsync(installationId).ConfigureAwait(false);
+		if (info is null)
+			return;
+
+		foreach (var field in _fields.Where(f => EquipmentModelFieldCodes.IsManufacturerField(f.FieldCode)))
+		{
+			if (!string.IsNullOrWhiteSpace(info.Manufacturer))
+			{
+				SetValue(field.TemplateItemId, info.Manufacturer);
+				await EnsureModelsCachedAsync(info.Manufacturer).ConfigureAwait(false);
+			}
+
+			var modelCode = EquipmentModelFieldCodes.GetModelFieldCode(field.FieldCode);
+			var modelField = _fields.FirstOrDefault(f =>
+				string.Equals(f.FieldCode, modelCode, StringComparison.OrdinalIgnoreCase));
+			if (modelField is not null && !string.IsNullOrWhiteSpace(info.ModelName))
+				SetValue(modelField.TemplateItemId, info.ModelName);
+		}
+	}
+
+	private bool ValidateCatalogForUpload()
+	{
+		if (!_templateHasCatalogFields || _catalogHasModels)
+			return true;
+
+		_saveMessage = "Добавьте модели в управлении объектами. Сохранение в БД недоступно — используйте «Сохранить локально».";
+		return false;
 	}
 
 	public async ValueTask DisposeAsync()

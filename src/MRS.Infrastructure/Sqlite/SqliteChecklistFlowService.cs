@@ -119,6 +119,9 @@ public sealed class SqliteChecklistFlowService : IChecklistFlowService
 		var list = new List<TemplateFieldDefinition>(rows.Count);
 		foreach (var r in rows)
 		{
+			if (ChecklistFieldCodes.IsEndTime(r.FieldCode))
+				continue;
+
 			var options = await LoadOptionsAsync(connection, r.Id, cancellationToken).ConfigureAwait(false);
 			list.Add(new TemplateFieldDefinition(r.Id, r.Sort, r.FieldCode, r.Question, r.Hint, r.FieldType, r.Required, options));
 		}

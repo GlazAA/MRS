@@ -7,8 +7,7 @@ public static class ChecklistWorkSessionFieldCodes
 	{
 		"start_date",
 		"end_date",
-		"start_time",
-		"end_time"
+		"start_time"
 	};
 
 	public static bool IsTimingField(string? fieldCode) =>

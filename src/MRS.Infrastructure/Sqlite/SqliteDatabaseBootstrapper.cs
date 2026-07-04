@@ -5,7 +5,7 @@ namespace MRS.Infrastructure.Sqlite;
 
 public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 {
-	public const int CurrentSchemaVersion = 10;
+	public const int CurrentSchemaVersion = 14;
 
 	private const string SchemaResourceName = "MRS.Infrastructure.Sqlite.Schema.sql";
 	private const string SeedResourceName = "MRS.Infrastructure.Sqlite.Seed.sql";
@@ -18,6 +18,10 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 	private const string OrganizationLegalFormResourceName = "MRS.Infrastructure.Sqlite.OrganizationLegalForm.sql";
 	private const string FacilityOnboardingResourceName = "MRS.Infrastructure.Sqlite.FacilityOnboarding.sql";
 	private const string ScheduledVisitsResourceName = "MRS.Infrastructure.Sqlite.ScheduledVisits.sql";
+	private const string ChecklistTemplateTextsResourceName = "MRS.Infrastructure.Sqlite.ChecklistTemplateTexts.sql";
+	private const string RemoveEndTimeResourceName = "MRS.Infrastructure.Sqlite.RemoveEndTime.sql";
+	private const string EquipmentModelCatalogResourceName = "MRS.Infrastructure.Sqlite.EquipmentModelCatalog.sql";
+	private const string ManufacturerModelFieldsResourceName = "MRS.Infrastructure.Sqlite.ManufacturerModelFields.sql";
 
 	public async Task<LocalDatabaseStatus> EnsureReadyAsync(string databaseFilePath, CancellationToken cancellationToken = default)
 	{
@@ -119,6 +123,38 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 				await SqliteScriptRunner.ExecuteScriptAsync(connection, scheduledVisits, cancellationToken).ConfigureAwait(false);
 				await WriteUserVersionAsync(connection, 10, cancellationToken).ConfigureAwait(false);
 				version = 10;
+			}
+
+			if (version < 11)
+			{
+				var checklistTemplateTexts = await ReadEmbeddedResourceAsync(ChecklistTemplateTextsResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, checklistTemplateTexts, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 11, cancellationToken).ConfigureAwait(false);
+				version = 11;
+			}
+
+			if (version < 12)
+			{
+				var removeEndTime = await ReadEmbeddedResourceAsync(RemoveEndTimeResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, removeEndTime, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 12, cancellationToken).ConfigureAwait(false);
+				version = 12;
+			}
+
+			if (version < 13)
+			{
+				var equipmentModelCatalog = await ReadEmbeddedResourceAsync(EquipmentModelCatalogResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, equipmentModelCatalog, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 13, cancellationToken).ConfigureAwait(false);
+				version = 13;
+			}
+
+			if (version < 14)
+			{
+				var manufacturerModelFields = await ReadEmbeddedResourceAsync(ManufacturerModelFieldsResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, manufacturerModelFields, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 14, cancellationToken).ConfigureAwait(false);
+				version = 14;
 			}
 
 			var fieldTypes = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM field_types;", cancellationToken).ConfigureAwait(false);

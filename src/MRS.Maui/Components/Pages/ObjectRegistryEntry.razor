@@ -1,8 +1,10 @@
 @page "/objects/register"
 @using System.Globalization
+@using MRS.Application.Checklists
 @using MRS.Application.Facilities
 @inject IFacilityHierarchyService Hierarchy
 @inject IObjectOnboardingService Onboarding
+@inject IEquipmentModelCatalogService ModelCatalog
 @inject NavigationManager Nav
 
 <PageTitle>Внесение данных по объекту</PageTitle>
@@ -166,8 +168,27 @@
         <details class="mrs-object-details">
             <summary>Дополнительно по установке</summary>
             <div class="mrs-field mrs-mt">
+                <label class="mrs-label">Производитель</label>
+                <select class="mrs-select" @bind="_installationManufacturer" @bind:after="OnInstallationManufacturerChangedAsync" disabled="@_busy">
+                    <option value="">—</option>
+                    @foreach (var mfg in _manufacturers)
+                    {
+                        <option value="@mfg">@mfg</option>
+                    }
+                </select>
+                <input class="mrs-select mrs-mt" type="text" placeholder="Или введите нового производителя" @bind="_installationManufacturer" @bind:event="oninput" @bind:after="OnInstallationManufacturerChangedAsync" disabled="@_busy" />
+            </div>
+            <div class="mrs-field">
                 <label class="mrs-label">Модель</label>
-                <input class="mrs-select" type="text" @bind="_installationModel" @bind:event="oninput" disabled="@_busy" />
+                <select class="mrs-select" @bind="_installationModel" disabled="@(_busy || string.IsNullOrWhiteSpace(_installationManufacturer))">
+                    <option value="">—</option>
+                    @foreach (var m in _modelsForManufacturer)
+                    {
+                        <option value="@m.Name">@m.Name</option>
+                    }
+                </select>
+                <input class="mrs-select mrs-mt" type="text" placeholder="Или введите новую модель" @bind="_installationModel" @bind:event="oninput" disabled="@(_busy || string.IsNullOrWhiteSpace(_installationManufacturer))" />
+                <p class="mrs-hint">Производитель и модель сохраняются в справочник и используются в контрольных листах.</p>
             </div>
         </details>
 
@@ -216,8 +237,11 @@
     private string _systemDescription = "";
     private string _newEquipmentTypeName = "";
     private string _installationLabel = "";
+    private string _installationManufacturer = "";
     private string _installationModel = "";
     private string _installationSerial = "";
+    private List<string> _manufacturers = [];
+    private List<EquipmentModelListItem> _modelsForManufacturer = [];
 
     private bool IsOrgChosen => !string.IsNullOrWhiteSpace(_orgChoice);
     private bool IsFacilityChosen => !string.IsNullOrWhiteSpace(_facilityChoice);
@@ -343,7 +367,38 @@
         _equipmentChoice = e.Value?.ToString() ?? string.Empty;
         _saved = null;
         _error = null;
-        return Task.CompletedTask;
+        _installationManufacturer = "";
+        _installationModel = "";
+        return LoadEquipmentCatalogAsync();
+    }
+
+    private async Task LoadEquipmentCatalogAsync()
+    {
+        _manufacturers = [];
+        _modelsForManufacturer = [];
+        var equipmentTypeId = ParseExisting(_equipmentChoice);
+        if (equipmentTypeId is not int etId)
+            return;
+
+        try
+        {
+            _manufacturers = (await ModelCatalog.GetManufacturersAsync(etId).ConfigureAwait(false)).ToList();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task OnInstallationManufacturerChangedAsync()
+    {
+        _installationModel = "";
+        _modelsForManufacturer = [];
+        var equipmentTypeId = ParseExisting(_equipmentChoice);
+        if (equipmentTypeId is not int etId || string.IsNullOrWhiteSpace(_installationManufacturer))
+            return;
+
+        _modelsForManufacturer = (await ModelCatalog.GetModelsAsync(etId, _installationManufacturer).ConfigureAwait(false)).ToList();
     }
 
     private async Task SaveAsync()
@@ -370,6 +425,7 @@
                 ExistingEquipmentTypeId: ParseExisting(_equipmentChoice),
                 NewEquipmentTypeName: _equipmentChoice == "new" ? _newEquipmentTypeName : null,
                 InstallationLabel: _installationLabel,
+                InstallationManufacturer: _installationManufacturer,
                 InstallationModel: _installationModel,
                 InstallationSerialNumber: _installationSerial);
 
@@ -413,8 +469,11 @@
         _systemDescription = "";
         _newEquipmentTypeName = "";
         _installationLabel = "";
+        _installationManufacturer = "";
         _installationModel = "";
         _installationSerial = "";
+        _manufacturers = [];
+        _modelsForManufacturer = [];
     }
 
     private static int? ParseExisting(string choice) =>

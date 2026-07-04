@@ -8,11 +8,16 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
 {
     private readonly ILocalDatabasePath _paths;
     private readonly ILocalDatabaseBootstrapper _bootstrapper;
+    private readonly IEquipmentModelCatalogService _catalog;
 
-    public SqliteObjectOnboardingService(ILocalDatabasePath paths, ILocalDatabaseBootstrapper bootstrapper)
+    public SqliteObjectOnboardingService(
+        ILocalDatabasePath paths,
+        ILocalDatabaseBootstrapper bootstrapper,
+        IEquipmentModelCatalogService catalog)
     {
         _paths = paths;
         _bootstrapper = bootstrapper;
+        _catalog = catalog;
     }
 
     public async Task<IReadOnlyList<HierarchyOption>> GetAllEquipmentTypesAsync(CancellationToken cancellationToken = default)
@@ -50,7 +55,8 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
             var (systemId, systemCreated) = await EnsureSystemAsync(connection, tx, request, facilityId, cancellationToken).ConfigureAwait(false);
             var (equipmentTypeId, equipmentTypeCreated) = await EnsureEquipmentTypeAsync(connection, tx, request, cancellationToken).ConfigureAwait(false);
             await EnsureSystemEquipmentLinkAsync(connection, tx, systemId, equipmentTypeId, cancellationToken).ConfigureAwait(false);
-            var (installationId, installationCreated) = await EnsureInstallationAsync(connection, tx, request, systemId, equipmentTypeId, installationLabel, cancellationToken).ConfigureAwait(false);
+            var (installationId, installationCreated) = await EnsureInstallationAsync(
+                connection, tx, request, systemId, equipmentTypeId, installationLabel, cancellationToken).ConfigureAwait(false);
 
             await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -344,7 +350,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<(int Id, bool Created)> EnsureInstallationAsync(
+    private async Task<(int Id, bool Created)> EnsureInstallationAsync(
         SqliteConnection connection,
         SqliteTransaction tx,
         ObjectOnboardingRequest request,
@@ -372,12 +378,11 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
             if (existing is not null)
             {
                 var id = Convert.ToInt32(existing);
-                await UpdateInstallationDetailsAsync(connection, tx, id, request, cancellationToken).ConfigureAwait(false);
+                await UpdateInstallationDetailsAsync(connection, tx, id, equipmentTypeId, request, cancellationToken).ConfigureAwait(false);
                 return (id, false);
             }
         }
 
-        var model = (request.InstallationModel ?? string.Empty).Trim();
         var serial = (request.InstallationSerialNumber ?? string.Empty).Trim();
 
         using var insert = connection.CreateCommand();
@@ -387,45 +392,56 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
                 system_id,
                 equipment_type_id,
                 custom_name,
-                custom_model_name,
                 custom_serial_number,
                 is_data_modified,
                 is_active
             )
-            VALUES ($sid, $eid, $name, $model, $serial, $modified, 1);
+            VALUES ($sid, $eid, $name, $serial, $modified, 1);
             SELECT last_insert_rowid();
             """;
         insert.Parameters.AddWithValue("$sid", systemId);
         insert.Parameters.AddWithValue("$eid", equipmentTypeId);
         insert.Parameters.AddWithValue("$name", installationLabel);
-        insert.Parameters.AddWithValue("$model", NullIfEmpty(model));
         insert.Parameters.AddWithValue("$serial", NullIfEmpty(serial));
-        insert.Parameters.AddWithValue("$modified", model.Length > 0 || serial.Length > 0 ? 1 : 0);
+        insert.Parameters.AddWithValue("$modified", serial.Length > 0 ? 1 : 0);
         var scalar = await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return (scalar is long l ? (int)l : Convert.ToInt32(scalar), true);
+        var installationId = scalar is long l ? (int)l : Convert.ToInt32(scalar);
+        await UpdateInstallationDetailsAsync(connection, tx, installationId, equipmentTypeId, request, cancellationToken).ConfigureAwait(false);
+        return (installationId, true);
     }
 
-    private static async Task UpdateInstallationDetailsAsync(
+    private async Task UpdateInstallationDetailsAsync(
         SqliteConnection connection,
         SqliteTransaction tx,
         int installationId,
+        int equipmentTypeId,
         ObjectOnboardingRequest request,
         CancellationToken cancellationToken)
     {
+        var mfg = (request.InstallationManufacturer ?? string.Empty).Trim();
         var model = (request.InstallationModel ?? string.Empty).Trim();
         var serial = (request.InstallationSerialNumber ?? string.Empty).Trim();
-        if (model.Length == 0 && serial.Length == 0)
+        if (mfg.Length == 0 && model.Length == 0 && serial.Length == 0)
             return;
+
+        int? equipmentModelId = null;
+        if (mfg.Length > 0 && model.Length > 0)
+            equipmentModelId = await _catalog.EnsureModelAsync(equipmentTypeId, mfg, model, cancellationToken).ConfigureAwait(false);
 
         using var cmd = connection.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandText = """
             UPDATE installations
-            SET custom_model_name = COALESCE(NULLIF($model, ''), custom_model_name),
+            SET equipment_model_id = COALESCE($modelId, equipment_model_id),
+                custom_model_name = COALESCE(NULLIF($model, ''), custom_model_name),
                 custom_serial_number = COALESCE(NULLIF($serial, ''), custom_serial_number),
-                is_data_modified = CASE WHEN NULLIF($model, '') IS NOT NULL OR NULLIF($serial, '') IS NOT NULL THEN 1 ELSE is_data_modified END
+                is_data_modified = CASE
+                    WHEN NULLIF($model, '') IS NOT NULL OR NULLIF($serial, '') IS NOT NULL OR $modelId IS NOT NULL THEN 1
+                    ELSE is_data_modified
+                END
             WHERE id = $id;
             """;
+        cmd.Parameters.AddWithValue("$modelId", equipmentModelId.HasValue ? equipmentModelId.Value : DBNull.Value);
         cmd.Parameters.AddWithValue("$model", model);
         cmd.Parameters.AddWithValue("$serial", serial);
         cmd.Parameters.AddWithValue("$id", installationId);

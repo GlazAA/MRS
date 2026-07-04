@@ -33,6 +33,7 @@ public class ObjectOnboardingOrganizationTests
 				ExistingEquipmentTypeId: 1,
 				NewEquipmentTypeName: null,
 				InstallationLabel: "1",
+				InstallationManufacturer: null,
 				InstallationModel: null,
 				InstallationSerialNumber: null));
 
@@ -56,7 +57,7 @@ public class ObjectOnboardingOrganizationTests
 			var onboarding = await CreateOnboardingAsync(path);
 			var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => onboarding.UpsertHierarchyAsync(new ObjectOnboardingRequest(
 				null, "", "Компания", null, "Объект", null, "Москва", "Ленина", "1", null, null, null, null,
-				1, null, "1", null, null)));
+				1, null, "1", null, null, null)));
 			Assert.Contains("юридический статус", ex.Message, StringComparison.OrdinalIgnoreCase);
 		}
 		finally
@@ -72,7 +73,10 @@ public class ObjectOnboardingOrganizationTests
 	{
 		var bootstrapper = new SqliteDatabaseBootstrapper();
 		Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
-		return new SqliteObjectOnboardingService(new FixedDbPath(path), bootstrapper);
+		return new SqliteObjectOnboardingService(
+			new FixedDbPath(path),
+			bootstrapper,
+			new SqliteEquipmentModelCatalogService(new FixedDbPath(path), bootstrapper));
 	}
 
 	private static void Cleanup(string path)

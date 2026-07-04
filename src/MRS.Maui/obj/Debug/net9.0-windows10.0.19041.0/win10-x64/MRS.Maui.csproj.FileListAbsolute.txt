@@ -596,5 +596,5 @@ C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\c
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\y7mzhz1ymk-{0}-3caa9gautl-3caa9gautl.br
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\1nnyvyky3s-{0}-eyrc21dley-eyrc21dley.br
 C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\swae.publish.ex.cache
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\souv6qmtrc-{0}-cj80ol2thm-cj80ol2thm.gz
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\souv6qmtrc-{0}-cj80ol2thm-cj80ol2thm.br
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\souv6qmtrc-{0}-a51wbq5h03-a51wbq5h03.gz
+C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\souv6qmtrc-{0}-a51wbq5h03-a51wbq5h03.br

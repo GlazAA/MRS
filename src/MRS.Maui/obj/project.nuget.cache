@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "m/ERLE/wCKA=",
+  "dgSpecHash": "qOeA9esoSTY=",
   "success": true,
   "projectFilePath": "C:\\Development\\MRS\\src\\MRS.Maui\\MRS.Maui.csproj",
   "expectedPackageFiles": [
@@ -51,6 +51,10 @@
     "C:\\Users\\Glaz0112\\.nuget\\packages\\sqlitepclraw.lib.e_sqlite3\\2.1.11\\sqlitepclraw.lib.e_sqlite3.2.1.11.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\sqlitepclraw.provider.e_sqlite3\\2.1.11\\sqlitepclraw.provider.e_sqlite3.2.1.11.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\system.memory\\4.5.3\\system.memory.4.5.3.nupkg.sha512",
+    "C:\\Users\\Glaz0112\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\9.0.17\\microsoft.netcore.app.runtime.win-x64.9.0.17.nupkg.sha512",
+    "C:\\Users\\Glaz0112\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\9.0.17\\microsoft.windowsdesktop.app.runtime.win-x64.9.0.17.nupkg.sha512",
+    "C:\\Users\\Glaz0112\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\9.0.17\\microsoft.aspnetcore.app.runtime.win-x64.9.0.17.nupkg.sha512",
+    "C:\\Users\\Glaz0112\\.nuget\\packages\\microsoft.netcore.app.crossgen2.win-x64\\9.0.17\\microsoft.netcore.app.crossgen2.win-x64.9.0.17.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\microsoft.windows.sdk.net.ref\\10.0.19041.57\\microsoft.windows.sdk.net.ref.10.0.19041.57.nupkg.sha512"
   ],
   "logs": []

@@ -42,6 +42,18 @@
     <EmbeddedResource Include="..\..\database\sqlite\011_scheduled_visits_and_notes.sql">
       <LogicalName>MRS.Infrastructure.Sqlite.ScheduledVisits.sql</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\012_checklist_template_texts.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.ChecklistTemplateTexts.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\013_remove_end_time.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.RemoveEndTime.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\014_equipment_model_catalog.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.EquipmentModelCatalog.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\015_manufacturer_model_fields.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.ManufacturerModelFields.sql</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="Resources\brand-schutz-logo.png">
       <LogicalName>MRS.Infrastructure.Resources.brand-schutz-logo.png</LogicalName>
     </EmbeddedResource>

@@ -30,6 +30,7 @@ public sealed record ObjectOnboardingRequest(
     int? ExistingEquipmentTypeId,
     string? NewEquipmentTypeName,
     string InstallationLabel,
+    string? InstallationManufacturer,
     string? InstallationModel,
     string? InstallationSerialNumber);
 

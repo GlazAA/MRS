@@ -72,13 +72,13 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		var equipmentType = infoReader.GetString(9);
 		var installationLabel = infoReader.GetString(10);
 		var maintenanceType = infoReader.GetString(11);
+		var equipmentTypeId = infoReader.GetInt32(12);
 		int? templateId = infoReader.IsDBNull(14) ? null : infoReader.GetInt32(14);
 
 		// demo-данные могут хранить checklist_template_id = NULL.
 		// Тогда находим актуальный шаблон по (equipment_type_id, maintenance_type_id).
 		if (templateId is null)
 		{
-			var equipmentTypeId = infoReader.GetInt32(12);
 			var maintenanceTypeId = infoReader.GetInt32(13);
 
 			using var resolve = connection.CreateCommand();
@@ -150,6 +150,8 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		{
 			var templateItemId = itemReader.GetInt32(0);
 			var fieldCode = itemReader.IsDBNull(1) ? null : itemReader.GetString(1);
+			if (ChecklistFieldCodes.IsEndTime(fieldCode))
+				continue;
 			var question = itemReader.GetString(2);
 			var hint = itemReader.IsDBNull(3) ? null : itemReader.GetString(3);
 			var fieldType = itemReader.GetString(4);
@@ -169,6 +171,11 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 				else if (string.Equals(fieldType, "number", StringComparison.OrdinalIgnoreCase))
 				{
 					valueRaw = row.numResp.HasValue ? row.numResp.Value.ToString("G", CultureInfo.InvariantCulture) : string.Empty;
+				}
+				else if (EquipmentModelFieldCodes.IsManufacturerField(fieldCode) ||
+				         EquipmentModelFieldCodes.IsModelField(fieldCode))
+				{
+					valueRaw = row.textResp ?? string.Empty;
 				}
 				else if (string.Equals(fieldType, "radio", StringComparison.OrdinalIgnoreCase) ||
 				         string.Equals(fieldType, "dropdown", StringComparison.OrdinalIgnoreCase))
@@ -196,8 +203,6 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 					valueRaw = endAt?.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty;
 				else if (fieldCode.Equals("start_time", StringComparison.OrdinalIgnoreCase))
 					valueRaw = startAt?.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
-				else if (fieldCode.Equals("end_time", StringComparison.OrdinalIgnoreCase))
-					valueRaw = endAt?.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
 			}
 
 			fields.Add(new ChecklistEditField(
@@ -219,6 +224,7 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 			org,
 			facility,
 			equipmentType,
+			equipmentTypeId,
 			installationLabel,
 			maintenanceType,
 			statusCode,
@@ -641,6 +647,22 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		if (string.Equals(fieldType, "radio", StringComparison.OrdinalIgnoreCase) ||
 		    string.Equals(fieldType, "dropdown", StringComparison.OrdinalIgnoreCase))
 		{
+			if (EquipmentModelFieldCodes.IsManufacturerField(fieldCode) ||
+			    EquipmentModelFieldCodes.IsModelField(fieldCode))
+			{
+				using var updCatalog = connection.CreateCommand();
+				updCatalog.Transaction = tx;
+				updCatalog.CommandText = """
+					UPDATE checklist_responses
+					SET text_response = $txt, boolean_response = NULL, numeric_response = NULL, selected_option_id = NULL
+					WHERE id = $rid;
+					""";
+				updCatalog.Parameters.AddWithValue("$rid", responseId.Value);
+				updCatalog.Parameters.AddWithValue("$txt", string.IsNullOrWhiteSpace(trimmed) ? DBNull.Value : trimmed);
+				await updCatalog.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+				return;
+			}
+
 			int? selected = null;
 			if (!string.IsNullOrWhiteSpace(trimmed) && int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var optId))
 				selected = optId;
