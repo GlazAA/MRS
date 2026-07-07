@@ -151,7 +151,7 @@ public class ChecklistWorkTimeIntegrationTests
 		var bootstrapper = new SqliteDatabaseBootstrapper();
 		Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
 		var paths = new FixedDbPath(path);
-		return (new SqliteChecklistEditService(paths, bootstrapper), new SqliteChecklistSummaryService(paths, bootstrapper));
+		return (TestSyncServices.CreateEditService(paths, bootstrapper), new SqliteChecklistSummaryService(paths, bootstrapper));
 	}
 
 	private static void Cleanup(string path)

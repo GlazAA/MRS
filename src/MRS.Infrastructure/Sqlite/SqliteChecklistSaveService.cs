@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.Data.Sqlite;
 using MRS.Application.Checklists;
 using MRS.Application.Storage;
+using MRS.Application.Sync;
 
 namespace MRS.Infrastructure.Sqlite;
 
@@ -9,11 +10,19 @@ public sealed class SqliteChecklistSaveService : IChecklistSaveService
 {
 	private readonly ILocalDatabasePath _paths;
 	private readonly ILocalDatabaseBootstrapper _bootstrapper;
+	private readonly ISyncOutboxService _outbox;
+	private readonly IChecklistSyncPayloadService _syncPayload;
 
-	public SqliteChecklistSaveService(ILocalDatabasePath paths, ILocalDatabaseBootstrapper bootstrapper)
+	public SqliteChecklistSaveService(
+		ILocalDatabasePath paths,
+		ILocalDatabaseBootstrapper bootstrapper,
+		ISyncOutboxService outbox,
+		IChecklistSyncPayloadService syncPayload)
 	{
 		_paths = paths;
 		_bootstrapper = bootstrapper;
+		_outbox = outbox;
+		_syncPayload = syncPayload;
 	}
 
 	public async Task<ChecklistSaveResult> SaveAsync(SaveChecklistRequest request, CancellationToken cancellationToken = default)
@@ -70,6 +79,11 @@ public sealed class SqliteChecklistSaveService : IChecklistSaveService
 			}
 
 			await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+			if (syncState == "pending_upload")
+				await SqliteChecklistSyncHelper.EnqueueChecklistAsync(_outbox, _syncPayload, checklistId, "insert", cancellationToken)
+					.ConfigureAwait(false);
+
 			return new ChecklistSaveResult(true, checklistId, null);
 		}
 		catch (Exception ex)

@@ -3,6 +3,7 @@ using Microsoft.Data.Sqlite;
 using MRS.Application.Checklists;
 using MRS.Application.Facilities;
 using MRS.Application.Storage;
+using MRS.Application.Sync;
 
 namespace MRS.Infrastructure.Sqlite;
 
@@ -10,11 +11,19 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 {
 	private readonly ILocalDatabasePath _paths;
 	private readonly ILocalDatabaseBootstrapper _bootstrapper;
+	private readonly ISyncOutboxService _outbox;
+	private readonly IChecklistSyncPayloadService _syncPayload;
 
-	public SqliteChecklistEditService(ILocalDatabasePath paths, ILocalDatabaseBootstrapper bootstrapper)
+	public SqliteChecklistEditService(
+		ILocalDatabasePath paths,
+		ILocalDatabaseBootstrapper bootstrapper,
+		ISyncOutboxService outbox,
+		IChecklistSyncPayloadService syncPayload)
 	{
 		_paths = paths;
 		_bootstrapper = bootstrapper;
+		_outbox = outbox;
+		_syncPayload = syncPayload;
 	}
 
 	public async Task<ChecklistEditModel> GetForEditAsync(int checklistId, CancellationToken cancellationToken = default)
@@ -339,6 +348,9 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		cmd.Parameters.AddWithValue("$id", checklistId);
 		cmd.Parameters.AddWithValue("$end", endAt.ToString("O", CultureInfo.InvariantCulture));
 		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+		await SqliteChecklistSyncHelper.EnqueueChecklistAsync(_outbox, _syncPayload, checklistId, "update", cancellationToken)
+			.ConfigureAwait(false);
 	}
 
 	private static async Task<(DateTimeOffset? StartedAt, DateTimeOffset? EndedAt, string StatusCode)?> ReadWorkTimingAsync(

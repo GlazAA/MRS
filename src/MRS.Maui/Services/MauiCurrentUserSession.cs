@@ -6,11 +6,20 @@ public sealed class MauiCurrentUserSession : ICurrentUserSession
 {
     private const string PrefRole = "mrs.current_role";
     private const string PrefEngineerName = "mrs.engineer_display_name";
+    private const string PrefAuthUserId = "mrs.auth_user_id";
+    private const string PrefAuthRole = "mrs.auth_role_name";
+    private const string PrefAuthDisplay = "mrs.auth_display_name";
 
     private CurrentUserInfo _current = EngineerUser();
 
     public MauiCurrentUserSession()
     {
+        if (TryRestoreAuthenticatedUser(out var authUser))
+        {
+            _current = authUser;
+            return;
+        }
+
         var saved = Preferences.Default.Get(PrefRole, UserRoleNames.Engineer);
         _current = saved == UserRoleNames.DbAdministrator ? DbAdminUser() : EngineerUser();
     }
@@ -27,6 +36,7 @@ public sealed class MauiCurrentUserSession : ICurrentUserSession
 
     public Task SetRoleAsync(string roleName, CancellationToken cancellationToken = default)
     {
+        ClearAuthPrefs();
         _current = roleName == UserRoleNames.DbAdministrator ? DbAdminUser() : EngineerUser();
         Preferences.Default.Set(PrefRole, _current.RoleName);
         Changed?.Invoke();
@@ -45,6 +55,45 @@ public sealed class MauiCurrentUserSession : ICurrentUserSession
 
         Changed?.Invoke();
         return Task.CompletedTask;
+    }
+
+    public Task SetAuthenticatedUserAsync(int userId, string roleName, string displayName, CancellationToken cancellationToken = default)
+    {
+        _current = new CurrentUserInfo(userId, roleName, displayName);
+        Preferences.Default.Set(PrefAuthUserId, userId);
+        Preferences.Default.Set(PrefAuthRole, roleName);
+        Preferences.Default.Set(PrefAuthDisplay, displayName);
+        Changed?.Invoke();
+        return Task.CompletedTask;
+    }
+
+    public Task ClearAuthenticatedUserAsync(CancellationToken cancellationToken = default)
+    {
+        ClearAuthPrefs();
+        var saved = Preferences.Default.Get(PrefRole, UserRoleNames.Engineer);
+        _current = saved == UserRoleNames.DbAdministrator ? DbAdminUser() : EngineerUser();
+        Changed?.Invoke();
+        return Task.CompletedTask;
+    }
+
+    private static bool TryRestoreAuthenticatedUser(out CurrentUserInfo user)
+    {
+        user = default!;
+        var userId = Preferences.Default.Get(PrefAuthUserId, 0);
+        var role = Preferences.Default.Get(PrefAuthRole, string.Empty);
+        var display = Preferences.Default.Get(PrefAuthDisplay, string.Empty);
+        if (userId <= 0 || string.IsNullOrWhiteSpace(role))
+            return false;
+
+        user = new CurrentUserInfo(userId, role, string.IsNullOrWhiteSpace(display) ? role : display);
+        return true;
+    }
+
+    private static void ClearAuthPrefs()
+    {
+        Preferences.Default.Remove(PrefAuthUserId);
+        Preferences.Default.Remove(PrefAuthRole);
+        Preferences.Default.Remove(PrefAuthDisplay);
     }
 
     private static CurrentUserInfo EngineerUser()

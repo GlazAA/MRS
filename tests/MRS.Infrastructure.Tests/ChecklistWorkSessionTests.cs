@@ -16,7 +16,7 @@ public class ChecklistWorkSessionTests
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
 			var paths = new FixedDbPath(path);
-			var edit = new SqliteChecklistEditService(paths, bootstrapper);
+			var edit = TestSyncServices.CreateEditService(paths, bootstrapper);
 
 			var workStartedAt = DateTimeOffset.Now.AddMinutes(-10);
 			var checklistId = await edit.BeginInProgressAsync(new BeginInProgressChecklistRequest(
@@ -68,7 +68,7 @@ public class ChecklistWorkSessionTests
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
 			var paths = new FixedDbPath(path);
-			var edit = new SqliteChecklistEditService(paths, bootstrapper);
+			var edit = TestSyncServices.CreateEditService(paths, bootstrapper);
 			var summaries = new SqliteChecklistSummaryService(paths, bootstrapper);
 
 			var startedAt = DateTimeOffset.Now.AddMinutes(-5);

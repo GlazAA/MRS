@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using MRS.Application.Checklists;
 using MRS.Application.Facilities;
 using MRS.Application.Storage;
+using MRS.Application.Sync;
 
 namespace MRS.Infrastructure.Sqlite;
 
@@ -9,11 +10,16 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
 {
     private readonly ILocalDatabasePath _paths;
     private readonly ILocalDatabaseBootstrapper _bootstrapper;
+    private readonly ISyncOutboxService _outbox;
 
-    public SqliteChecklistTemplateAuthoringService(ILocalDatabasePath paths, ILocalDatabaseBootstrapper bootstrapper)
+    public SqliteChecklistTemplateAuthoringService(
+        ILocalDatabasePath paths,
+        ILocalDatabaseBootstrapper bootstrapper,
+        ISyncOutboxService outbox)
     {
         _paths = paths;
         _bootstrapper = bootstrapper;
+        _outbox = outbox;
     }
 
     public async Task<IReadOnlyList<HierarchyOption>> GetEquipmentTypesAsync(CancellationToken cancellationToken = default)
@@ -76,6 +82,14 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
             var templateId = await InsertTemplateAsync(connection, tx, request, maintenanceTypeId, version, templateName, cancellationToken).ConfigureAwait(false);
             await InsertFieldsAsync(connection, tx, templateId, request.Fields, cancellationToken).ConfigureAwait(false);
             await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+            var json = await SqliteTemplateSyncPayloadBuilder.BuildAsync(_paths, _bootstrapper, templateId, cancellationToken)
+                .ConfigureAwait(false);
+            var syncPayload = System.Text.Json.JsonSerializer.Deserialize<TemplateSyncPayload>(json);
+            var uuid = syncPayload?.ClientUuid ?? Guid.NewGuid().ToString();
+            await _outbox.EnqueueAsync(new SyncOutboxEnqueueRequest("checklist_template", uuid, "insert", json), cancellationToken)
+                .ConfigureAwait(false);
+
             return templateId;
         }
         catch

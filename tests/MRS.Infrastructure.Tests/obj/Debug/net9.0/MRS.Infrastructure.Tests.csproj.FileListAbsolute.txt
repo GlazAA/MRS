@@ -130,3 +130,12 @@ C:\Development\MRS\tests\MRS.Infrastructure.Tests\obj\Debug\net9.0\MRS.Infrastru
 C:\Development\MRS\tests\MRS.Infrastructure.Tests\obj\Debug\net9.0\MRS.Infrastructure.Tests.genruntimeconfig.cache
 C:\Development\MRS\tests\MRS.Infrastructure.Tests\obj\Debug\net9.0\ref\MRS.Infrastructure.Tests.dll
 c:\Development\MRS\tests\MRS.Infrastructure.Tests\obj\Debug\net9.0\MRS.Infrastructure.Tests.sourcelink.json
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\bin\Debug\net9.0\BCrypt.Net-Next.dll
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\bin\Debug\net9.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\bin\Debug\net9.0\Microsoft.Extensions.Logging.Abstractions.dll
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\bin\Debug\net9.0\Microsoft.IdentityModel.Abstractions.dll
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\bin\Debug\net9.0\Microsoft.IdentityModel.JsonWebTokens.dll
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\bin\Debug\net9.0\Microsoft.IdentityModel.Logging.dll
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\bin\Debug\net9.0\Microsoft.IdentityModel.Tokens.dll
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\bin\Debug\net9.0\Npgsql.dll
+c:\Development\MRS\tests\MRS.Infrastructure.Tests\bin\Debug\net9.0\System.IdentityModel.Tokens.Jwt.dll

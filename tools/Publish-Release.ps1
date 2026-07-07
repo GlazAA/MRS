@@ -23,11 +23,16 @@ if (Test-Path $zipWin) { Remove-Item $zipWin -Force }
 Compress-Archive -Path (Join-Path $winOut "*") -DestinationPath $zipWin -Force
 Write-Host "  OK: $zipWin" -ForegroundColor Green
 
-$androidJar = Join-Path $env:USERPROFILE "AppData\Local\Android\Sdk\platforms\android-35\android.jar"
+$androidJar = @(
+    (Join-Path $env:USERPROFILE "AppData\Local\Android\Sdk\platforms\android-36\android.jar"),
+    (Join-Path $env:USERPROFILE "AppData\Local\Android\Sdk\platforms\android-35\android.jar"),
+    (Join-Path $env:USERPROFILE "AppData\Local\Android\Sdk\platforms\android-34\android.jar")
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
 Write-Host "`n[2/2] Android APK..." -ForegroundColor Yellow
 
-if (-not (Test-Path $androidJar)) {
+if (-not $androidJar) {
     Write-Host "  Skipped: Android SDK Platform 35 not installed." -ForegroundColor DarkYellow
+    Write-Host "  Run: dotnet build -t:InstallAndroidDependencies -f net9.0-android -p:AcceptAndroidSDKLicenses=true" -ForegroundColor Gray
     Write-Host "  Install via Android Studio SDK Manager, then re-run." -ForegroundColor Gray
     Write-Host "`nWindows package is ready in dist\" -ForegroundColor Cyan
     exit 0

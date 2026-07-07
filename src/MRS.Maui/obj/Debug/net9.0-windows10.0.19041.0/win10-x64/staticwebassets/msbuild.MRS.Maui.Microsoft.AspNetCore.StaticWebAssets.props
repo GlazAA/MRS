@@ -12,12 +12,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>a51wbq5h03</Fingerprint>
-      <Integrity>Mg/huEQSp1CiTmFh6wM7ay84sH+2QUhwLTJVmsIz454=</Integrity>
+      <Fingerprint>hk4orqwrif</Fingerprint>
+      <Integrity>IZBaCh8EYPFGEXiTryFee9FhV5friUUXfkYkV/A/82o=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>24960</FileLength>
-      <LastWriteTime>Sat, 04 Jul 2026 07:18:14 GMT</LastWriteTime>
+      <FileLength>24909</FileLength>
+      <LastWriteTime>Mon, 06 Jul 2026 23:43:34 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\app.css'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\css\bootstrap\bootstrap.min.css'))">
@@ -92,12 +92,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName></AssetTraitName>
       <AssetTraitValue></AssetTraitValue>
-      <Fingerprint>3caa9gautl</Fingerprint>
-      <Integrity>01s7TbHVCCQl9/C99fkt5eDZJQJ+m6cnauqoiZCL1xo=</Integrity>
+      <Fingerprint>k0qzmur628</Fingerprint>
+      <Integrity>jFMVc4fJee2YZGB6E3w7Qz9UuaMGANJ2D7LCDkV+Dd0=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>897</FileLength>
-      <LastWriteTime>Wed, 25 Mar 2026 06:54:43 GMT</LastWriteTime>
+      <FileLength>892</FileLength>
+      <LastWriteTime>Mon, 06 Jul 2026 23:35:55 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\index.html'))</OriginalItemSpec>
     </StaticWebAsset>
     <StaticWebAsset Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\js\mrs-download.js'))">
@@ -132,12 +132,12 @@
       <RelatedAsset></RelatedAsset>
       <AssetTraitName>ScopedCss</AssetTraitName>
       <AssetTraitValue>ApplicationBundle</AssetTraitValue>
-      <Fingerprint>dqephvklz1</Fingerprint>
-      <Integrity>K9yAlI3dwfzTYnC7wJLnyeDwR5LJ0wljXrlLYDjHR84=</Integrity>
+      <Fingerprint>2ivz8nm5hu</Fingerprint>
+      <Integrity>xhF5W+Y+AHfreA0DcE+avZSdHF9D18vGbbaNkfIB4QU=</Integrity>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <FileLength>5481</FileLength>
-      <LastWriteTime>Tue, 24 Mar 2026 21:33:17 GMT</LastWriteTime>
+      <FileLength>4227</FileLength>
+      <LastWriteTime>Mon, 06 Jul 2026 23:36:06 GMT</LastWriteTime>
       <OriginalItemSpec>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\staticwebassets\MRS.Maui.styles.css'))</OriginalItemSpec>
     </StaticWebAsset>
   </ItemGroup>

@@ -9,6 +9,6 @@ public partial class App : global::Microsoft.Maui.Controls.Application
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		return new Window(new MainPage()) { Title = "MRS.Maui" };
+		return new Window(new MainPage()) { Title = "MRS" };
 	}
 }

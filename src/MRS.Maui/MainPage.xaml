@@ -3,7 +3,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:MRS.Maui"
              xmlns:components="clr-namespace:MRS.Maui.Components"
-             x:Class="MRS.Maui.MainPage">
+             x:Class="MRS.Maui.MainPage"
+             Padding="0"
+             Shell.NavBarIsVisible="False"
+             NavigationPage.HasNavigationBar="False">
 
     <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
         <BlazorWebView.RootComponents>

@@ -4,11 +4,11 @@
     "includedFrameworks": [
       {
         "name": "Microsoft.NETCore.App",
-        "version": "9.0.14"
+        "version": "9.0.17"
       },
       {
         "name": "Microsoft.MacCatalyst",
-        "version": "18.5.9219"
+        "version": "26.5.9002"
       }
     ],
     "configProperties": {
@@ -20,7 +20,9 @@
       "System.Diagnostics.Tracing.EventSource.IsSupported": false,
       "System.Globalization.Invariant": false,
       "System.Globalization.Hybrid": true,
+      "System.Linq.Enumerable.IsSizeOptimized": true,
       "System.Net.Http.UseNativeHttpHandler": true,
+      "System.Net.SocketsHttpHandler.Http3Support": false,
       "System.Reflection.NullabilityInfoContext.IsSupported": false,
       "System.Resources.ResourceManager.AllowCustomResourceTypes": false,
       "System.Resources.UseSystemResourceKeys": false,

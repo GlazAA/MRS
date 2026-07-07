@@ -34,6 +34,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ISqlConsoleService, SqliteSqlConsoleService>();
 		builder.Services.AddSingleton<ILocalDatabasePath, MauiDatabasePathProvider>();
 		builder.Services.AddSingleton<ILocalDatabaseBootstrapper, SqliteDatabaseBootstrapper>();
+		builder.Services.AddSingleton<ILocalDatabaseBackupService, SqliteLocalDatabaseBackupService>();
 		builder.Services.AddSingleton<IFacilityHierarchyService, SqliteFacilityHierarchyService>();
 		builder.Services.AddSingleton<IEquipmentTypeCatalogService, SqliteEquipmentTypeCatalogService>();
 		builder.Services.AddSingleton<IChecklistSummaryService, SqliteChecklistSummaryService>();
@@ -50,7 +51,13 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IEngineerDirectoryService, SqliteEngineerDirectoryService>();
 		builder.Services.AddSingleton<IEngineerNoteService, SqliteEngineerNoteService>();
 		builder.Services.AddSingleton<IOrganizationEmployeeQueryService, SqliteOrganizationEmployeeQueryService>();
-		builder.Services.AddSingleton<ISyncOutboxQueryService, SqliteSyncOutboxQueryService>();
+		builder.Services.AddSingleton<ISyncOutboxQueryService, SqliteSyncOutboxService>();
+		builder.Services.AddSingleton<ISyncOutboxService, SqliteSyncOutboxService>();
+		builder.Services.AddSingleton<IChecklistSyncPayloadService, SqliteChecklistSyncPayloadService>();
+		builder.Services.AddSingleton<ISyncApplyService, SqliteSyncApplyService>();
+		builder.Services.AddSingleton<IServerConnectionSettings, MauiServerConnectionSettings>();
+		builder.Services.AddSingleton<MauiUserAuthService>();
+		builder.Services.AddSingleton<IUserAuthService>(sp => sp.GetRequiredService<MauiUserAuthService>());
 		builder.Services.AddSingleton<IServerSyncService, MauiServerSyncService>();
 		// Регистрация сервиса экспорта DOC/ZIP.
 		// Если появится другая реализация (например, API-based), меняется только эта строка.

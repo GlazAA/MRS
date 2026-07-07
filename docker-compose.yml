@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: mrs-postgres
+    environment:
+      POSTGRES_DB: mrs
+      POSTGRES_USER: mrs
+      POSTGRES_PASSWORD: mrs
+    ports:
+      - "5433:5432"
+    volumes:
+      - mrs_pg_data:/var/lib/postgresql/data
+
+volumes:
+  mrs_pg_data:

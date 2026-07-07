@@ -76,7 +76,8 @@ public class ObjectOnboardingOrganizationTests
 		return new SqliteObjectOnboardingService(
 			new FixedDbPath(path),
 			bootstrapper,
-			new SqliteEquipmentModelCatalogService(new FixedDbPath(path), bootstrapper));
+			new SqliteEquipmentModelCatalogService(new FixedDbPath(path), bootstrapper),
+			new NoOpSyncOutboxService());
 	}
 
 	private static void Cleanup(string path)

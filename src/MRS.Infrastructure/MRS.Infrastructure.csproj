@@ -6,9 +6,28 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.9.0" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.9.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\..\database\postgres\001_schema.sql">
+      <LogicalName>MRS.Infrastructure.Postgres.Schema.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\postgres\002_seed_reference.sql">
+      <LogicalName>MRS.Infrastructure.Postgres.Seed.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\postgres\003_align_with_sqlite.sql">
+      <LogicalName>MRS.Infrastructure.Postgres.Align.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\postgres\004_demo_data.sql">
+      <LogicalName>MRS.Infrastructure.Postgres.Demo.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\postgres\005_template_intro_modal.sql">
+      <LogicalName>MRS.Infrastructure.Postgres.TemplateIntro.sql</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\database\sqlite\001_schema.sql">
       <LogicalName>MRS.Infrastructure.Sqlite.Schema.sql</LogicalName>
     </EmbeddedResource>

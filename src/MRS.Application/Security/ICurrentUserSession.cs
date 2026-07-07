@@ -19,5 +19,11 @@ public interface ICurrentUserSession
     /// <summary>Сохранить ФИО инженера для подписи обращений.</summary>
     Task SetEngineerDisplayNameAsync(string displayName, CancellationToken cancellationToken = default);
 
+    /// <summary>Установить пользователя после входа на сервере.</summary>
+    Task SetAuthenticatedUserAsync(int userId, string roleName, string displayName, CancellationToken cancellationToken = default);
+
+    /// <summary>Вернуться к офлайн-демо без сервера.</summary>
+    Task ClearAuthenticatedUserAsync(CancellationToken cancellationToken = default);
+
     event Action? Changed;
 }

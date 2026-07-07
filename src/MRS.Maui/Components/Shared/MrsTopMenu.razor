@@ -1,8 +1,12 @@
 @using MRS.Application.Security
+@using MRS.Application.Storage
 @using MRS.Application.Sync
+@using Microsoft.Maui.Storage
 @inject NavigationManager Nav
 @inject ICurrentUserSession Session
 @inject IServerSyncService ServerSync
+@inject ILocalDatabaseBackupService DatabaseBackup
+@inject IJSRuntime JS
 @implements IDisposable
 
 <button type="button" class="mrs-menu-button" @onclick="ToggleMenu" aria-label="Меню">
@@ -23,6 +27,11 @@
             </span>
             <span class="mrs-menu-sync-text">@(_syncing ? "Обновление…" : "Обновить с сервера")</span>
         </button>
+        <button type="button" class="mrs-menu-item" disabled="@_backupBusy" @onclick="DownloadBackupAsync">Скачать копию БД</button>
+        @if (Session.IsDbAdministrator)
+        {
+            <button type="button" class="mrs-menu-item" disabled="@_backupBusy" @onclick="RestoreBackupAsync">Восстановить БД из файла</button>
+        }
         <button type="button" class="mrs-menu-item" @onclick="GoToChecklistWork">Контрольный лист</button>
         <button type="button" class="mrs-menu-item" @onclick="GoToManagement">Управление листами</button>
         <button type="button" class="mrs-menu-item" @onclick="GoToFacilities">Управление объектами</button>
@@ -30,6 +39,20 @@
         {
             <button type="button" class="mrs-menu-item" @onclick="GoToSql">SQL-окно</button>
         }
+    </div>
+}
+
+@if (_showBackupMessage)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseBackupMessage">
+        <div class="mrs-modal" @onclick:stopPropagation="true" style="max-width: 420px">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseBackupMessage">×</button>
+            <h3 class="mrs-modal-title">@_backupTitle</h3>
+            <p class="mrs-modal-body mrs-pre-wrap">@_backupMessage</p>
+            <div class="mrs-form-actions" style="margin-top: 0">
+                <button type="button" class="mrs-btn-primary" @onclick="CloseBackupMessage">Ок</button>
+            </div>
+        </div>
     </div>
 }
 
@@ -50,7 +73,11 @@
 @code {
     private bool _showMenu;
     private bool _syncing;
+    private bool _backupBusy;
     private bool _showSyncResult;
+    private bool _showBackupMessage;
+    private string _backupTitle = string.Empty;
+    private string _backupMessage = string.Empty;
     private ServerSyncResult? _syncResult;
 
     protected override void OnInitialized()
@@ -78,6 +105,66 @@
     }
 
     private void CloseSyncResult() => _showSyncResult = false;
+
+    private void CloseBackupMessage() => _showBackupMessage = false;
+
+    private async Task DownloadBackupAsync()
+    {
+        _showMenu = false;
+        _backupBusy = true;
+        try
+        {
+            var file = await DatabaseBackup.CreateBackupAsync().ConfigureAwait(false);
+            var base64 = Convert.ToBase64String(file.Content);
+            await JS.InvokeVoidAsync("mrsDownloadBase64File", file.FileName, "application/x-sqlite3", base64).ConfigureAwait(false);
+            _backupTitle = "Копия сохранена";
+            _backupMessage = $"Файл {file.FileName} скачан. Храните его в надёжном месте — это полная офлайн-база устройства.";
+            _showBackupMessage = true;
+        }
+        catch (Exception ex)
+        {
+            _backupTitle = "Ошибка";
+            _backupMessage = ex.Message;
+            _showBackupMessage = true;
+        }
+        finally
+        {
+            _backupBusy = false;
+        }
+    }
+
+    private async Task RestoreBackupAsync()
+    {
+        _showMenu = false;
+        _backupBusy = true;
+        try
+        {
+            var pick = await FilePicker.Default.PickAsync(new PickOptions
+            {
+                PickerTitle = "Выберите файл резервной копии (.db)"
+            }).ConfigureAwait(false);
+            if (pick is null)
+                return;
+
+            await using var stream = await pick.OpenReadAsync().ConfigureAwait(false);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms).ConfigureAwait(false);
+            await DatabaseBackup.RestoreFromBackupAsync(ms.ToArray()).ConfigureAwait(false);
+            _backupTitle = "База восстановлена";
+            _backupMessage = "Локальная база заменена из файла. Перезапустите приложение, чтобы увидеть восстановленные данные.";
+            _showBackupMessage = true;
+        }
+        catch (Exception ex)
+        {
+            _backupTitle = "Ошибка восстановления";
+            _backupMessage = ex.Message;
+            _showBackupMessage = true;
+        }
+        finally
+        {
+            _backupBusy = false;
+        }
+    }
 
     private void GoToChecklistWork()
     {

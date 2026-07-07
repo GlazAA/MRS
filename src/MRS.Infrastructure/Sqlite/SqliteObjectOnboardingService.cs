@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using MRS.Application.Facilities;
 using MRS.Application.Storage;
+using MRS.Application.Sync;
 
 namespace MRS.Infrastructure.Sqlite;
 
@@ -9,15 +10,18 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
     private readonly ILocalDatabasePath _paths;
     private readonly ILocalDatabaseBootstrapper _bootstrapper;
     private readonly IEquipmentModelCatalogService _catalog;
+    private readonly ISyncOutboxService _outbox;
 
     public SqliteObjectOnboardingService(
         ILocalDatabasePath paths,
         ILocalDatabaseBootstrapper bootstrapper,
-        IEquipmentModelCatalogService catalog)
+        IEquipmentModelCatalogService catalog,
+        ISyncOutboxService outbox)
     {
         _paths = paths;
         _bootstrapper = bootstrapper;
         _catalog = catalog;
+        _outbox = outbox;
     }
 
     public async Task<IReadOnlyList<HierarchyOption>> GetAllEquipmentTypesAsync(CancellationToken cancellationToken = default)
@@ -60,7 +64,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
 
             await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-            return new ObjectOnboardingResult(
+            var onboardingResult = new ObjectOnboardingResult(
                 organizationId,
                 facilityId,
                 systemId,
@@ -71,6 +75,9 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
                 systemCreated,
                 equipmentTypeCreated,
                 installationCreated);
+
+            await EnqueueHierarchySyncAsync(onboardingResult, cancellationToken).ConfigureAwait(false);
+            return onboardingResult;
         }
         catch
         {
@@ -424,9 +431,12 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         if (mfg.Length == 0 && model.Length == 0 && serial.Length == 0)
             return;
 
-        int? equipmentModelId = null;
-        if (mfg.Length > 0 && model.Length > 0)
-            equipmentModelId = await _catalog.EnsureModelAsync(equipmentTypeId, mfg, model, cancellationToken).ConfigureAwait(false);
+		int? equipmentModelId = null;
+		if (mfg.Length > 0 && model.Length > 0)
+		{
+			equipmentModelId = await SqliteEquipmentModelCatalogService.EnsureModelInTransactionAsync(
+				connection, tx, equipmentTypeId, mfg, model, cancellationToken).ConfigureAwait(false);
+		}
 
         using var cmd = connection.CreateCommand();
         cmd.Transaction = tx;
@@ -446,6 +456,16 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         cmd.Parameters.AddWithValue("$serial", serial);
         cmd.Parameters.AddWithValue("$id", installationId);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task EnqueueHierarchySyncAsync(ObjectOnboardingResult result, CancellationToken cancellationToken)
+    {
+        var json = await SqliteHierarchySyncPayloadBuilder.BuildAsync(_paths, _bootstrapper, result, cancellationToken)
+            .ConfigureAwait(false);
+        var payload = System.Text.Json.JsonSerializer.Deserialize<HierarchySyncPayload>(json);
+        var uuid = payload?.ClientUuid ?? Guid.NewGuid().ToString();
+        await _outbox.EnqueueAsync(new SyncOutboxEnqueueRequest("hierarchy", uuid, "upsert", json), cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private static async Task<bool> OrganizationExistsAsync(

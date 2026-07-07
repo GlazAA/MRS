@@ -84,15 +84,27 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 		string modelName,
 		CancellationToken cancellationToken = default)
 	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		return await EnsureModelInTransactionAsync(connection, null, equipmentTypeId, manufacturer, modelName, cancellationToken)
+			.ConfigureAwait(false);
+	}
+
+	internal static async Task<int> EnsureModelInTransactionAsync(
+		SqliteConnection connection,
+		SqliteTransaction? tx,
+		int equipmentTypeId,
+		string manufacturer,
+		string modelName,
+		CancellationToken cancellationToken)
+	{
 		var mfg = (manufacturer ?? string.Empty).Trim();
 		var name = (modelName ?? string.Empty).Trim();
 		if (mfg.Length == 0 || name.Length == 0)
 			throw new InvalidOperationException("Укажите производителя и модель.");
 
-		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
-
 		using (var find = connection.CreateCommand())
 		{
+			find.Transaction = tx;
 			find.CommandText = """
 				SELECT id
 				FROM equipment_models
@@ -110,6 +122,7 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 		}
 
 		using var insert = connection.CreateCommand();
+		insert.Transaction = tx;
 		insert.CommandText = """
 			INSERT INTO equipment_models (equipment_type_id, manufacturer, name)
 			VALUES ($et, $mfg, $name);
