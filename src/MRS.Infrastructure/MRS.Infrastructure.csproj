@@ -28,6 +28,9 @@
     <EmbeddedResource Include="..\..\database\postgres\005_template_intro_modal.sql">
       <LogicalName>MRS.Infrastructure.Postgres.TemplateIntro.sql</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\postgres\006_scheduled_visit_uuid.sql">
+      <LogicalName>MRS.Infrastructure.Postgres.ScheduledVisitUuid.sql</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\database\sqlite\001_schema.sql">
       <LogicalName>MRS.Infrastructure.Sqlite.Schema.sql</LogicalName>
     </EmbeddedResource>
@@ -72,6 +75,15 @@
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\database\sqlite\015_manufacturer_model_fields.sql">
       <LogicalName>MRS.Infrastructure.Sqlite.ManufacturerModelFields.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\016_sync_merge.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.SyncMerge.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\017_facility_contacts.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.FacilityContacts.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\postgres\007_facility_contacts.sql">
+      <LogicalName>MRS.Infrastructure.Postgres.FacilityContacts.sql</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\brand-schutz-logo.png">
       <LogicalName>MRS.Infrastructure.Resources.brand-schutz-logo.png</LogicalName>

@@ -33,17 +33,21 @@ public class ObjectOnboardingEquipmentModelTests
 				AddressBlock: null,
 				AddressZipCode: null,
 				SystemDescription: null,
-				ExistingEquipmentTypeId: null,
-				NewEquipmentTypeName: "Тестовый компрессор",
-				InstallationLabel: "ПН-001",
-				InstallationManufacturer: "Atlas Copco",
-				InstallationModel: "GA-37",
-				InstallationSerialNumber: "SN-123"));
+				Installations:
+				[
+					new ObjectOnboardingInstallationDraft(
+						ExistingEquipmentTypeId: null,
+						NewEquipmentTypeName: "Тестовый компрессор",
+						InstallationLabel: "ПН-001",
+						InstallationManufacturer: "Atlas Copco",
+						InstallationModel: "GA-37",
+						InstallationSerialNumber: "SN-123")
+				],
+				Contacts: []));
 
-			Assert.True(result.EquipmentTypeCreated);
-			Assert.True(result.InstallationCreated);
+			Assert.Equal(1, result.InstallationsSaved);
 
-			var model = await catalog.GetInstallationModelAsync(result.InstallationId);
+			var model = await catalog.GetInstallationModelAsync(result.PrimaryInstallationId);
 			Assert.NotNull(model);
 			Assert.Equal("Atlas Copco", model!.Manufacturer);
 			Assert.Equal("GA-37", model.ModelName);

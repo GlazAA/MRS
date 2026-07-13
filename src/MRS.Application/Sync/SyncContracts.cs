@@ -28,20 +28,35 @@ public sealed record SyncPullResponse(
 	IReadOnlyList<SyncOrganizationRow> Organizations,
 	IReadOnlyList<SyncFacilityRow> Facilities,
 	IReadOnlyList<SyncFacilitySystemRow> FacilitySystems,
-	IReadOnlyList<SyncInstallationRow> Installations);
+	IReadOnlyList<SyncInstallationRow> Installations,
+	IReadOnlyList<SyncEquipmentTypeRow> EquipmentTypes,
+	IReadOnlyList<TemplateSyncPayload> Templates,
+	IReadOnlyList<SyncEngineerNotePullRow> EngineerNotes,
+	IReadOnlyList<SyncScheduledVisitPullRow> ScheduledVisits,
+	IReadOnlyList<SyncChecklistPullRow> Checklists,
+	IReadOnlyList<SyncEquipmentModelRow> EquipmentModels,
+	IReadOnlyList<SyncSystemEquipmentLinkRow> SystemEquipmentLinks);
+
+public sealed record SyncEquipmentTypeRow(
+	long Id,
+	string TypeName,
+	string? Code);
 
 public sealed record SyncOrganizationRow(
 	long Id,
 	string FullName,
 	string? ShortName,
-	bool IsActive);
+	bool IsActive,
+	string? LegalFormCode = null);
 
 public sealed record SyncFacilityRow(
 	long Id,
 	long OrganizationId,
 	string Name,
 	string UiFlow,
-	bool IsActive);
+	bool IsActive,
+	string? ContractAddress = null,
+	SyncAddressPayload? Address = null);
 
 public sealed record SyncFacilitySystemRow(
 	long Id,
@@ -54,7 +69,25 @@ public sealed record SyncInstallationRow(
 	long Id,
 	long SystemId,
 	long EquipmentTypeId,
-	bool IsActive);
+	bool IsActive,
+	string? CustomName = null,
+	string? CustomSerialNumber = null,
+	long? EquipmentModelId = null,
+	string? CustomModelName = null);
+
+public sealed record SyncEquipmentModelRow(
+	long Id,
+	long EquipmentTypeId,
+	string? Manufacturer,
+	string Name);
+
+public sealed record SyncSystemEquipmentLinkRow(
+	long SystemId,
+	long EquipmentTypeId);
+
+public sealed record SyncChecklistPullRow(
+	ChecklistSyncPayload Payload,
+	DateTimeOffset ServerUpdatedAt);
 
 public sealed record ChecklistSyncPayload(
 	[property: JsonPropertyName("clientUuid")] string ClientUuid,
@@ -156,3 +189,59 @@ public sealed record TemplateFieldSyncPayload(
 	[property: JsonPropertyName("isRequired")] bool IsRequired,
 	[property: JsonPropertyName("groupName")] string? GroupName,
 	[property: JsonPropertyName("options")] IReadOnlyList<string> Options);
+
+public sealed record EngineerNoteSyncPayload(
+	[property: JsonPropertyName("clientUuid")] string ClientUuid,
+	[property: JsonPropertyName("localId")] int LocalId,
+	[property: JsonPropertyName("authorUserId")] int AuthorUserId,
+	[property: JsonPropertyName("body")] string Body,
+	[property: JsonPropertyName("deadlineDate")] DateOnly? DeadlineDate,
+	[property: JsonPropertyName("title")] string? Title,
+	[property: JsonPropertyName("facilityId")] int? FacilityId,
+	[property: JsonPropertyName("scheduledVisitId")] int? ScheduledVisitId,
+	[property: JsonPropertyName("checklistId")] int? ChecklistId,
+	[property: JsonPropertyName("isCompleted")] bool IsCompleted,
+	[property: JsonPropertyName("completedAt")] DateTimeOffset? CompletedAt,
+	[property: JsonPropertyName("operation")] string Operation);
+
+public sealed record ScheduledVisitSyncPayload(
+	[property: JsonPropertyName("clientUuid")] string ClientUuid,
+	[property: JsonPropertyName("localId")] int LocalId,
+	[property: JsonPropertyName("facilityId")] int FacilityId,
+	[property: JsonPropertyName("contactEmployeeId")] int? ContactEmployeeId,
+	[property: JsonPropertyName("contactManualText")] string? ContactManualText,
+	[property: JsonPropertyName("plannedStart")] DateOnly PlannedStart,
+	[property: JsonPropertyName("plannedEnd")] DateOnly? PlannedEnd,
+	[property: JsonPropertyName("notes")] string? Notes,
+	[property: JsonPropertyName("prepSkipped")] bool PrepSkipped,
+	[property: JsonPropertyName("status")] string Status,
+	[property: JsonPropertyName("engineerUserIds")] IReadOnlyList<int> EngineerUserIds,
+	[property: JsonPropertyName("operation")] string Operation);
+
+public sealed record SyncEngineerNotePullRow(
+	[property: JsonPropertyName("clientUuid")] string ClientUuid,
+	[property: JsonPropertyName("id")] long Id,
+	[property: JsonPropertyName("authorUserId")] int AuthorUserId,
+	[property: JsonPropertyName("body")] string Body,
+	[property: JsonPropertyName("deadlineDate")] DateOnly? DeadlineDate,
+	[property: JsonPropertyName("title")] string? Title,
+	[property: JsonPropertyName("facilityId")] int? FacilityId,
+	[property: JsonPropertyName("scheduledVisitId")] int? ScheduledVisitId,
+	[property: JsonPropertyName("checklistId")] int? ChecklistId,
+	[property: JsonPropertyName("isCompleted")] bool IsCompleted,
+	[property: JsonPropertyName("completedAt")] DateTimeOffset? CompletedAt,
+	[property: JsonPropertyName("updatedAt")] DateTimeOffset UpdatedAt);
+
+public sealed record SyncScheduledVisitPullRow(
+	[property: JsonPropertyName("clientUuid")] string ClientUuid,
+	[property: JsonPropertyName("id")] long Id,
+	[property: JsonPropertyName("facilityId")] int FacilityId,
+	[property: JsonPropertyName("contactEmployeeId")] int? ContactEmployeeId,
+	[property: JsonPropertyName("contactManualText")] string? ContactManualText,
+	[property: JsonPropertyName("plannedStart")] DateOnly PlannedStart,
+	[property: JsonPropertyName("plannedEnd")] DateOnly? PlannedEnd,
+	[property: JsonPropertyName("notes")] string? Notes,
+	[property: JsonPropertyName("prepSkipped")] bool PrepSkipped,
+	[property: JsonPropertyName("status")] string Status,
+	[property: JsonPropertyName("engineerUserIds")] IReadOnlyList<int> EngineerUserIds,
+	[property: JsonPropertyName("updatedAt")] DateTimeOffset UpdatedAt);

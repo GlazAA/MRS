@@ -45,6 +45,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IInstallationEnsureService, SqliteInstallationEnsureService>();
 		builder.Services.AddSingleton<IEquipmentModelCatalogService, SqliteEquipmentModelCatalogService>();
 		builder.Services.AddSingleton<IObjectOnboardingService, SqliteObjectOnboardingService>();
+		builder.Services.AddSingleton<IOrganizationDirectoryService, SqliteOrganizationDirectoryService>();
 		builder.Services.AddSingleton<IChecklistManagementService, SqliteChecklistManagementService>();
 		builder.Services.AddSingleton<IChecklistEditService, SqliteChecklistEditService>();
 		builder.Services.AddSingleton<IScheduledVisitService, SqliteScheduledVisitService>();
@@ -55,10 +56,12 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ISyncOutboxService, SqliteSyncOutboxService>();
 		builder.Services.AddSingleton<IChecklistSyncPayloadService, SqliteChecklistSyncPayloadService>();
 		builder.Services.AddSingleton<ISyncApplyService, SqliteSyncApplyService>();
+		builder.Services.AddSingleton<ISyncPushAckService, SqliteSyncPushAckService>();
 		builder.Services.AddSingleton<IServerConnectionSettings, MauiServerConnectionSettings>();
 		builder.Services.AddSingleton<MauiUserAuthService>();
 		builder.Services.AddSingleton<IUserAuthService>(sp => sp.GetRequiredService<MauiUserAuthService>());
 		builder.Services.AddSingleton<IServerSyncService, MauiServerSyncService>();
+		builder.Services.AddSingleton<MauiAppStartupService>();
 		// Регистрация сервиса экспорта DOC/ZIP.
 		// Если появится другая реализация (например, API-based), меняется только эта строка.
 		builder.Services.AddSingleton<IChecklistDocumentExportService, SqliteChecklistDocumentExportService>();

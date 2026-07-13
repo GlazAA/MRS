@@ -31,6 +31,9 @@ internal static class PostgresSyncHierarchyWriter
 	private static async Task UpsertOrganizationAsync(
 		NpgsqlConnection connection, NpgsqlTransaction tx, SyncOrganizationPayload org, CancellationToken cancellationToken)
 	{
+		await PostgresSyncIdentityGuard.EnsureNoConflictAsync(
+			connection, tx, "organizations", org.LocalId, "full_name", org.FullName, cancellationToken).ConfigureAwait(false);
+
 		await using var cmd = new NpgsqlCommand("""
 			INSERT INTO organizations (id, full_name, short_name, legal_form_code, is_active)
 			VALUES (@id, @full, @short, @form, @active)
@@ -75,6 +78,9 @@ internal static class PostgresSyncHierarchyWriter
 				addressId = Convert.ToInt64(await insAddr.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
 			}
 		}
+
+		await PostgresSyncIdentityGuard.EnsureNoConflictAsync(
+			connection, tx, "facilities", facility.LocalId, "name", facility.Name, cancellationToken).ConfigureAwait(false);
 
 		await using var cmd = new NpgsqlCommand("""
 			INSERT INTO facilities (id, organization_id, name, address_id, contract_address, ui_flow, is_active)
@@ -122,6 +128,10 @@ internal static class PostgresSyncHierarchyWriter
 	private static async Task UpsertEquipmentTypeAsync(
 		NpgsqlConnection connection, NpgsqlTransaction tx, SyncEquipmentTypePayload equipmentType, CancellationToken cancellationToken)
 	{
+		await PostgresSyncIdentityGuard.EnsureNoConflictAsync(
+			connection, tx, "equipment_types", equipmentType.LocalId, "type_name", equipmentType.TypeName, cancellationToken)
+			.ConfigureAwait(false);
+
 		await using var cmd = new NpgsqlCommand("""
 			INSERT INTO equipment_types (id, type_name, code)
 			VALUES (@id, @name, @code)

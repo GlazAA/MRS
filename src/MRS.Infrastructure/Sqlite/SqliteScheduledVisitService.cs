@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.Data.Sqlite;
 using MRS.Application.Facilities;
 using MRS.Application.Storage;
+using MRS.Application.Sync;
 using MRS.Application.Visits;
 
 namespace MRS.Infrastructure.Sqlite;
@@ -10,11 +11,16 @@ public sealed class SqliteScheduledVisitService : IScheduledVisitService
 {
 	private readonly ILocalDatabasePath _paths;
 	private readonly ILocalDatabaseBootstrapper _bootstrapper;
+	private readonly ISyncOutboxService _outbox;
 
-	public SqliteScheduledVisitService(ILocalDatabasePath paths, ILocalDatabaseBootstrapper bootstrapper)
+	public SqliteScheduledVisitService(
+		ILocalDatabasePath paths,
+		ILocalDatabaseBootstrapper bootstrapper,
+		ISyncOutboxService outbox)
 	{
 		_paths = paths;
 		_bootstrapper = bootstrapper;
+		_outbox = outbox;
 	}
 
 	public async Task<IReadOnlyList<ScheduledVisitCalendarItem>> GetCalendarMonthAsync(int year, int month, CancellationToken cancellationToken = default)
@@ -192,20 +198,24 @@ public sealed class SqliteScheduledVisitService : IScheduledVisitService
 
 		try
 		{
+			var clientUuid = Guid.NewGuid().ToString();
 			var primaryEngineer = request.EngineerUserIds.FirstOrDefault();
 			using var ins = connection.CreateCommand();
 			ins.Transaction = tx;
 			ins.CommandText = """
 				INSERT INTO scheduled_visits (
 					facility_id, assigned_user_id, planned_start, planned_end, notes,
-					contact_employee_id, contact_manual_text, prep_skipped, status, updated_at)
+					contact_employee_id, contact_manual_text, prep_skipped, status,
+					client_uuid, sync_state, updated_at)
 				VALUES (
 					$fid, $uid, $start, $end, $notes,
-					$contactId, $contactManual, 0, 'planned', datetime('now'));
+					$contactId, $contactManual, 0, 'planned',
+					$uuid, 'pending_upload', datetime('now'));
 				SELECT last_insert_rowid();
 				""";
 			ins.Parameters.AddWithValue("$fid", request.FacilityId);
 			ins.Parameters.AddWithValue("$uid", primaryEngineer == 0 ? DBNull.Value : primaryEngineer);
+			ins.Parameters.AddWithValue("$uuid", clientUuid);
 			ins.Parameters.AddWithValue("$start", request.PlannedStart.ToString("O", CultureInfo.InvariantCulture));
 			ins.Parameters.AddWithValue("$end", request.PlannedEnd.HasValue
 				? request.PlannedEnd.Value.ToString("O", CultureInfo.InvariantCulture)
@@ -219,6 +229,7 @@ public sealed class SqliteScheduledVisitService : IScheduledVisitService
 
 			await ReplaceEngineersAsync(connection, tx, visitId, request.EngineerUserIds, cancellationToken).ConfigureAwait(false);
 			await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+			await EnqueueVisitSyncAsync(visitId, "insert", cancellationToken).ConfigureAwait(false);
 			return visitId;
 		}
 		catch
@@ -236,7 +247,8 @@ public sealed class SqliteScheduledVisitService : IScheduledVisitService
 			UPDATE scheduled_visits
 			SET planned_start = $start,
 			    planned_end = $end,
-			    updated_at = datetime('now')
+			    updated_at = datetime('now'),
+			    sync_state = 'pending_upload'
 			WHERE id = $id;
 			""";
 		cmd.Parameters.AddWithValue("$id", request.VisitId);
@@ -245,6 +257,7 @@ public sealed class SqliteScheduledVisitService : IScheduledVisitService
 			? request.PlannedEnd.Value.ToString("O", CultureInfo.InvariantCulture)
 			: DBNull.Value);
 		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+		await EnqueueVisitSyncAsync(request.VisitId, "update", cancellationToken).ConfigureAwait(false);
 	}
 
 	public async Task SetPrepSkippedAsync(int visitId, bool skipped, CancellationToken cancellationToken = default)
@@ -253,12 +266,25 @@ public sealed class SqliteScheduledVisitService : IScheduledVisitService
 		using var cmd = connection.CreateCommand();
 		cmd.CommandText = """
 			UPDATE scheduled_visits
-			SET prep_skipped = $skip, updated_at = datetime('now')
+			SET prep_skipped = $skip,
+			    updated_at = datetime('now'),
+			    sync_state = 'pending_upload'
 			WHERE id = $id;
 			""";
 		cmd.Parameters.AddWithValue("$id", visitId);
 		cmd.Parameters.AddWithValue("$skip", skipped ? 1 : 0);
 		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+		await EnqueueVisitSyncAsync(visitId, "update", cancellationToken).ConfigureAwait(false);
+	}
+
+	private async Task EnqueueVisitSyncAsync(int visitId, string operation, CancellationToken cancellationToken)
+	{
+		var json = await SqliteScheduledVisitSyncPayloadBuilder.BuildAsync(_paths, _bootstrapper, visitId, operation, cancellationToken)
+			.ConfigureAwait(false);
+		var payload = System.Text.Json.JsonSerializer.Deserialize<ScheduledVisitSyncPayload>(json);
+		var uuid = payload?.ClientUuid ?? $"visit-{visitId}";
+		await _outbox.EnqueueAsync(new SyncOutboxEnqueueRequest("scheduled_visit", uuid, operation, json), cancellationToken)
+			.ConfigureAwait(false);
 	}
 
 	public async Task<IReadOnlyList<VisitFilterOption>> ListForFilterAsync(CancellationToken cancellationToken = default)

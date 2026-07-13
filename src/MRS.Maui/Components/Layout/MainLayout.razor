@@ -1,4 +1,6 @@
 @inherits LayoutComponentBase
+@using MRS.Maui.Services
+@inject MauiAppStartupService Startup
 
 <div class="mrs-shell">
     <main class="mrs-main">
@@ -6,3 +8,10 @@
     </main>
     <EngineerSupportFab />
 </div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await Startup.EnsureStartedAsync().ConfigureAwait(false);
+    }
+}

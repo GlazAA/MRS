@@ -26,6 +26,7 @@ desktop.ini
 # Secrets and local config
 .env
 .env.*
+!.env.example
 *.pfx
 *.snk
 *.key

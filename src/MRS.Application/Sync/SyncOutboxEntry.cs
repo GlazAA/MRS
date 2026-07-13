@@ -14,3 +14,5 @@ public sealed record SyncOutboxEnqueueRequest(
 	string LocalClientUuid,
 	string Operation,
 	string PayloadJson);
+
+public sealed record SyncEntityRef(string EntityType, int LocalId);

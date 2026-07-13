@@ -15,7 +15,7 @@ public class ScheduledVisitServiceTests
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
 			var paths = new FixedDbPath(path);
-			var visits = new SqliteScheduledVisitService(paths, bootstrapper);
+			var visits = new SqliteScheduledVisitService(paths, bootstrapper, new NoOpSyncOutboxService());
 
 			var today = DateOnly.FromDateTime(DateTime.Today);
 			var id = await visits.CreateAsync(new CreateScheduledVisitRequest(

@@ -1,6 +1,7 @@
 @using MRS.Application.Security
 @using MRS.Application.Storage
 @using MRS.Application.Sync
+@using MRS.Maui.Services
 @using Microsoft.Maui.Storage
 @inject NavigationManager Nav
 @inject ICurrentUserSession Session
@@ -16,7 +17,11 @@
 @if (_showMenu)
 {
     <div class="mrs-menu-panel">
-        <button type="button" class="mrs-menu-item mrs-menu-sync" disabled="@_syncing" @onclick="SyncAsync">
+        <button type="button"
+                class="mrs-menu-item mrs-menu-sync"
+                disabled="@(!MauiSyncDefaults.ServerSyncEnabled || _syncing)"
+                title="@(_syncDisabledTitle)"
+                @onclick="SyncAsync">
             <span class="mrs-menu-sync-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                     <circle cx="5" cy="12" r="2"/>
@@ -25,20 +30,17 @@
                     <path d="M7 11h8l2-4M7 13h8l2 4" stroke="currentColor" stroke-width="1.6" fill="none"/>
                 </svg>
             </span>
-            <span class="mrs-menu-sync-text">@(_syncing ? "Обновление…" : "Обновить с сервера")</span>
+            <span class="mrs-menu-sync-text">@_syncButtonLabel</span>
         </button>
         <button type="button" class="mrs-menu-item" disabled="@_backupBusy" @onclick="DownloadBackupAsync">Скачать копию БД</button>
-        @if (Session.IsDbAdministrator)
-        {
-            <button type="button" class="mrs-menu-item" disabled="@_backupBusy" @onclick="RestoreBackupAsync">Восстановить БД из файла</button>
-        }
-        <button type="button" class="mrs-menu-item" @onclick="GoToChecklistWork">Контрольный лист</button>
-        <button type="button" class="mrs-menu-item" @onclick="GoToManagement">Управление листами</button>
-        <button type="button" class="mrs-menu-item" @onclick="GoToFacilities">Управление объектами</button>
+        <button type="button" class="mrs-menu-item" disabled="@_backupBusy" @onclick="RestoreBackupAsync">Импорт копии БД</button>
         @if (Session.IsDbAdministrator)
         {
             <button type="button" class="mrs-menu-item" @onclick="GoToSql">SQL-окно</button>
         }
+        <button type="button" class="mrs-menu-item" @onclick="GoToChecklistWork">Контрольный лист</button>
+        <button type="button" class="mrs-menu-item" @onclick="GoToManagement">Управление листами</button>
+        <button type="button" class="mrs-menu-item" @onclick="GoToFacilities">Управление объектами</button>
     </div>
 }
 
@@ -80,6 +82,14 @@
     private string _backupMessage = string.Empty;
     private ServerSyncResult? _syncResult;
 
+    private string _syncButtonLabel => !MauiSyncDefaults.ServerSyncEnabled
+        ? "Обновить с сервера (отключено)"
+        : _syncing ? "Обновление…" : "Обновить с сервера";
+
+    private string? _syncDisabledTitle => !MauiSyncDefaults.ServerSyncEnabled
+        ? "Синхронизация временно отключена. Используйте обмен файлами .db."
+        : null;
+
     protected override void OnInitialized()
     {
         ServerSync.Changed += OnSyncChanged;
@@ -91,6 +101,9 @@
 
     private async Task SyncAsync()
     {
+        if (!MauiSyncDefaults.ServerSyncEnabled)
+            return;
+
         _showMenu = false;
         _syncing = true;
         try
@@ -141,7 +154,7 @@
         {
             var pick = await FilePicker.Default.PickAsync(new PickOptions
             {
-                PickerTitle = "Выберите файл резервной копии (.db)"
+                PickerTitle = "Выберите файл копии БД (.db)"
             }).ConfigureAwait(false);
             if (pick is null)
                 return;
@@ -150,8 +163,8 @@
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms).ConfigureAwait(false);
             await DatabaseBackup.RestoreFromBackupAsync(ms.ToArray()).ConfigureAwait(false);
-            _backupTitle = "База восстановлена";
-            _backupMessage = "Локальная база заменена из файла. Перезапустите приложение, чтобы увидеть восстановленные данные.";
+            _backupTitle = "База импортирована";
+            _backupMessage = "Локальная база заменена из файла. Перезапустите приложение, чтобы увидеть импортированные данные.";
             _showBackupMessage = true;
         }
         catch (Exception ex)

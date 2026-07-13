@@ -5,7 +5,6 @@
 @inject IFacilityHierarchyService Hierarchy
 @inject IObjectOnboardingService Onboarding
 @inject IEquipmentModelCatalogService ModelCatalog
-@inject NavigationManager Nav
 
 <PageTitle>Внесение данных по объекту</PageTitle>
 
@@ -136,76 +135,133 @@
             <textarea class="mrs-select" rows="3" @bind="_systemDescription" @bind:event="oninput" disabled="@_busy"></textarea>
             <p class="mrs-field-hint">Для внутреннего пользования (не для документов)</p>
         </div>
-    }
 
-    <div class="mrs-field">
-        <label class="mrs-label">Тип оборудования *</label>
-        <select class="mrs-select" value="@_equipmentChoice" @onchange="OnEquipmentChoiceChanged" disabled="@(_busy || !IsFacilityChosen)">
-            <option value="">— выберите —</option>
-            @foreach (var et in _equipmentTypes)
-            {
-                <option value="@et.Id.ToString(CultureInfo.InvariantCulture)">@et.Name</option>
-            }
-            <option value="new">+ Новый тип оборудования</option>
-        </select>
-    </div>
-
-    @if (_equipmentChoice == "new")
-    {
-        <div class="mrs-field">
-            <label class="mrs-label">Название типа оборудования *</label>
-            <input class="mrs-select" type="text" @bind="_newEquipmentTypeName" @bind:event="oninput" disabled="@_busy" />
-        </div>
-    }
-
-    @if (IsFacilityChosen)
-    {
-        <div class="mrs-field">
-            <label class="mrs-label">Серийный номер</label>
-            <input class="mrs-select" type="text" @bind="_installationSerial" @bind:event="oninput" disabled="@_busy" />
-        </div>
-
-        <details class="mrs-object-details">
-            <summary>Дополнительно по установке</summary>
-            <div class="mrs-field mrs-mt">
-                <label class="mrs-label">Производитель</label>
-                <select class="mrs-select" @bind="_installationManufacturer" @bind:after="OnInstallationManufacturerChangedAsync" disabled="@_busy">
-                    <option value="">—</option>
-                    @foreach (var mfg in _manufacturers)
+        <h2 class="mrs-section-title">Установки / оборудование</h2>
+        @for (var i = 0; i < _installations.Count; i++)
+        {
+            var index = i;
+            var item = _installations[index];
+            <div class="mrs-template-field-card">
+                <div class="mrs-template-field-header">
+                    <span>Установка @(index + 1)</span>
+                    @if (_installations.Count > 1)
                     {
-                        <option value="@mfg">@mfg</option>
+                        <button type="button" class="mrs-btn-small-danger" @onclick="() => RemoveInstallation(index)" disabled="@_busy">Удалить</button>
                     }
-                </select>
-                <input class="mrs-select mrs-mt" type="text" placeholder="Или введите нового производителя" @bind="_installationManufacturer" @bind:event="oninput" @bind:after="OnInstallationManufacturerChangedAsync" disabled="@_busy" />
-            </div>
-            <div class="mrs-field">
-                <label class="mrs-label">Модель</label>
-                <select class="mrs-select" @bind="_installationModel" disabled="@(_busy || string.IsNullOrWhiteSpace(_installationManufacturer))">
-                    <option value="">—</option>
-                    @foreach (var m in _modelsForManufacturer)
-                    {
-                        <option value="@m.Name">@m.Name</option>
-                    }
-                </select>
-                <input class="mrs-select mrs-mt" type="text" placeholder="Или введите новую модель" @bind="_installationModel" @bind:event="oninput" disabled="@(_busy || string.IsNullOrWhiteSpace(_installationManufacturer))" />
-                <p class="mrs-hint">Производитель и модель сохраняются в справочник и используются в контрольных листах.</p>
-            </div>
-        </details>
+                </div>
 
-        <div class="mrs-field">
-            <label class="mrs-label">Установка (проектный номер) *</label>
-            <input class="mrs-select" type="text" @bind="_installationLabel" @bind:event="oninput" disabled="@_busy" />
-            <p class="mrs-field-hint">Указать, в какой установке он стоит</p>
+                <div class="mrs-field">
+                    <label class="mrs-label">Тип оборудования *</label>
+                    <select class="mrs-select" value="@item.EquipmentChoice" @onchange="e => OnEquipmentChoiceChanged(index, e)" disabled="@_busy">
+                        <option value="">— выберите —</option>
+                        @foreach (var et in _equipmentTypes)
+                        {
+                            <option value="@et.Id.ToString(CultureInfo.InvariantCulture)">@et.Name</option>
+                        }
+                        <option value="new">+ Новый тип оборудования</option>
+                    </select>
+                </div>
+
+                @if (item.EquipmentChoice == "new")
+                {
+                    <div class="mrs-field">
+                        <label class="mrs-label">Название типа оборудования *</label>
+                        <input class="mrs-select" type="text" @bind="item.NewEquipmentTypeName" @bind:event="oninput" disabled="@_busy" />
+                    </div>
+                }
+
+                <div class="mrs-field">
+                    <label class="mrs-label">Серийный номер</label>
+                    <input class="mrs-select" type="text" @bind="item.Serial" @bind:event="oninput" disabled="@_busy" />
+                </div>
+
+                <details class="mrs-object-details">
+                    <summary>Дополнительно по установке</summary>
+                    <div class="mrs-field mrs-mt">
+                        <label class="mrs-label">Производитель</label>
+                        <input class="mrs-select" type="text" list="@($"mfg-{index}")" @bind="item.Manufacturer" @bind:event="oninput" @bind:after="() => OnManufacturerChangedAsync(index)" disabled="@_busy" />
+                        <datalist id="@($"mfg-{index}")">
+                            @foreach (var mfg in item.Manufacturers)
+                            {
+                                <option value="@mfg"></option>
+                            }
+                        </datalist>
+                    </div>
+                    <div class="mrs-field">
+                        <label class="mrs-label">Модель</label>
+                        <input class="mrs-select" type="text" list="@($"model-{index}")" @bind="item.Model" @bind:event="oninput" disabled="@(_busy || string.IsNullOrWhiteSpace(item.Manufacturer))" />
+                        <datalist id="@($"model-{index}")">
+                            @foreach (var m in item.Models)
+                            {
+                                <option value="@m.Name"></option>
+                            }
+                        </datalist>
+                    </div>
+                </details>
+
+                <div class="mrs-field">
+                    <label class="mrs-label">Установка (проектный номер) *</label>
+                    <input class="mrs-select" type="text" @bind="item.Label" @bind:event="oninput" disabled="@_busy" />
+                </div>
+            </div>
+        }
+
+        <div class="mrs-form-actions">
+            <button type="button" class="mrs-btn-secondary" @onclick="AddInstallation" disabled="@_busy">+ Добавить ещё установку / оборудование</button>
+        </div>
+
+        <h2 class="mrs-section-title">Контакты заказчика</h2>
+        <p class="mrs-field-hint">Необязательно. Фамилия, имя и отчество — отдельными полями (как в базе сотрудников).</p>
+
+        @for (var i = 0; i < _contacts.Count; i++)
+        {
+            var index = i;
+            var contact = _contacts[index];
+            <div class="mrs-template-field-card">
+                <div class="mrs-template-field-header">
+                    <span>Контакт @(index + 1)</span>
+                    <button type="button" class="mrs-btn-small-danger" @onclick="() => RemoveContact(index)" disabled="@_busy">Удалить</button>
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Фамилия *</label>
+                    <input class="mrs-select" type="text" @bind="contact.LastName" @bind:event="oninput" disabled="@_busy" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Имя *</label>
+                    <input class="mrs-select" type="text" @bind="contact.FirstName" @bind:event="oninput" disabled="@_busy" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Отчество</label>
+                    <input class="mrs-select" type="text" @bind="contact.MiddleName" @bind:event="oninput" disabled="@_busy" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Должность</label>
+                    <input class="mrs-select" type="text" @bind="contact.Position" @bind:event="oninput" disabled="@_busy" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Телефон</label>
+                    <input class="mrs-select" type="text" @bind="contact.Phone" @bind:event="oninput" disabled="@_busy" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Email</label>
+                    <input class="mrs-select" type="email" @bind="contact.Email" @bind:event="oninput" disabled="@_busy" />
+                </div>
+            </div>
+        }
+
+        <div class="mrs-form-actions">
+            <button type="button" class="mrs-btn-secondary" @onclick="AddContact" disabled="@_busy">+ Добавить контакт</button>
         </div>
     }
 
     <div class="mrs-form-actions">
+        <button type="button" class="mrs-btn-secondary" @onclick="PrepareAnotherFacility" disabled="@(_busy || !IsOrgChosen)">+ Добавить ещё объект</button>
         <button type="button" class="mrs-btn-secondary" @onclick="ResetForm" disabled="@_busy">Очистить</button>
         <button type="button" class="mrs-btn-primary" @onclick="SaveAsync" disabled="@_busy">Сохранить в БД</button>
     </div>
 
     <p class="mrs-info-note">
-        После сохранения данные сразу становятся доступны при создании контрольного листа.
+        После сохранения остаётесь на странице — можно сразу добавить ещё объект, установку или контакт. Данные уже доступны при создании контрольного листа.
     </p>
 </div>
 
@@ -213,6 +269,8 @@
     private readonly List<HierarchyOption> _organizations = [];
     private readonly List<HierarchyOption> _facilities = [];
     private readonly List<HierarchyOption> _equipmentTypes = [];
+    private readonly List<InstallationDraft> _installations = [];
+    private readonly List<ContactDraft> _contacts = [];
 
     private bool _busy;
     private string? _error;
@@ -222,7 +280,6 @@
     private string _orgSearchText = "";
     private bool _orgDropdownOpen;
     private string _facilityChoice = "";
-    private string _equipmentChoice = "";
 
     private string _newOrgLegalForm = "";
     private string _newOrgCompanyName = "";
@@ -235,13 +292,6 @@
     private string _block = "";
     private string _zip = "";
     private string _systemDescription = "";
-    private string _newEquipmentTypeName = "";
-    private string _installationLabel = "";
-    private string _installationManufacturer = "";
-    private string _installationModel = "";
-    private string _installationSerial = "";
-    private List<string> _manufacturers = [];
-    private List<EquipmentModelListItem> _modelsForManufacturer = [];
 
     private bool IsOrgChosen => !string.IsNullOrWhiteSpace(_orgChoice);
     private bool IsFacilityChosen => !string.IsNullOrWhiteSpace(_facilityChoice);
@@ -261,8 +311,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _installations.Add(new InstallationDraft());
         _busy = true;
-        _error = null;
         try
         {
             _organizations.AddRange(await Hierarchy.GetOrganizationsAsync().ConfigureAwait(false));
@@ -296,15 +346,11 @@
         if (_orgChoice != "new")
         {
             _orgChoice = string.Empty;
-            _facilityChoice = string.Empty;
-            _facilities.Clear();
+            ClearFacilitySection(keepOrg: false);
         }
     }
 
-    private void OnOrgSearchFocus()
-    {
-        _orgDropdownOpen = true;
-    }
+    private void OnOrgSearchFocus() => _orgDropdownOpen = true;
 
     private async Task OnOrgSearchBlur()
     {
@@ -320,8 +366,7 @@
         _orgDropdownOpen = false;
         _newOrgLegalForm = "";
         _newOrgCompanyName = "";
-        _facilityChoice = string.Empty;
-        _facilities.Clear();
+        ClearFacilitySection(keepOrg: true);
         _saved = null;
         _error = null;
 
@@ -348,8 +393,7 @@
             _newOrgCompanyName = _orgSearchText.Trim();
         if (string.IsNullOrWhiteSpace(_newOrgLegalForm))
             _newOrgLegalForm = "OOO";
-        _facilityChoice = string.Empty;
-        _facilities.Clear();
+        ClearFacilitySection(keepOrg: true);
         _saved = null;
         _error = null;
     }
@@ -362,27 +406,29 @@
         return Task.CompletedTask;
     }
 
-    private Task OnEquipmentChoiceChanged(ChangeEventArgs e)
+    private async Task OnEquipmentChoiceChanged(int index, ChangeEventArgs e)
     {
-        _equipmentChoice = e.Value?.ToString() ?? string.Empty;
+        var item = _installations[index];
+        item.EquipmentChoice = e.Value?.ToString() ?? string.Empty;
+        item.Manufacturer = "";
+        item.Model = "";
+        item.Manufacturers = [];
+        item.Models = [];
         _saved = null;
         _error = null;
-        _installationManufacturer = "";
-        _installationModel = "";
-        return LoadEquipmentCatalogAsync();
+        await LoadEquipmentCatalogAsync(index).ConfigureAwait(false);
     }
 
-    private async Task LoadEquipmentCatalogAsync()
+    private async Task LoadEquipmentCatalogAsync(int index)
     {
-        _manufacturers = [];
-        _modelsForManufacturer = [];
-        var equipmentTypeId = ParseExisting(_equipmentChoice);
+        var item = _installations[index];
+        var equipmentTypeId = ParseExisting(item.EquipmentChoice);
         if (equipmentTypeId is not int etId)
             return;
 
         try
         {
-            _manufacturers = (await ModelCatalog.GetManufacturersAsync(etId).ConfigureAwait(false)).ToList();
+            item.Manufacturers = (await ModelCatalog.GetManufacturersAsync(etId).ConfigureAwait(false)).ToList();
         }
         catch (Exception ex)
         {
@@ -390,16 +436,30 @@
         }
     }
 
-    private async Task OnInstallationManufacturerChangedAsync()
+    private async Task OnManufacturerChangedAsync(int index)
     {
-        _installationModel = "";
-        _modelsForManufacturer = [];
-        var equipmentTypeId = ParseExisting(_equipmentChoice);
-        if (equipmentTypeId is not int etId || string.IsNullOrWhiteSpace(_installationManufacturer))
+        var item = _installations[index];
+        item.Model = "";
+        item.Models = [];
+        var equipmentTypeId = ParseExisting(item.EquipmentChoice);
+        if (equipmentTypeId is not int etId || string.IsNullOrWhiteSpace(item.Manufacturer))
             return;
 
-        _modelsForManufacturer = (await ModelCatalog.GetModelsAsync(etId, _installationManufacturer).ConfigureAwait(false)).ToList();
+        item.Models = (await ModelCatalog.GetModelsAsync(etId, item.Manufacturer).ConfigureAwait(false)).ToList();
     }
+
+    private void AddInstallation() => _installations.Add(new InstallationDraft());
+
+    private void RemoveInstallation(int index)
+    {
+        if (_installations.Count <= 1)
+            return;
+        _installations.RemoveAt(index);
+    }
+
+    private void AddContact() => _contacts.Add(new ContactDraft());
+
+    private void RemoveContact(int index) => _contacts.RemoveAt(index);
 
     private async Task SaveAsync()
     {
@@ -408,6 +468,21 @@
         _busy = true;
         try
         {
+            var installations = _installations.Select(i => new ObjectOnboardingInstallationDraft(
+                ExistingEquipmentTypeId: ParseExisting(i.EquipmentChoice),
+                NewEquipmentTypeName: i.EquipmentChoice == "new" ? i.NewEquipmentTypeName : null,
+                InstallationLabel: i.Label,
+                InstallationManufacturer: i.Manufacturer,
+                InstallationModel: i.Model,
+                InstallationSerialNumber: i.Serial)).ToList();
+
+            var contacts = _contacts
+                .Where(c => !string.IsNullOrWhiteSpace(c.LastName) || !string.IsNullOrWhiteSpace(c.FirstName)
+                            || !string.IsNullOrWhiteSpace(c.Phone) || !string.IsNullOrWhiteSpace(c.Email))
+                .Select(c => new ObjectOnboardingContactDraft(
+                    c.LastName, c.FirstName, c.MiddleName, c.Position, c.Phone, c.Email))
+                .ToList();
+
             var request = new ObjectOnboardingRequest(
                 ExistingOrganizationId: ParseExisting(_orgChoice),
                 NewOrganizationLegalFormCode: _orgChoice == "new" ? _newOrgLegalForm : null,
@@ -422,17 +497,15 @@
                 AddressBlock: _facilityChoice == "new" ? _block : null,
                 AddressZipCode: _facilityChoice == "new" ? _zip : null,
                 SystemDescription: IsFacilityChosen ? _systemDescription : null,
-                ExistingEquipmentTypeId: ParseExisting(_equipmentChoice),
-                NewEquipmentTypeName: _equipmentChoice == "new" ? _newEquipmentTypeName : null,
-                InstallationLabel: _installationLabel,
-                InstallationManufacturer: _installationManufacturer,
-                InstallationModel: _installationModel,
-                InstallationSerialNumber: _installationSerial);
+                Installations: installations,
+                Contacts: contacts);
 
             var result = await Onboarding.UpsertHierarchyAsync(request).ConfigureAwait(false);
             _saved = BuildSavedMessage(result);
 
-            Nav.NavigateTo($"/checklists?organizationId={result.OrganizationId}&facilityId={result.FacilityId}&systemId={result.SystemId}", forceLoad: true);
+            // После сохранения остаёмся на странице и подтягиваем справочники для продолжения ввода.
+            await RefreshLookupsAfterSaveAsync(result).ConfigureAwait(false);
+            PrepareForAnotherEntryKeepOrganization();
         }
         catch (Exception ex)
         {
@@ -444,20 +517,42 @@
         }
     }
 
-    private void ResetForm()
+    private async Task RefreshLookupsAfterSaveAsync(ObjectOnboardingResult result)
     {
-        _error = null;
-        _saved = null;
+        _organizations.Clear();
+        _organizations.AddRange(await Hierarchy.GetOrganizationsAsync().ConfigureAwait(false));
+        _equipmentTypes.Clear();
+        _equipmentTypes.AddRange(await Onboarding.GetAllEquipmentTypesAsync().ConfigureAwait(false));
 
-        _orgChoice = "";
-        _orgSearchText = "";
-        _orgDropdownOpen = false;
-        _facilityChoice = "";
-        _equipmentChoice = "";
-        _facilities.Clear();
-
+        _orgChoice = result.OrganizationId.ToString(CultureInfo.InvariantCulture);
+        var org = _organizations.FirstOrDefault(o => o.Id == result.OrganizationId);
+        if (org is not null)
+            _orgSearchText = org.Name;
         _newOrgLegalForm = "";
         _newOrgCompanyName = "";
+
+        _facilities.Clear();
+        _facilities.AddRange(await Hierarchy.GetFacilitiesAsync(result.OrganizationId).ConfigureAwait(false));
+    }
+
+    private void PrepareForAnotherEntryKeepOrganization()
+    {
+        ClearFacilitySection(keepOrg: true);
+    }
+
+    private void PrepareAnotherFacility()
+    {
+        _saved = "Можно вносить следующий объект — предыдущие данные сохранены.";
+        _error = null;
+        ClearFacilitySection(keepOrg: true);
+    }
+
+    private void ClearFacilitySection(bool keepOrg)
+    {
+        if (!keepOrg)
+            _facilities.Clear();
+
+        _facilityChoice = "";
         _newFacilityName = "";
         _contractAddress = "";
         _city = "";
@@ -467,13 +562,23 @@
         _block = "";
         _zip = "";
         _systemDescription = "";
-        _newEquipmentTypeName = "";
-        _installationLabel = "";
-        _installationManufacturer = "";
-        _installationModel = "";
-        _installationSerial = "";
-        _manufacturers = [];
-        _modelsForManufacturer = [];
+        _installations.Clear();
+        _installations.Add(new InstallationDraft());
+        _contacts.Clear();
+        if (!keepOrg)
+            _facilities.Clear();
+    }
+
+    private void ResetForm()
+    {
+        _error = null;
+        _saved = null;
+        _orgChoice = "";
+        _orgSearchText = "";
+        _orgDropdownOpen = false;
+        _newOrgLegalForm = "";
+        _newOrgCompanyName = "";
+        ClearFacilitySection(keepOrg: false);
     }
 
     private static int? ParseExisting(string choice) =>
@@ -481,14 +586,37 @@
 
     private static string BuildSavedMessage(ObjectOnboardingResult result)
     {
-        var created = new List<string>();
-        if (result.OrganizationCreated) created.Add("организация");
-        if (result.FacilityCreated) created.Add("объект");
-        if (result.SystemCreated) created.Add("система");
-        if (result.EquipmentTypeCreated) created.Add("тип оборудования");
-        if (result.InstallationCreated) created.Add("установка");
-        return created.Count == 0
-            ? "Данные уже существовали: использованы текущие записи."
-            : $"Сохранено: {string.Join(", ", created)}.";
+        var parts = new List<string>();
+        if (result.OrganizationCreated) parts.Add("организация");
+        if (result.FacilityCreated) parts.Add("объект");
+        if (result.SystemCreated) parts.Add("система");
+        if (result.InstallationsSaved > 0) parts.Add($"установок: {result.InstallationsSaved}");
+        if (result.ContactsSaved > 0) parts.Add($"контактов: {result.ContactsSaved}");
+        var body = parts.Count == 0
+            ? "Данные сохранены (использованы текущие записи)."
+            : $"Предыдущие данные сохранены ({string.Join(", ", parts)}).";
+        return body + " Можно добавить ещё.";
+    }
+
+    private sealed class InstallationDraft
+    {
+        public string EquipmentChoice { get; set; } = "";
+        public string NewEquipmentTypeName { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Manufacturer { get; set; } = "";
+        public string Model { get; set; } = "";
+        public string Serial { get; set; } = "";
+        public List<string> Manufacturers { get; set; } = [];
+        public List<EquipmentModelListItem> Models { get; set; } = [];
+    }
+
+    private sealed class ContactDraft
+    {
+        public string LastName { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string MiddleName { get; set; } = "";
+        public string Position { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string Email { get; set; } = "";
     }
 }

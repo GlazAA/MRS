@@ -28,6 +28,10 @@ public sealed class PostgresSyncService
 					await UpsertHierarchyAsync(item, cancellationToken).ConfigureAwait(false);
 				else if (string.Equals(item.EntityType, "checklist_template", StringComparison.OrdinalIgnoreCase))
 					await UpsertTemplateAsync(item, cancellationToken).ConfigureAwait(false);
+				else if (string.Equals(item.EntityType, "engineer_note", StringComparison.OrdinalIgnoreCase))
+					await UpsertEngineerNoteAsync(item, cancellationToken).ConfigureAwait(false);
+				else if (string.Equals(item.EntityType, "scheduled_visit", StringComparison.OrdinalIgnoreCase))
+					await UpsertScheduledVisitAsync(item, cancellationToken).ConfigureAwait(false);
 				else
 					throw new InvalidOperationException($"Тип сущности не поддерживается: {item.EntityType}");
 
@@ -47,12 +51,31 @@ public sealed class PostgresSyncService
 	{
 		await using var connection = await _factory.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-		var organizations = await ReadOrganizationsAsync(connection, cancellationToken).ConfigureAwait(false);
-		var facilities = await ReadFacilitiesAsync(connection, cancellationToken).ConfigureAwait(false);
-		var systems = await ReadFacilitySystemsAsync(connection, cancellationToken).ConfigureAwait(false);
-		var installations = await ReadInstallationsAsync(connection, cancellationToken).ConfigureAwait(false);
+		var organizations = await PostgresSyncHierarchyReader.ReadOrganizationsAsync(connection, cancellationToken).ConfigureAwait(false);
+		var facilities = await PostgresSyncHierarchyReader.ReadFacilitiesAsync(connection, cancellationToken).ConfigureAwait(false);
+		var systems = await PostgresSyncHierarchyReader.ReadFacilitySystemsAsync(connection, cancellationToken).ConfigureAwait(false);
+		var installations = await PostgresSyncHierarchyReader.ReadInstallationsAsync(connection, cancellationToken).ConfigureAwait(false);
+		var equipmentTypes = await PostgresSyncHierarchyReader.ReadEquipmentTypesAsync(connection, cancellationToken).ConfigureAwait(false);
+		var equipmentModels = await PostgresSyncHierarchyReader.ReadEquipmentModelsAsync(connection, cancellationToken).ConfigureAwait(false);
+		var systemEquipmentLinks = await PostgresSyncHierarchyReader.ReadSystemEquipmentLinksAsync(connection, cancellationToken).ConfigureAwait(false);
+		var templates = await PostgresSyncTemplateReader.ReadAllAsync(connection, cancellationToken).ConfigureAwait(false);
+		var engineerNotes = await PostgresSyncPullReaders.ReadEngineerNotesAsync(connection, cancellationToken).ConfigureAwait(false);
+		var scheduledVisits = await PostgresSyncPullReaders.ReadScheduledVisitsAsync(connection, cancellationToken).ConfigureAwait(false);
+		var checklists = await PostgresSyncChecklistReader.ReadAllAsync(connection, cancellationToken).ConfigureAwait(false);
 
-		return new SyncPullResponse(DateTimeOffset.UtcNow, organizations, facilities, systems, installations);
+		return new SyncPullResponse(
+			DateTimeOffset.UtcNow,
+			organizations,
+			facilities,
+			systems,
+			installations,
+			equipmentTypes,
+			templates,
+			engineerNotes,
+			scheduledVisits,
+			checklists,
+			equipmentModels,
+			systemEquipmentLinks);
 	}
 
 	private async Task UpsertHierarchyAsync(SyncPushItem item, CancellationToken cancellationToken)
@@ -71,6 +94,24 @@ public sealed class PostgresSyncService
 		var payload = PostgresSyncTemplateWriter.Parse(item.PayloadJson);
 		await using var connection = await _factory.OpenAsync(cancellationToken).ConfigureAwait(false);
 		await PostgresSyncTemplateWriter.UpsertAsync(connection, payload, cancellationToken).ConfigureAwait(false);
+	}
+
+	private async Task UpsertEngineerNoteAsync(SyncPushItem item, CancellationToken cancellationToken)
+	{
+		if (string.IsNullOrWhiteSpace(item.PayloadJson))
+			throw new InvalidOperationException("Пустой payload.");
+		var payload = PostgresSyncEngineerNoteWriter.Parse(item.PayloadJson);
+		await using var connection = await _factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+		await PostgresSyncEngineerNoteWriter.ApplyAsync(connection, payload, cancellationToken).ConfigureAwait(false);
+	}
+
+	private async Task UpsertScheduledVisitAsync(SyncPushItem item, CancellationToken cancellationToken)
+	{
+		if (string.IsNullOrWhiteSpace(item.PayloadJson))
+			throw new InvalidOperationException("Пустой payload.");
+		var payload = PostgresSyncScheduledVisitWriter.Parse(item.PayloadJson);
+		await using var connection = await _factory.OpenAsync(cancellationToken).ConfigureAwait(false);
+		await PostgresSyncScheduledVisitWriter.UpsertAsync(connection, payload, cancellationToken).ConfigureAwait(false);
 	}
 
 	private async Task UpsertChecklistAsync(SyncPushItem item, int userId, CancellationToken cancellationToken)
@@ -187,83 +228,5 @@ public sealed class PostgresSyncService
 		}
 
 		await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-	}
-
-	private static async Task<IReadOnlyList<SyncOrganizationRow>> ReadOrganizationsAsync(
-		NpgsqlConnection connection,
-		CancellationToken cancellationToken)
-	{
-		var list = new List<SyncOrganizationRow>();
-		await using var cmd = new NpgsqlCommand("SELECT id, full_name, short_name, is_active FROM organizations ORDER BY id;", connection);
-		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-		{
-			list.Add(new SyncOrganizationRow(
-				reader.GetInt64(0),
-				reader.GetString(1),
-				reader.IsDBNull(2) ? null : reader.GetString(2),
-				reader.GetBoolean(3)));
-		}
-
-		return list;
-	}
-
-	private static async Task<IReadOnlyList<SyncFacilityRow>> ReadFacilitiesAsync(
-		NpgsqlConnection connection,
-		CancellationToken cancellationToken)
-	{
-		var list = new List<SyncFacilityRow>();
-		await using var cmd = new NpgsqlCommand("SELECT id, organization_id, name, ui_flow, is_active FROM facilities ORDER BY id;", connection);
-		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-		{
-			list.Add(new SyncFacilityRow(
-				reader.GetInt64(0),
-				reader.GetInt64(1),
-				reader.GetString(2),
-				reader.GetString(3),
-				reader.GetBoolean(4)));
-		}
-
-		return list;
-	}
-
-	private static async Task<IReadOnlyList<SyncFacilitySystemRow>> ReadFacilitySystemsAsync(
-		NpgsqlConnection connection,
-		CancellationToken cancellationToken)
-	{
-		var list = new List<SyncFacilitySystemRow>();
-		await using var cmd = new NpgsqlCommand("SELECT id, facility_id, name, description, is_active FROM facility_systems ORDER BY id;", connection);
-		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-		{
-			list.Add(new SyncFacilitySystemRow(
-				reader.GetInt64(0),
-				reader.GetInt64(1),
-				reader.GetString(2),
-				reader.IsDBNull(3) ? null : reader.GetString(3),
-				reader.GetBoolean(4)));
-		}
-
-		return list;
-	}
-
-	private static async Task<IReadOnlyList<SyncInstallationRow>> ReadInstallationsAsync(
-		NpgsqlConnection connection,
-		CancellationToken cancellationToken)
-	{
-		var list = new List<SyncInstallationRow>();
-		await using var cmd = new NpgsqlCommand("SELECT id, system_id, equipment_type_id, is_active FROM installations ORDER BY id;", connection);
-		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-		{
-			list.Add(new SyncInstallationRow(
-				reader.GetInt64(0),
-				reader.GetInt64(1),
-				reader.GetInt64(2),
-				reader.GetBoolean(3)));
-		}
-
-		return list;
 	}
 }

@@ -24,16 +24,28 @@ public sealed class SqliteSyncOutboxService : ISyncOutboxService
 	{
 		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken)
 			.ConfigureAwait(false);
-		using var cmd = connection.CreateCommand();
-		cmd.CommandText = """
-			INSERT INTO sync_outbox (entity_type, local_client_uuid, operation, payload_json, created_at)
-			VALUES ($type, $uuid, $op, $payload, datetime('now'));
-			""";
-		cmd.Parameters.AddWithValue("$type", request.EntityType);
-		cmd.Parameters.AddWithValue("$uuid", request.LocalClientUuid);
-		cmd.Parameters.AddWithValue("$op", request.Operation);
-		cmd.Parameters.AddWithValue("$payload", request.PayloadJson);
-		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+		await using var tx = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+		long outboxId;
+		using (var cmd = connection.CreateCommand())
+		{
+			cmd.Transaction = tx;
+			cmd.CommandText = """
+				INSERT INTO sync_outbox (entity_type, local_client_uuid, operation, payload_json, created_at)
+				VALUES ($type, $uuid, $op, $payload, datetime('now'));
+				SELECT last_insert_rowid();
+				""";
+			cmd.Parameters.AddWithValue("$type", request.EntityType);
+			cmd.Parameters.AddWithValue("$uuid", request.LocalClientUuid);
+			cmd.Parameters.AddWithValue("$op", request.Operation);
+			cmd.Parameters.AddWithValue("$payload", request.PayloadJson);
+			var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+			outboxId = scalar is long l ? l : Convert.ToInt64(scalar ?? throw new InvalidOperationException("Не удалось поставить в очередь."));
+		}
+
+		await SqliteSyncEntityLocks.InsertForOutboxAsync(connection, tx, outboxId, request.EntityType, request.PayloadJson, cancellationToken)
+			.ConfigureAwait(false);
+		await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 	}
 
 	public async Task<IReadOnlyList<SyncOutboxEntry>> GetPendingAsync(int limit, CancellationToken cancellationToken = default)
@@ -75,6 +87,7 @@ public sealed class SqliteSyncOutboxService : ISyncOutboxService
 	{
 		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken)
 			.ConfigureAwait(false);
+		await SqliteSyncEntityLocks.ReleaseForOutboxAsync(connection, outboxId, cancellationToken).ConfigureAwait(false);
 		using var cmd = connection.CreateCommand();
 		cmd.CommandText = """
 			UPDATE sync_outbox

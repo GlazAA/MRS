@@ -1,0 +1,307 @@
+@page "/objects/organizations"
+@using MRS.Application.Facilities
+@using Microsoft.Maui.ApplicationModel.DataTransfer
+@inject IOrganizationDirectoryService Directory
+
+<PageTitle>Организации</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="/objects">←</a>
+    <h1 class="mrs-title">Организации</h1>
+    <MrsTopMenu />
+</div>
+
+<div class="mrs-org-page">
+    <div class="mrs-org-search">
+        <label class="mrs-label" for="org-search">Поиск</label>
+        <input id="org-search"
+               class="mrs-select mrs-org-search-input"
+               type="search"
+               placeholder="Организация, объект, ФИО или телефон…"
+               value="@_query"
+               @oninput="OnSearchInput"
+               disabled="@_busy"
+               autocomplete="off" />
+    </div>
+
+    @if (_error is not null)
+    {
+        <p class="text-danger">@_error</p>
+    }
+
+    @if (_busy && _items.Count == 0)
+    {
+        <p class="mrs-home-note">Загрузка…</p>
+    }
+    else if (_items.Count == 0)
+    {
+        <p class="mrs-home-note">
+            @(string.IsNullOrWhiteSpace(_query)
+                ? "Пока нет организаций. Добавьте через «Внести данные по объекту»."
+                : "Ничего не найдено по запросу.")
+        </p>
+    }
+    else
+    {
+        <div class="mrs-org-list">
+            @foreach (var org in _items)
+            {
+                <button type="button" class="mrs-org-card" @onclick="() => SelectAsync(org.Id)">
+                    <div class="mrs-org-card-title">@org.Name</div>
+                    <div class="mrs-org-card-meta">
+                        Объектов: @org.FacilityCount · Контактов: @org.ContactCount
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(org.LastVisitEngineerName))
+                    {
+                        <div class="mrs-org-card-visit">
+                            Последний выезд: @org.LastVisitEngineerName
+                            @if (org.LastVisitAt is DateTimeOffset at)
+                            {
+                                <span> (@at.LocalDateTime.ToString("dd.MM.yyyy"))</span>
+                            }
+                        </div>
+                    }
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@if (_detail is not null)
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseDetail">
+        <div class="mrs-modal mrs-modal-wide mrs-org-modal" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseDetail">×</button>
+            <h3 class="mrs-modal-title">@_detail.Name</h3>
+            <div class="mrs-modal-body">
+                @if (!string.IsNullOrWhiteSpace(_detail.LegalFormLabel))
+                {
+                    <p class="mrs-field-hint">Юридический статус: @_detail.LegalFormLabel</p>
+                }
+
+                <div class="mrs-org-block">
+                    <h3 class="mrs-org-block-title">Последний выезд</h3>
+                    @if (string.IsNullOrWhiteSpace(_detail.LastVisitEngineerName))
+                    {
+                        <p class="mrs-field-hint">Пока нет данных о выездах.</p>
+                    }
+                    else
+                    {
+                        <p>
+                            @_detail.LastVisitEngineerName
+                            @if (_detail.LastVisitAt is DateTimeOffset at)
+                            {
+                                <span> — @at.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(_detail.LastVisitFacilityName))
+                            {
+                                <span> · объект «@_detail.LastVisitFacilityName»</span>
+                            }
+                        </p>
+                    }
+                </div>
+
+                <div class="mrs-org-block">
+                    <h3 class="mrs-org-block-title"><strong>Объекты</strong> (@_detail.Facilities.Count)</h3>
+                    @if (_detail.Facilities.Count == 0)
+                    {
+                        <p class="mrs-field-hint">Нет объектов.</p>
+                    }
+                    else
+                    {
+                        <ul class="mrs-org-simple-list mrs-org-facilities">
+                            @foreach (var f in _detail.Facilities)
+                            {
+                                <li>
+                                    <div class="mrs-org-facility-name">@f.Name</div>
+                                    @if (!string.IsNullOrWhiteSpace(f.AddressLabel))
+                                    {
+                                        <div class="mrs-copy-row">
+                                            <span class="mrs-copy-value">@f.AddressLabel</span>
+                                            <button type="button"
+                                                    class="mrs-btn-copy"
+                                                    @onclick="() => CopyAddressAsync(f)">
+                                                @CopyLabel(AddressKey(f.Id))
+                                            </button>
+                                        </div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+
+                <div class="mrs-org-block">
+                    <h3 class="mrs-org-block-title"><strong>Контакты</strong> (@_detail.Contacts.Count)</h3>
+                    @if (_detail.Contacts.Count == 0)
+                    {
+                        <p class="mrs-field-hint">Нет контактов.</p>
+                    }
+                    else
+                    {
+                        <ul class="mrs-org-simple-list mrs-org-contacts">
+                            @foreach (var c in _detail.Contacts)
+                            {
+                                <li>
+                                    <div class="mrs-org-contact-name">@c.DisplayName</div>
+                                    @if (!string.IsNullOrWhiteSpace(c.Position))
+                                    {
+                                        <div class="mrs-field-hint">@c.Position</div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(c.FacilityName))
+                                    {
+                                        <div class="mrs-field-hint">Объект: @c.FacilityName</div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(c.Phone))
+                                    {
+                                        <div class="mrs-copy-row">
+                                            <a class="mrs-copy-value mrs-phone-link" href="@PhoneHref(c.Phone)">@c.Phone</a>
+                                            <button type="button"
+                                                    class="mrs-btn-copy"
+                                                    @onclick="() => CopyPhoneAsync(c)">
+                                                @CopyLabel(PhoneKey(c.Id))
+                                            </button>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(c.Email))
+                                    {
+                                        <div class="mrs-copy-row">
+                                            <span class="mrs-copy-value">@c.Email</span>
+                                            <button type="button"
+                                                    class="mrs-btn-copy"
+                                                    @onclick="() => CopyEmailAsync(c)">
+                                                @CopyLabel(EmailKey(c.Id))
+                                            </button>
+                                        </div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly List<OrganizationOverviewItem> _items = [];
+    private bool _busy;
+    private string? _error;
+    private string _query = string.Empty;
+    private OrganizationDetail? _detail;
+    private CancellationTokenSource? _searchCts;
+    private string? _copiedKey;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync().ConfigureAwait(false);
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? string.Empty;
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+        try
+        {
+            await Task.Delay(220, token).ConfigureAwait(false);
+            await ReloadAsync(token).ConfigureAwait(false);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task ReloadAsync(CancellationToken cancellationToken = default)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var list = await Directory.ListAsync(_query, cancellationToken).ConfigureAwait(false);
+            _items.Clear();
+            _items.AddRange(list);
+
+            if (_detail is not null && _items.All(o => o.Id != _detail.Id))
+                _detail = null;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SelectAsync(int organizationId)
+    {
+        _error = null;
+        _copiedKey = null;
+        try
+        {
+            _detail = await Directory.GetAsync(organizationId).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            _detail = null;
+        }
+    }
+
+    private void CloseDetail()
+    {
+        _detail = null;
+        _copiedKey = null;
+    }
+
+    private Task CopyAddressAsync(OrganizationFacilityBrief facility) =>
+        CopyAsync(facility.AddressLabel, AddressKey(facility.Id));
+
+    private Task CopyPhoneAsync(OrganizationContactBrief contact) =>
+        CopyAsync(contact.Phone, PhoneKey(contact.Id));
+
+    private Task CopyEmailAsync(OrganizationContactBrief contact) =>
+        CopyAsync(contact.Email, EmailKey(contact.Id));
+
+    private async Task CopyAsync(string? text, string key)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        try
+        {
+            await Clipboard.Default.SetTextAsync(text.Trim()).ConfigureAwait(false);
+            _copiedKey = key;
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(1500).ConfigureAwait(false);
+            if (_copiedKey == key)
+            {
+                _copiedKey = null;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Не удалось скопировать: {ex.Message}";
+        }
+    }
+
+    private string CopyLabel(string key) => _copiedKey == key ? "Скопировано" : "Копировать";
+
+    private static string AddressKey(int id) => "address-" + id.ToString();
+    private static string PhoneKey(int id) => "phone-" + id.ToString();
+    private static string EmailKey(int id) => "email-" + id.ToString();
+
+    private static string NormalizePhone(string phone) =>
+        new string(phone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+
+    private static string PhoneHref(string? phone) =>
+        string.IsNullOrWhiteSpace(phone) ? "#" : "tel:" + NormalizePhone(phone);
+}

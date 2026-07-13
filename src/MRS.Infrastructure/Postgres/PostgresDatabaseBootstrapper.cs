@@ -4,13 +4,15 @@ namespace MRS.Infrastructure.Postgres;
 
 public sealed class PostgresDatabaseBootstrapper
 {
-	public const int CurrentSchemaVersion = 5;
+	public const int CurrentSchemaVersion = 7;
 
 	private const string SchemaResource = "MRS.Infrastructure.Postgres.Schema.sql";
 	private const string SeedResource = "MRS.Infrastructure.Postgres.Seed.sql";
 	private const string AlignResource = "MRS.Infrastructure.Postgres.Align.sql";
 	private const string DemoResource = "MRS.Infrastructure.Postgres.Demo.sql";
 	private const string TemplateIntroResource = "MRS.Infrastructure.Postgres.TemplateIntro.sql";
+	private const string ScheduledVisitUuidResource = "MRS.Infrastructure.Postgres.ScheduledVisitUuid.sql";
+	private const string FacilityContactsResource = "MRS.Infrastructure.Postgres.FacilityContacts.sql";
 
 	private readonly PostgresConnectionFactory _factory;
 
@@ -72,6 +74,22 @@ public sealed class PostgresDatabaseBootstrapper
 			await PostgresScriptRunner.ExecuteScriptAsync(connection, await ReadResourceAsync(TemplateIntroResource, cancellationToken), cancellationToken)
 				.ConfigureAwait(false);
 			await WriteVersionAsync(connection, 5, cancellationToken).ConfigureAwait(false);
+			version = 5;
+		}
+
+		if (version < 6)
+		{
+			await PostgresScriptRunner.ExecuteScriptAsync(connection, await ReadResourceAsync(ScheduledVisitUuidResource, cancellationToken), cancellationToken)
+				.ConfigureAwait(false);
+			await WriteVersionAsync(connection, 6, cancellationToken).ConfigureAwait(false);
+			version = 6;
+		}
+
+		if (version < 7)
+		{
+			await PostgresScriptRunner.ExecuteScriptAsync(connection, await ReadResourceAsync(FacilityContactsResource, cancellationToken), cancellationToken)
+				.ConfigureAwait(false);
+			await WriteVersionAsync(connection, 7, cancellationToken).ConfigureAwait(false);
 		}
 	}
 

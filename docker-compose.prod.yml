@@ -1,0 +1,40 @@
+# Продакшен на VPS: PostgreSQL + MRS.Api
+# Перед запуском: скопируйте .env.example → .env и задайте пароли.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: mrs-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mrs
+      POSTGRES_USER: mrs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - mrs_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mrs -d mrs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: src/MRS.Api/Dockerfile
+    container_name: mrs-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://+:5080
+      ConnectionStrings__Mrs: Host=postgres;Port=5432;Database=mrs;Username=mrs;Password=${POSTGRES_PASSWORD}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: MRS
+      Jwt__Audience: MRS.Maui
+    ports:
+      - "127.0.0.1:5080:5080"
+
+volumes:
+  mrs_pg_data:

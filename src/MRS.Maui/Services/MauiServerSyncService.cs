@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using MRS.Application.Sync;
@@ -10,7 +11,7 @@ public sealed class MauiServerSyncService : IServerSyncService
 	private readonly IServerConnectionSettings _settings;
 	private readonly MauiUserAuthService _auth;
 	private readonly ISyncApplyService _apply;
-	private readonly IChecklistSyncPayloadService _checklistSync;
+	private readonly ISyncPushAckService _pushAck;
 	private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
 	public MauiServerSyncService(
@@ -18,13 +19,13 @@ public sealed class MauiServerSyncService : IServerSyncService
 		IServerConnectionSettings settings,
 		MauiUserAuthService auth,
 		ISyncApplyService apply,
-		IChecklistSyncPayloadService checklistSync)
+		ISyncPushAckService pushAck)
 	{
 		_outbox = outbox;
 		_settings = settings;
 		_auth = auth;
 		_apply = apply;
-		_checklistSync = checklistSync;
+		_pushAck = pushAck;
 	}
 
 	public ServerSyncResult? LastResult { get; private set; }
@@ -33,8 +34,19 @@ public sealed class MauiServerSyncService : IServerSyncService
 
 	public async Task<ServerSyncResult> SyncAsync(CancellationToken cancellationToken = default)
 	{
-		var networkAvailable = IsNetworkAvailable();
 		var pending = await _outbox.CountPendingAsync(cancellationToken).ConfigureAwait(false);
+
+		if (!MauiSyncDefaults.ServerSyncEnabled)
+		{
+			return Finish(new ServerSyncResult(
+				false,
+				false,
+				"Синхронизация с сервером временно отключена.",
+				pending,
+				DateTimeOffset.Now));
+		}
+
+		var networkAvailable = IsNetworkAvailable();
 
 		if (!networkAvailable)
 		{
@@ -42,22 +54,44 @@ public sealed class MauiServerSyncService : IServerSyncService
 				false,
 				false,
 				pending > 0
-					? $"Сеть недоступна. В очереди: {pending}."
-					: "Сеть недоступна.",
+					? $"Сеть недоступна. Работаем с данными на устройстве. В очереди на отправку: {pending}."
+					: "Сеть недоступна. Работаем с данными на устройстве.",
 				pending,
 				DateTimeOffset.Now));
 		}
 
-		if (!_auth.IsAuthenticated)
+		for (var attempt = 0; attempt < 2; attempt++)
 		{
-			return Finish(new ServerSyncResult(
-				true,
-				false,
-				"Войдите на сервер (логин и пароль на главной странице).",
-				pending,
-				DateTimeOffset.Now));
+			if (!await _auth.EnsureSyncAuthenticatedAsync(cancellationToken).ConfigureAwait(false))
+			{
+				return Finish(new ServerSyncResult(
+					true,
+					false,
+					"Сервер недоступен. Работаем с последними данными на устройстве.",
+					pending,
+					DateTimeOffset.Now));
+			}
+
+			try
+			{
+				return await SyncWithServerAsync(pending, cancellationToken).ConfigureAwait(false);
+			}
+			catch (HttpRequestException ex) when (attempt == 0 && IsUnauthorized(ex))
+			{
+				_auth.ClearAccessToken();
+			}
 		}
 
+		return Finish(new ServerSyncResult(
+			true,
+			false,
+			"Сервер недоступен. Работаем с последними данными на устройстве.",
+			pending,
+			DateTimeOffset.Now));
+	}
+
+	private async Task<ServerSyncResult> SyncWithServerAsync(int pending, CancellationToken cancellationToken)
+	{
 		try
 		{
 			using var client = _auth.CreateAuthorizedClient();
@@ -118,9 +152,17 @@ public sealed class MauiServerSyncService : IServerSyncService
 		}
 		catch (Exception ex)
 		{
-			return Finish(new ServerSyncResult(true, false, $"Ошибка синхронизации: {ex.Message}", pending, DateTimeOffset.Now));
+			return Finish(new ServerSyncResult(
+				true,
+				false,
+				$"Сервер недоступен ({ex.Message}). Работаем с данными на устройстве.",
+				pending,
+				DateTimeOffset.Now));
 		}
 	}
+
+	private static bool IsUnauthorized(HttpRequestException ex) =>
+		ex.StatusCode == HttpStatusCode.Unauthorized;
 
 	private async Task MarkEntitySyncedAsync(
 		IReadOnlyList<SyncOutboxEntry> batch,
@@ -128,17 +170,10 @@ public sealed class MauiServerSyncService : IServerSyncService
 		CancellationToken cancellationToken)
 	{
 		var entry = batch.FirstOrDefault(b => b.Id == outboxId);
-		if (entry is null || !string.Equals(entry.EntityType, "checklist", StringComparison.OrdinalIgnoreCase))
+		if (entry is null)
 			return;
 
-		if (string.IsNullOrWhiteSpace(entry.PayloadJson))
-			return;
-
-		var payload = JsonSerializer.Deserialize<ChecklistSyncPayload>(entry.PayloadJson, JsonOptions);
-		if (payload is null)
-			return;
-
-		await _checklistSync.MarkSyncedAsync(payload.LocalId, cancellationToken).ConfigureAwait(false);
+		await _pushAck.MarkAcknowledgedAsync(entry, cancellationToken).ConfigureAwait(false);
 	}
 
 	private ServerSyncResult Finish(ServerSyncResult result)

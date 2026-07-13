@@ -9,11 +9,7 @@ public sealed class MauiServerConnectionSettings : IServerConnectionSettings
 
 	public MauiServerConnectionSettings()
 	{
-#if ANDROID
-		ServerBaseUrl = Preferences.Default.Get(PrefUrl, "http://10.0.2.2:5080");
-#else
-		ServerBaseUrl = Preferences.Default.Get(PrefUrl, "http://localhost:5080");
-#endif
+		ServerBaseUrl = Preferences.Default.Get(PrefUrl, MauiSyncDefaults.DefaultServerUrl);
 		var lastPull = Preferences.Default.Get(PrefLastPull, string.Empty);
 		if (!string.IsNullOrWhiteSpace(lastPull) && DateTimeOffset.TryParse(lastPull, out var dt))
 			LastPullAt = dt;

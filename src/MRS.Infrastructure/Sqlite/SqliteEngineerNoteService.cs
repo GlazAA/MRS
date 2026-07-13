@@ -3,6 +3,7 @@ using Microsoft.Data.Sqlite;
 using MRS.Application.Facilities;
 using MRS.Application.Notes;
 using MRS.Application.Storage;
+using MRS.Application.Sync;
 
 namespace MRS.Infrastructure.Sqlite;
 
@@ -10,11 +11,16 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 {
 	private readonly ILocalDatabasePath _paths;
 	private readonly ILocalDatabaseBootstrapper _bootstrapper;
+	private readonly ISyncOutboxService _outbox;
 
-	public SqliteEngineerNoteService(ILocalDatabasePath paths, ILocalDatabaseBootstrapper bootstrapper)
+	public SqliteEngineerNoteService(
+		ILocalDatabasePath paths,
+		ILocalDatabaseBootstrapper bootstrapper,
+		ISyncOutboxService outbox)
 	{
 		_paths = paths;
 		_bootstrapper = bootstrapper;
+		_outbox = outbox;
 	}
 
 	public async Task<IReadOnlyList<EngineerNoteListItem>> ListAsync(EngineerNoteFilter filter, CancellationToken cancellationToken = default)
@@ -184,22 +190,26 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 
 	public async Task<int> CreateAsync(CreateEngineerNoteRequest request, CancellationToken cancellationToken = default)
 	{
+		var clientUuid = Guid.NewGuid().ToString();
 		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
 		using var cmd = connection.CreateCommand();
 		cmd.CommandText = """
 			INSERT INTO engineer_notes (
 				author_user_id, facility_id, scheduled_visit_id, checklist_id,
-				title, body, deadline_date, is_completed, sync_state, created_at, updated_at)
+				title, body, deadline_date, is_completed, client_uuid, sync_state, created_at, updated_at)
 			VALUES (
 				$author, $fid, $vid, $cid,
-				$title, $body, $deadline, 0, 'local', datetime('now'), datetime('now'));
+				$title, $body, $deadline, 0, $uuid, 'pending_upload', datetime('now'), datetime('now'));
 			SELECT last_insert_rowid();
 			""";
 		BindNoteParams(cmd, request.AuthorUserId, request.Body, request.DeadlineDate, request.Title,
 			request.FacilityId, request.ScheduledVisitId, request.ChecklistId);
+		cmd.Parameters.AddWithValue("$uuid", clientUuid);
 
 		var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-		return scalar is long l ? (int)l : Convert.ToInt32(scalar ?? throw new InvalidOperationException("Не удалось создать заметку."));
+		var noteId = scalar is long l ? (int)l : Convert.ToInt32(scalar ?? throw new InvalidOperationException("Не удалось создать заметку."));
+		await EnqueueNoteSyncAsync(noteId, "insert", cancellationToken).ConfigureAwait(false);
+		return noteId;
 	}
 
 	public async Task UpdateAsync(UpdateEngineerNoteRequest request, CancellationToken cancellationToken = default)
@@ -251,7 +261,8 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 				    facility_id = $fid,
 				    scheduled_visit_id = $vid,
 				    checklist_id = $cid,
-				    updated_at = datetime('now')
+				    updated_at = datetime('now'),
+				    sync_state = 'pending_upload'
 				WHERE id = $id;
 				""";
 			upd.Parameters.AddWithValue("$id", request.NoteId);
@@ -264,6 +275,7 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 			await upd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
 			await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+			await EnqueueNoteSyncAsync(request.NoteId, "update", cancellationToken).ConfigureAwait(false);
 		}
 		catch
 		{
@@ -275,6 +287,22 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 	public async Task DeleteAsync(int noteId, CancellationToken cancellationToken = default)
 	{
 		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		string? clientUuid;
+		using (var read = connection.CreateCommand())
+		{
+			read.CommandText = "SELECT client_uuid FROM engineer_notes WHERE id = $id;";
+			read.Parameters.AddWithValue("$id", noteId);
+			clientUuid = await read.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
+		}
+
+		if (!string.IsNullOrWhiteSpace(clientUuid))
+		{
+			var json = await SqliteEngineerNoteSyncPayloadBuilder.BuildDeleteAsync(_paths, _bootstrapper, noteId, clientUuid, cancellationToken)
+				.ConfigureAwait(false);
+			await _outbox.EnqueueAsync(new SyncOutboxEnqueueRequest("engineer_note", clientUuid, "delete", json), cancellationToken)
+				.ConfigureAwait(false);
+		}
+
 		using var cmd = connection.CreateCommand();
 		cmd.CommandText = "DELETE FROM engineer_notes WHERE id = $id;";
 		cmd.Parameters.AddWithValue("$id", noteId);
@@ -289,12 +317,24 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 			UPDATE engineer_notes
 			SET is_completed = $done,
 			    completed_at = CASE WHEN $done = 1 THEN datetime('now') ELSE NULL END,
-			    updated_at = datetime('now')
+			    updated_at = datetime('now'),
+			    sync_state = 'pending_upload'
 			WHERE id = $id;
 			""";
 		cmd.Parameters.AddWithValue("$id", noteId);
 		cmd.Parameters.AddWithValue("$done", completed ? 1 : 0);
 		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+		await EnqueueNoteSyncAsync(noteId, "update", cancellationToken).ConfigureAwait(false);
+	}
+
+	private async Task EnqueueNoteSyncAsync(int noteId, string operation, CancellationToken cancellationToken)
+	{
+		var json = await SqliteEngineerNoteSyncPayloadBuilder.BuildAsync(_paths, _bootstrapper, noteId, operation, cancellationToken)
+			.ConfigureAwait(false);
+		var payload = System.Text.Json.JsonSerializer.Deserialize<EngineerNoteSyncPayload>(json);
+		var uuid = payload?.ClientUuid ?? Guid.NewGuid().ToString();
+		await _outbox.EnqueueAsync(new SyncOutboxEnqueueRequest("engineer_note", uuid, operation, json), cancellationToken)
+			.ConfigureAwait(false);
 	}
 
 	private static void BindNoteParams(

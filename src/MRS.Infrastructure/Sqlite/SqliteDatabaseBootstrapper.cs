@@ -5,7 +5,7 @@ namespace MRS.Infrastructure.Sqlite;
 
 public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 {
-	public const int CurrentSchemaVersion = 14;
+	public const int CurrentSchemaVersion = 16;
 
 	private const string SchemaResourceName = "MRS.Infrastructure.Sqlite.Schema.sql";
 	private const string SeedResourceName = "MRS.Infrastructure.Sqlite.Seed.sql";
@@ -22,6 +22,8 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 	private const string RemoveEndTimeResourceName = "MRS.Infrastructure.Sqlite.RemoveEndTime.sql";
 	private const string EquipmentModelCatalogResourceName = "MRS.Infrastructure.Sqlite.EquipmentModelCatalog.sql";
 	private const string ManufacturerModelFieldsResourceName = "MRS.Infrastructure.Sqlite.ManufacturerModelFields.sql";
+	private const string SyncMergeResourceName = "MRS.Infrastructure.Sqlite.SyncMerge.sql";
+	private const string FacilityContactsResourceName = "MRS.Infrastructure.Sqlite.FacilityContacts.sql";
 
 	public async Task<LocalDatabaseStatus> EnsureReadyAsync(string databaseFilePath, CancellationToken cancellationToken = default)
 	{
@@ -155,6 +157,22 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 				await SqliteScriptRunner.ExecuteScriptAsync(connection, manufacturerModelFields, cancellationToken).ConfigureAwait(false);
 				await WriteUserVersionAsync(connection, 14, cancellationToken).ConfigureAwait(false);
 				version = 14;
+			}
+
+			if (version < 15)
+			{
+				var syncMerge = await ReadEmbeddedResourceAsync(SyncMergeResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, syncMerge, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 15, cancellationToken).ConfigureAwait(false);
+				version = 15;
+			}
+
+			if (version < 16)
+			{
+				var facilityContacts = await ReadEmbeddedResourceAsync(FacilityContactsResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, facilityContacts, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 16, cancellationToken).ConfigureAwait(false);
+				version = 16;
 			}
 
 			var fieldTypes = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM field_types;", cancellationToken).ConfigureAwait(false);

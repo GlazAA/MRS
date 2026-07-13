@@ -22,8 +22,8 @@ internal static class SqliteHierarchySyncPayloadBuilder
 		SyncOrganizationPayload org = await LoadOrganizationAsync(connection, result.OrganizationId, cancellationToken).ConfigureAwait(false);
 		SyncFacilityPayload facility = await LoadFacilityAsync(connection, result.FacilityId, cancellationToken).ConfigureAwait(false);
 		SyncFacilitySystemPayload system = await LoadSystemAsync(connection, result.SystemId, cancellationToken).ConfigureAwait(false);
-		SyncEquipmentTypePayload equipmentType = await LoadEquipmentTypeAsync(connection, result.EquipmentTypeId, cancellationToken).ConfigureAwait(false);
-		SyncInstallationPayload installation = await LoadInstallationAsync(connection, result.InstallationId, cancellationToken).ConfigureAwait(false);
+		SyncEquipmentTypePayload equipmentType = await LoadEquipmentTypeAsync(connection, result.PrimaryEquipmentTypeId, cancellationToken).ConfigureAwait(false);
+		SyncInstallationPayload installation = await LoadInstallationAsync(connection, result.PrimaryInstallationId, cancellationToken).ConfigureAwait(false);
 
 		var payload = new HierarchySyncPayload(
 			Guid.NewGuid().ToString(),

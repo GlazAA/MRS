@@ -9,7 +9,6 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
 {
     private readonly ILocalDatabasePath _paths;
     private readonly ILocalDatabaseBootstrapper _bootstrapper;
-    private readonly IEquipmentModelCatalogService _catalog;
     private readonly ISyncOutboxService _outbox;
 
     public SqliteObjectOnboardingService(
@@ -20,7 +19,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
     {
         _paths = paths;
         _bootstrapper = bootstrapper;
-        _catalog = catalog;
+        _ = catalog;
         _outbox = outbox;
     }
 
@@ -45,45 +44,99 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         ObjectOnboardingRequest request,
         CancellationToken cancellationToken = default)
     {
-        var installationLabel = (request.InstallationLabel ?? string.Empty).Trim();
-        if (installationLabel.Length == 0)
-            throw new InvalidOperationException("Укажите проектный номер установки.");
+        if (request.Installations is null || request.Installations.Count == 0)
+            throw new InvalidOperationException("Добавьте хотя бы одну установку (оборудование).");
+
+        foreach (var draft in request.Installations)
+        {
+            if (string.IsNullOrWhiteSpace(draft.InstallationLabel))
+                throw new InvalidOperationException("Укажите проектный номер установки.");
+        }
 
         await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
-        await using var tx = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        ObjectOnboardingResult onboardingResult;
+        await using (var tx = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false))
+        {
+            try
+            {
+                var (organizationId, organizationCreated) = await EnsureOrganizationAsync(connection, tx, request, cancellationToken).ConfigureAwait(false);
+                var (facilityId, facilityCreated) = await EnsureFacilityAsync(connection, tx, request, organizationId, cancellationToken).ConfigureAwait(false);
+                var (systemId, systemCreated) = await EnsureSystemAsync(connection, tx, request, facilityId, cancellationToken).ConfigureAwait(false);
+
+                var primaryEquipmentTypeId = 0;
+                var primaryInstallationId = 0;
+                var installationsSaved = 0;
+                foreach (var draft in request.Installations)
+                {
+                    var (equipmentTypeId, _) = await EnsureEquipmentTypeAsync(connection, tx, draft, cancellationToken).ConfigureAwait(false);
+                    await EnsureSystemEquipmentLinkAsync(connection, tx, systemId, equipmentTypeId, cancellationToken).ConfigureAwait(false);
+                    var label = draft.InstallationLabel.Trim();
+                    var (installationId, _) = await EnsureInstallationAsync(
+                        connection, tx, draft, systemId, equipmentTypeId, label, cancellationToken).ConfigureAwait(false);
+                    if (installationsSaved == 0)
+                    {
+                        primaryEquipmentTypeId = equipmentTypeId;
+                        primaryInstallationId = installationId;
+                    }
+
+                    installationsSaved++;
+                }
+
+                var contactsSaved = 0;
+                int? firstContactId = null;
+                foreach (var contact in request.Contacts ?? Array.Empty<ObjectOnboardingContactDraft>())
+                {
+                    if (string.IsNullOrWhiteSpace(contact.LastName) && string.IsNullOrWhiteSpace(contact.FirstName))
+                        continue;
+                    if (string.IsNullOrWhiteSpace(contact.LastName) || string.IsNullOrWhiteSpace(contact.FirstName))
+                        throw new InvalidOperationException("Для контакта укажите фамилию и имя отдельными полями.");
+
+                    var contactId = await InsertContactAsync(
+                        connection, tx, organizationId, facilityId, contact, cancellationToken).ConfigureAwait(false);
+                    firstContactId ??= contactId;
+                    contactsSaved++;
+                }
+
+                if (firstContactId is int responsibleId)
+                    await TrySetFacilityResponsibleAsync(connection, tx, facilityId, responsibleId, cancellationToken).ConfigureAwait(false);
+
+                await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                onboardingResult = new ObjectOnboardingResult(
+                    organizationId,
+                    facilityId,
+                    systemId,
+                    primaryEquipmentTypeId,
+                    primaryInstallationId,
+                    installationsSaved,
+                    contactsSaved,
+                    organizationCreated,
+                    facilityCreated,
+                    systemCreated);
+            }
+            catch
+            {
+                try
+                {
+                    await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException)
+                {
+                }
+
+                throw;
+            }
+        }
 
         try
         {
-            var (organizationId, organizationCreated) = await EnsureOrganizationAsync(connection, tx, request, cancellationToken).ConfigureAwait(false);
-            var (facilityId, facilityCreated) = await EnsureFacilityAsync(connection, tx, request, organizationId, cancellationToken).ConfigureAwait(false);
-            var (systemId, systemCreated) = await EnsureSystemAsync(connection, tx, request, facilityId, cancellationToken).ConfigureAwait(false);
-            var (equipmentTypeId, equipmentTypeCreated) = await EnsureEquipmentTypeAsync(connection, tx, request, cancellationToken).ConfigureAwait(false);
-            await EnsureSystemEquipmentLinkAsync(connection, tx, systemId, equipmentTypeId, cancellationToken).ConfigureAwait(false);
-            var (installationId, installationCreated) = await EnsureInstallationAsync(
-                connection, tx, request, systemId, equipmentTypeId, installationLabel, cancellationToken).ConfigureAwait(false);
-
-            await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-            var onboardingResult = new ObjectOnboardingResult(
-                organizationId,
-                facilityId,
-                systemId,
-                equipmentTypeId,
-                installationId,
-                organizationCreated,
-                facilityCreated,
-                systemCreated,
-                equipmentTypeCreated,
-                installationCreated);
-
             await EnqueueHierarchySyncAsync(onboardingResult, cancellationToken).ConfigureAwait(false);
-            return onboardingResult;
         }
         catch
         {
-            await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            throw;
         }
+
+        return onboardingResult;
     }
 
     private static async Task<(int Id, bool Created)> EnsureOrganizationAsync(
@@ -293,10 +346,10 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
     private static async Task<(int Id, bool Created)> EnsureEquipmentTypeAsync(
         SqliteConnection connection,
         SqliteTransaction tx,
-        ObjectOnboardingRequest request,
+        ObjectOnboardingInstallationDraft draft,
         CancellationToken cancellationToken)
     {
-        if (request.ExistingEquipmentTypeId is int existingId)
+        if (draft.ExistingEquipmentTypeId is int existingId)
         {
             using var check = connection.CreateCommand();
             check.Transaction = tx;
@@ -308,7 +361,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
             return (existingId, false);
         }
 
-        var typeName = (request.NewEquipmentTypeName ?? string.Empty).Trim();
+        var typeName = (draft.NewEquipmentTypeName ?? string.Empty).Trim();
         if (typeName.Length == 0)
             throw new InvalidOperationException("Укажите тип оборудования.");
 
@@ -360,7 +413,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
     private async Task<(int Id, bool Created)> EnsureInstallationAsync(
         SqliteConnection connection,
         SqliteTransaction tx,
-        ObjectOnboardingRequest request,
+        ObjectOnboardingInstallationDraft draft,
         int systemId,
         int equipmentTypeId,
         string installationLabel,
@@ -385,12 +438,12 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
             if (existing is not null)
             {
                 var id = Convert.ToInt32(existing);
-                await UpdateInstallationDetailsAsync(connection, tx, id, equipmentTypeId, request, cancellationToken).ConfigureAwait(false);
+                await UpdateInstallationDetailsAsync(connection, tx, id, equipmentTypeId, draft, cancellationToken).ConfigureAwait(false);
                 return (id, false);
             }
         }
 
-        var serial = (request.InstallationSerialNumber ?? string.Empty).Trim();
+        var serial = (draft.InstallationSerialNumber ?? string.Empty).Trim();
 
         using var insert = connection.CreateCommand();
         insert.Transaction = tx;
@@ -413,7 +466,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         insert.Parameters.AddWithValue("$modified", serial.Length > 0 ? 1 : 0);
         var scalar = await insert.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         var installationId = scalar is long l ? (int)l : Convert.ToInt32(scalar);
-        await UpdateInstallationDetailsAsync(connection, tx, installationId, equipmentTypeId, request, cancellationToken).ConfigureAwait(false);
+        await UpdateInstallationDetailsAsync(connection, tx, installationId, equipmentTypeId, draft, cancellationToken).ConfigureAwait(false);
         return (installationId, true);
     }
 
@@ -422,12 +475,12 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         SqliteTransaction tx,
         int installationId,
         int equipmentTypeId,
-        ObjectOnboardingRequest request,
+        ObjectOnboardingInstallationDraft draft,
         CancellationToken cancellationToken)
     {
-        var mfg = (request.InstallationManufacturer ?? string.Empty).Trim();
-        var model = (request.InstallationModel ?? string.Empty).Trim();
-        var serial = (request.InstallationSerialNumber ?? string.Empty).Trim();
+        var mfg = (draft.InstallationManufacturer ?? string.Empty).Trim();
+        var model = (draft.InstallationModel ?? string.Empty).Trim();
+        var serial = (draft.InstallationSerialNumber ?? string.Empty).Trim();
         if (mfg.Length == 0 && model.Length == 0 && serial.Length == 0)
             return;
 
@@ -455,6 +508,56 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         cmd.Parameters.AddWithValue("$model", model);
         cmd.Parameters.AddWithValue("$serial", serial);
         cmd.Parameters.AddWithValue("$id", installationId);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<int> InsertContactAsync(
+        SqliteConnection connection,
+        SqliteTransaction tx,
+        int organizationId,
+        int facilityId,
+        ObjectOnboardingContactDraft contact,
+        CancellationToken cancellationToken)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = """
+            INSERT INTO organization_employees (
+                organization_id, facility_id, first_name, last_name, middle_name,
+                position, work_phone, work_email, is_active)
+            VALUES (
+                $org, $facility, $first, $last, $middle,
+                $position, $phone, $email, 1);
+            SELECT last_insert_rowid();
+            """;
+        cmd.Parameters.AddWithValue("$org", organizationId);
+        cmd.Parameters.AddWithValue("$facility", facilityId);
+        cmd.Parameters.AddWithValue("$first", contact.FirstName.Trim());
+        cmd.Parameters.AddWithValue("$last", contact.LastName.Trim());
+        cmd.Parameters.AddWithValue("$middle", NullIfEmpty(contact.MiddleName));
+        cmd.Parameters.AddWithValue("$position", NullIfEmpty(contact.Position));
+        cmd.Parameters.AddWithValue("$phone", NullIfEmpty(contact.Phone));
+        cmd.Parameters.AddWithValue("$email", NullIfEmpty(contact.Email));
+        var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return scalar is long l ? (int)l : Convert.ToInt32(scalar);
+    }
+
+    private static async Task TrySetFacilityResponsibleAsync(
+        SqliteConnection connection,
+        SqliteTransaction tx,
+        int facilityId,
+        int employeeId,
+        CancellationToken cancellationToken)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = """
+            UPDATE facilities
+            SET responsible_employee_id = COALESCE(responsible_employee_id, $emp)
+            WHERE id = $id;
+            """;
+        cmd.Parameters.AddWithValue("$emp", employeeId);
+        cmd.Parameters.AddWithValue("$id", facilityId);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 

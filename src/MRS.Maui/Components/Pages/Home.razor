@@ -2,43 +2,15 @@
 @using MRS.Application.Admin
 @using MRS.Application.Security
 @using MRS.Application.Storage
-@using MRS.Application.Sync
-@using MRS.Maui.Services
 @implements IDisposable
 @inject ILocalDatabasePath DatabasePath
 @inject ILocalDatabaseBootstrapper DatabaseBootstrapper
 @inject ICurrentUserSession Session
 @inject IAdminSupportRequestService SupportRequests
-@inject IServerConnectionSettings ServerSettings
-@inject IUserAuthService Auth
 
 <PageTitle>Главная</PageTitle>
 
 <div class="mrs-home">
-    <div class="mrs-home-server">
-        <label class="mrs-label" for="server-url">Адрес сервера</label>
-        <input id="server-url" class="mrs-select" type="url" @bind="_serverUrl" @bind:event="oninput" placeholder="http://192.168.1.10:5080" />
-        <button type="button" class="mrs-home-role-switch" @onclick="SaveServerUrl">Сохранить адрес</button>
-
-        @if (Auth.IsAuthenticated)
-        {
-            <p class="mrs-home-note mrs-home-auth-ok">Вход выполнен: <strong>@Auth.SavedLogin</strong> (@Session.Current.DisplayName)</p>
-            <button type="button" class="mrs-home-role-switch" @onclick="LogoutAsync">Выйти</button>
-        }
-        else
-        {
-            <label class="mrs-label" for="login">Логин</label>
-            <input id="login" class="mrs-select" type="text" @bind="_login" autocomplete="username" />
-            <label class="mrs-label" for="password">Пароль</label>
-            <input id="password" class="mrs-select" type="password" @bind="_password" autocomplete="current-password" />
-            <button type="button" class="mrs-home-role-switch" @onclick="LoginAsync">Войти на сервер</button>
-            @if (!string.IsNullOrWhiteSpace(_authMessage))
-            {
-                <p class="mrs-home-note">@_authMessage</p>
-            }
-        }
-    </div>
-
     <div class="mrs-home-panel">
         <a class="mrs-home-btn" href="checklists">Контрольный лист</a>
         <a class="mrs-home-btn" href="management">Управление листами</a>
@@ -70,15 +42,12 @@
         </div>
     }
 
-    @if (!Auth.IsAuthenticated)
-    {
-        <div class="mrs-home-role">
-            <span>Офлайн-режим. Роль: <strong>@Session.Current.RoleName</strong></span>
-            <button type="button" class="mrs-home-role-switch" @onclick="ToggleRole">
-                @(Session.IsEngineer ? "Войти как администратор БД" : "Войти как инженер")
-            </button>
-        </div>
-    }
+    <div class="mrs-home-role">
+        <span>Роль: <strong>@Session.Current.RoleName</strong></span>
+        <button type="button" class="mrs-home-role-switch" @onclick="ToggleRole">
+            @(Session.IsEngineer ? "Войти как администратор БД" : "Войти как инженер")
+        </button>
+    </div>
 
     @if (_status is not null && !_status.Ready)
     {
@@ -91,42 +60,12 @@
     private string _engineerName = string.Empty;
     private bool _engineerNameSaved;
     private int _openSupportCount;
-    private string _serverUrl = string.Empty;
-    private string _login = string.Empty;
-    private string _password = string.Empty;
-    private string? _authMessage;
 
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += OnSessionChanged;
-        Auth.Changed += OnAuthChanged;
-        _serverUrl = ServerSettings.ServerBaseUrl ?? string.Empty;
-        _login = Auth.SavedLogin ?? string.Empty;
         var path = DatabasePath.GetDatabaseFilePath();
         _status = await DatabaseBootstrapper.EnsureReadyAsync(path);
-        await RefreshSessionUiAsync();
-    }
-
-    private void SaveServerUrl()
-    {
-        ServerSettings.ServerBaseUrl = _serverUrl.Trim();
-        if (ServerSettings is MauiServerConnectionSettings maui)
-            maui.Save();
-    }
-
-    private async Task LoginAsync()
-    {
-        _authMessage = null;
-        var result = await Auth.LoginAsync(_login, _password).ConfigureAwait(false);
-        _authMessage = result.Ok ? "Вход выполнен." : result.Error;
-        _password = string.Empty;
-        await RefreshSessionUiAsync();
-    }
-
-    private async Task LogoutAsync()
-    {
-        await Auth.LogoutAsync().ConfigureAwait(false);
-        _authMessage = null;
         await RefreshSessionUiAsync();
     }
 
@@ -166,11 +105,5 @@
         StateHasChanged();
     });
 
-    private void OnAuthChanged() => InvokeAsync(StateHasChanged);
-
-    public void Dispose()
-    {
-        Session.Changed -= OnSessionChanged;
-        Auth.Changed -= OnAuthChanged;
-    }
+    public void Dispose() => Session.Changed -= OnSessionChanged;
 }

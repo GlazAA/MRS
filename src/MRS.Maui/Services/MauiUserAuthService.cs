@@ -31,11 +31,41 @@ public sealed class MauiUserAuthService : IUserAuthService
 
 	public event Action? Changed;
 
-	public async Task<AuthLoginResult> LoginAsync(string login, string password, CancellationToken cancellationToken = default)
+	public async Task<AuthLoginResult> LoginAsync(string login, string password, CancellationToken cancellationToken = default) =>
+		await LoginInternalAsync(login, password, updateSession: true, cancellationToken).ConfigureAwait(false);
+
+	/// <summary>
+	/// Автовход для синхронизации: использует встроенную учётную запись, не меняет локальную роль инженера.
+	/// </summary>
+	public async Task<bool> EnsureSyncAuthenticatedAsync(CancellationToken cancellationToken = default)
+	{
+		if (IsAuthenticated)
+			return true;
+
+		var result = await LoginInternalAsync(
+			MauiSyncDefaults.SyncLogin,
+			MauiSyncDefaults.SyncPassword,
+			updateSession: false,
+			cancellationToken).ConfigureAwait(false);
+		return result.Ok;
+	}
+
+	internal void ClearAccessToken()
+	{
+		AccessToken = null;
+		WriteSecure(PrefToken, null);
+		Changed?.Invoke();
+	}
+
+	private async Task<AuthLoginResult> LoginInternalAsync(
+		string login,
+		string password,
+		bool updateSession,
+		CancellationToken cancellationToken)
 	{
 		var baseUrl = NormalizeBaseUrl(_settings.ServerBaseUrl);
 		if (baseUrl is null)
-			return new AuthLoginResult(false, "Укажите адрес сервера на главной странице.", null, null, null, null);
+			return new AuthLoginResult(false, "Адрес сервера не настроен.", null, null, null, null);
 
 		try
 		{
@@ -55,7 +85,7 @@ public sealed class MauiUserAuthService : IUserAuthService
 			WriteSecure(PrefToken, AccessToken);
 			Preferences.Default.Set(PrefLogin, SavedLogin);
 
-			if (result.UserId is int uid && !string.IsNullOrWhiteSpace(result.RoleName))
+			if (updateSession && result.UserId is int uid && !string.IsNullOrWhiteSpace(result.RoleName))
 			{
 				var display = result.DisplayName ?? SavedLogin;
 				await _session.SetAuthenticatedUserAsync(uid, result.RoleName, display, cancellationToken).ConfigureAwait(false);

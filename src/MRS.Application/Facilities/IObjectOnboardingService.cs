@@ -2,7 +2,7 @@ namespace MRS.Application.Facilities;
 
 /// <summary>
 /// Сервис для "полевого" добавления новой сущности в иерархию:
-/// организация -> объект -> система -> тип оборудования -> установка.
+/// организация -> объект -> система -> тип оборудования -> установка (+ контакты объекта).
 /// </summary>
 public interface IObjectOnboardingService
 {
@@ -12,6 +12,23 @@ public interface IObjectOnboardingService
         ObjectOnboardingRequest request,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record ObjectOnboardingInstallationDraft(
+    int? ExistingEquipmentTypeId,
+    string? NewEquipmentTypeName,
+    string InstallationLabel,
+    string? InstallationManufacturer,
+    string? InstallationModel,
+    string? InstallationSerialNumber);
+
+/// <summary>Контакт заказчика: ФИО отдельными полями (как в organization_employees / users).</summary>
+public sealed record ObjectOnboardingContactDraft(
+    string LastName,
+    string FirstName,
+    string? MiddleName,
+    string? Position,
+    string? Phone,
+    string? Email);
 
 public sealed record ObjectOnboardingRequest(
     int? ExistingOrganizationId,
@@ -27,21 +44,17 @@ public sealed record ObjectOnboardingRequest(
     string? AddressBlock,
     string? AddressZipCode,
     string? SystemDescription,
-    int? ExistingEquipmentTypeId,
-    string? NewEquipmentTypeName,
-    string InstallationLabel,
-    string? InstallationManufacturer,
-    string? InstallationModel,
-    string? InstallationSerialNumber);
+    IReadOnlyList<ObjectOnboardingInstallationDraft> Installations,
+    IReadOnlyList<ObjectOnboardingContactDraft> Contacts);
 
 public sealed record ObjectOnboardingResult(
     int OrganizationId,
     int FacilityId,
     int SystemId,
-    int EquipmentTypeId,
-    int InstallationId,
+    int PrimaryEquipmentTypeId,
+    int PrimaryInstallationId,
+    int InstallationsSaved,
+    int ContactsSaved,
     bool OrganizationCreated,
     bool FacilityCreated,
-    bool SystemCreated,
-    bool EquipmentTypeCreated,
-    bool InstallationCreated);
+    bool SystemCreated);
