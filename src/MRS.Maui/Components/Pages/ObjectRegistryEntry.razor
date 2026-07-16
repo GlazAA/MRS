@@ -179,23 +179,21 @@
                     <summary>Дополнительно по установке</summary>
                     <div class="mrs-field mrs-mt">
                         <label class="mrs-label">Производитель</label>
-                        <input class="mrs-select" type="text" list="@($"mfg-{index}")" @bind="item.Manufacturer" @bind:event="oninput" @bind:after="() => OnManufacturerChangedAsync(index)" disabled="@_busy" />
-                        <datalist id="@($"mfg-{index}")">
-                            @foreach (var mfg in item.Manufacturers)
-                            {
-                                <option value="@mfg"></option>
-                            }
-                        </datalist>
+                        <p class="mrs-field-hint">Начните вводить — выберите из списка или новое значение.</p>
+                        <EquipmentCatalogCombobox Value="@item.Manufacturer"
+                                                  ValueChanged="@(v => OnManufacturerTextAsync(index, v))"
+                                                  Options="@item.Manufacturers"
+                                                  Disabled="@_busy"
+                                                  Placeholder="Производитель…" />
                     </div>
                     <div class="mrs-field">
                         <label class="mrs-label">Модель</label>
-                        <input class="mrs-select" type="text" list="@($"model-{index}")" @bind="item.Model" @bind:event="oninput" disabled="@(_busy || string.IsNullOrWhiteSpace(item.Manufacturer))" />
-                        <datalist id="@($"model-{index}")">
-                            @foreach (var m in item.Models)
-                            {
-                                <option value="@m.Name"></option>
-                            }
-                        </datalist>
+                        <EquipmentCatalogCombobox Value="@item.Model"
+                                                  ValueChanged="@(v => { item.Model = v; })"
+                                                  Options="@item.Models.Select(m => m.Name).ToList()"
+                                                  Disabled="@(_busy || string.IsNullOrWhiteSpace(item.Manufacturer))"
+                                                  Placeholder="Модель…" />
+                        <p class="mrs-hint">Общий справочник (не привязан к объекту) — доступен и в контрольных листах.</p>
                     </div>
                 </details>
 
@@ -434,6 +432,22 @@
         {
             _error = ex.Message;
         }
+    }
+
+    private async Task OnManufacturerTextAsync(int index, string value)
+    {
+        var item = _installations[index];
+        item.Manufacturer = value;
+        item.Model = "";
+        item.Models = [];
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        var equipmentTypeId = ParseExisting(item.EquipmentChoice);
+        if (equipmentTypeId is not int etId)
+            return;
+
+        item.Models = (await ModelCatalog.GetModelsAsync(etId, value).ConfigureAwait(false)).ToList();
     }
 
     private async Task OnManufacturerChangedAsync(int index)

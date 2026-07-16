@@ -1,0 +1,304 @@
+@using System.Globalization
+@using MRS.Application.Checklists
+@using MRS.Application.Users
+@inject IEngineerDirectoryService Engineers
+@inject IChecklistTemplateOptionService TemplateOptions
+
+<div class="mrs-multi-search @(Disabled ? "mrs-multi-search-disabled" : null)">
+    <div class="mrs-combobox">
+        <input class="mrs-select"
+               type="text"
+               value="@_search"
+               placeholder="@Placeholder"
+               disabled="@Disabled"
+               autocomplete="off"
+               @oninput="OnSearch"
+               @onfocus="OnFocus" />
+        @if (_dropdown && !Disabled)
+        {
+            <ul class="mrs-combobox-list" @onmousedown:preventDefault="true">
+                @foreach (var item in _suggestions)
+                {
+                    <li class="mrs-combobox-item" @onclick="() => SelectSuggestionAsync(item)">@item.Label</li>
+                }
+                @if (_suggestions.Count == 0 && !string.IsNullOrWhiteSpace(_search))
+                {
+                    <li class="mrs-combobox-empty">Совпадений нет</li>
+                }
+                @if (AllowCreateEngineer)
+                {
+                    <li class="mrs-combobox-item mrs-combobox-item-new" @onclick="OpenCreateEngineer">+ Создать инженера</li>
+                }
+            </ul>
+        }
+    </div>
+
+    @if (_selected.Count > 0)
+    {
+        <div class="mrs-pick-list">
+            @foreach (var item in _selected)
+            {
+                <div class="mrs-pick-item">
+                    <span>@item.Label</span>
+                    @if (!Disabled)
+                    {
+                        <button type="button" class="mrs-pick-remove" aria-label="Убрать" @onclick="() => RemoveAsync(item.OptionId)">×</button>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (_showCreateEngineer)
+{
+    <div class="mrs-modal-backdrop mrs-modal-backdrop-top" @onclick="CloseCreateEngineer">
+        <div class="mrs-modal" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" @onclick="CloseCreateEngineer">×</button>
+            <h3 class="mrs-modal-title">Новый инженер</h3>
+            <div class="mrs-modal-body">
+                @if (_createError is not null)
+                {
+                    <p class="text-danger">@_createError</p>
+                }
+                <div class="mrs-field">
+                    <label class="mrs-label">Фамилия *</label>
+                    <input class="mrs-select" @bind="_newLast" @bind:event="oninput" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Имя *</label>
+                    <input class="mrs-select" @bind="_newFirst" @bind:event="oninput" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Отчество</label>
+                    <input class="mrs-select" @bind="_newMiddle" @bind:event="oninput" />
+                </div>
+            </div>
+            <div class="mrs-form-actions">
+                <button type="button" class="mrs-btn-secondary" @onclick="CloseCreateEngineer">Отменить</button>
+                <button type="button" class="mrs-btn-primary" disabled="@_busy" @onclick="SaveNewEngineerAsync">Сохранить</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int TemplateItemId { get; set; }
+    [Parameter] public IReadOnlyList<TemplateFieldOption> Options { get; set; } = [];
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public bool AllowCreateEngineer { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Placeholder { get; set; } = "Поиск…";
+    [Parameter] public EventCallback<TemplateFieldOption> OptionEnsured { get; set; }
+
+    private readonly List<TemplateFieldOption> _localOptions = [];
+    private readonly List<TemplateFieldOption> _selected = [];
+    private List<Suggestion> _suggestions = [];
+    private string _search = string.Empty;
+    private bool _dropdown;
+    private bool _showCreateEngineer;
+    private bool _busy;
+    private string? _createError;
+    private string _newLast = string.Empty;
+    private string _newFirst = string.Empty;
+    private string _newMiddle = string.Empty;
+    private string? _lastValue;
+    private bool _optionsSeeded;
+
+    private sealed record Suggestion(string Label, int? OptionId, string? EngineerDisplayName);
+
+    protected override void OnParametersSet()
+    {
+        if (!_optionsSeeded || OptionsChanged())
+        {
+            MergeIncomingOptions();
+            _optionsSeeded = true;
+        }
+
+        if (!string.Equals(_lastValue, Value, StringComparison.Ordinal))
+        {
+            _lastValue = Value;
+            RebuildSelectedFromValue();
+        }
+    }
+
+    private bool OptionsChanged()
+    {
+        if (Options.Count == 0 && _localOptions.Count == 0)
+            return false;
+        foreach (var o in Options)
+        {
+            if (_localOptions.All(x => x.OptionId != o.OptionId))
+                return true;
+        }
+        return false;
+    }
+
+    private void MergeIncomingOptions()
+    {
+        foreach (var o in Options)
+        {
+            if (_localOptions.All(x => x.OptionId != o.OptionId))
+                _localOptions.Add(o);
+        }
+    }
+
+    private void RebuildSelectedFromValue()
+    {
+        _selected.Clear();
+        foreach (var id in ParseIds(Value))
+        {
+            var opt = _localOptions.FirstOrDefault(x => x.OptionId == id);
+            if (opt is not null && _selected.All(x => x.OptionId != id))
+                _selected.Add(opt);
+            else if (opt is null)
+                _selected.Add(new TemplateFieldOption(id, $"#{id}", 0));
+        }
+    }
+
+    private async Task OnFocus()
+    {
+        if (Disabled) return;
+        _dropdown = true;
+        await RefreshSuggestionsAsync();
+    }
+
+    private async Task OnSearch(ChangeEventArgs e)
+    {
+        if (Disabled) return;
+        _search = e.Value?.ToString() ?? string.Empty;
+        _dropdown = true;
+        await RefreshSuggestionsAsync();
+    }
+
+    private async Task RefreshSuggestionsAsync()
+    {
+        var selectedIds = _selected.Select(x => x.OptionId).ToHashSet();
+        var q = _search.Trim();
+        var list = new List<Suggestion>();
+
+        if (AllowCreateEngineer)
+        {
+            var engineers = await Engineers.SearchAsync(q);
+            foreach (var eng in engineers)
+            {
+                var existing = _localOptions.FirstOrDefault(o =>
+                    string.Equals(o.Label, eng.DisplayName, StringComparison.OrdinalIgnoreCase));
+                if (existing is not null && selectedIds.Contains(existing.OptionId))
+                    continue;
+                if (existing is null && _selected.Any(s =>
+                        string.Equals(s.Label, eng.DisplayName, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                list.Add(new Suggestion(eng.DisplayName, existing?.OptionId, eng.DisplayName));
+            }
+        }
+
+        IEnumerable<TemplateFieldOption> optionQuery = _localOptions.Where(o => !selectedIds.Contains(o.OptionId));
+        if (q.Length > 0)
+            optionQuery = optionQuery.Where(o => o.Label.Contains(q, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var o in optionQuery.Take(40))
+        {
+            if (list.Any(s => string.Equals(s.Label, o.Label, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            list.Add(new Suggestion(o.Label, o.OptionId, null));
+        }
+
+        _suggestions = list.Take(40).ToList();
+    }
+
+    private async Task SelectSuggestionAsync(Suggestion item)
+    {
+        TemplateFieldOption option;
+        if (item.OptionId is int oid)
+        {
+            option = _localOptions.First(x => x.OptionId == oid);
+        }
+        else
+        {
+            option = await TemplateOptions.EnsureOptionAsync(TemplateItemId, item.Label);
+            if (_localOptions.All(x => x.OptionId != option.OptionId))
+                _localOptions.Add(option);
+            await OptionEnsured.InvokeAsync(option);
+        }
+
+        if (_selected.All(x => x.OptionId != option.OptionId))
+            _selected.Add(option);
+
+        _search = string.Empty;
+        _dropdown = false;
+        _suggestions = [];
+        await EmitValueAsync();
+    }
+
+    private async Task RemoveAsync(int optionId)
+    {
+        _selected.RemoveAll(x => x.OptionId == optionId);
+        await EmitValueAsync();
+    }
+
+    private void OpenCreateEngineer()
+    {
+        _dropdown = false;
+        _createError = null;
+        _newLast = _search.Trim();
+        _newFirst = string.Empty;
+        _newMiddle = string.Empty;
+        _showCreateEngineer = true;
+    }
+
+    private void CloseCreateEngineer() => _showCreateEngineer = false;
+
+    private async Task SaveNewEngineerAsync()
+    {
+        _busy = true;
+        _createError = null;
+        try
+        {
+            var created = await Engineers.CreateAsync(new CreateEngineerRequest(
+                _newLast, _newFirst,
+                string.IsNullOrWhiteSpace(_newMiddle) ? null : _newMiddle));
+
+            var option = await TemplateOptions.EnsureOptionAsync(TemplateItemId, created.DisplayName);
+            if (_localOptions.All(x => x.OptionId != option.OptionId))
+                _localOptions.Add(option);
+            await OptionEnsured.InvokeAsync(option);
+
+            if (_selected.All(x => x.OptionId != option.OptionId))
+                _selected.Add(option);
+
+            _showCreateEngineer = false;
+            _search = string.Empty;
+            await EmitValueAsync();
+        }
+        catch (Exception ex)
+        {
+            _createError = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task EmitValueAsync()
+    {
+        var next = _selected.Count == 0
+            ? string.Empty
+            : string.Join(",", _selected.Select(x => x.OptionId).OrderBy(x => x));
+        _lastValue = next;
+        await ValueChanged.InvokeAsync(next);
+    }
+
+    private static IEnumerable<int> ParseIds(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            yield break;
+        foreach (var p in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (int.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+                yield return id;
+        }
+    }
+}

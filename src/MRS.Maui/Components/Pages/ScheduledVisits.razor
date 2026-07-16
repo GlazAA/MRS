@@ -131,22 +131,75 @@ else
                 </div>
                 <div class="mrs-field">
                     <label class="mrs-label">Инженеры на выезд</label>
-                    <div class="mrs-check-grid">
-                        @foreach (var e in _engineerOptions)
+                    <div class="mrs-combobox">
+                        <input class="mrs-select" placeholder="ФИО или фрагмент…"
+                               value="@_engineerSearch" @oninput="OnEngineerSearch" @onfocus="OnEngineerFocus"
+                               autocomplete="off" />
+                        @if (_engineerDropdown)
                         {
-                            var cid = $"eng_{e.UserId}";
-                            <label class="mrs-check-label" for="@cid">
-                                <input id="@cid" type="checkbox" class="mrs-check" checked="@_selectedEngineers.Contains(e.UserId)"
-                                       @onchange="ev => ToggleEngineer(e.UserId, ev)" />
-                                @e.DisplayName
-                            </label>
+                            <ul class="mrs-combobox-list" @onmousedown:preventDefault="true">
+                                @foreach (var e in _engineerSearchOptions)
+                                {
+                                    <li class="mrs-combobox-item" @onclick="() => AddEngineer(e)">@e.DisplayName</li>
+                                }
+                                @if (_engineerSearchOptions.Count == 0 && !string.IsNullOrWhiteSpace(_engineerSearch))
+                                {
+                                    <li class="mrs-combobox-empty">Совпадений нет</li>
+                                }
+                                <li class="mrs-combobox-item mrs-combobox-item-new" @onclick="OpenCreateEngineer">+ Создать инженера</li>
+                            </ul>
                         }
                     </div>
+                    @if (_selectedEngineers.Count > 0)
+                    {
+                        <div class="mrs-pick-list">
+                            @foreach (var e in _selectedEngineers)
+                            {
+                                <div class="mrs-pick-item">
+                                    <span>@e.DisplayName</span>
+                                    <button type="button" class="mrs-pick-remove" aria-label="Убрать" @onclick="() => RemoveEngineer(e.UserId)">×</button>
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
             <div class="mrs-form-actions">
                 <button type="button" class="mrs-btn-secondary" @onclick="CloseCreate">Отменить</button>
                 <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="CreateVisitAsync">Создать</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* Create engineer *@
+@if (_showCreateEngineer)
+{
+    <div class="mrs-modal-backdrop mrs-modal-backdrop-top" @onclick="CloseCreateEngineer">
+        <div class="mrs-modal" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" @onclick="CloseCreateEngineer">×</button>
+            <h3 class="mrs-modal-title">Новый инженер</h3>
+            <div class="mrs-modal-body">
+                @if (_engineerCreateError is not null)
+                {
+                    <p class="text-danger">@_engineerCreateError</p>
+                }
+                <div class="mrs-field">
+                    <label class="mrs-label">Фамилия *</label>
+                    <input class="mrs-select" @bind="_newEngLast" @bind:event="oninput" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Имя *</label>
+                    <input class="mrs-select" @bind="_newEngFirst" @bind:event="oninput" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Отчество</label>
+                    <input class="mrs-select" @bind="_newEngMiddle" @bind:event="oninput" />
+                </div>
+            </div>
+            <div class="mrs-form-actions">
+                <button type="button" class="mrs-btn-secondary" @onclick="CloseCreateEngineer">Отменить</button>
+                <button type="button" class="mrs-btn-primary" disabled="@_saving" @onclick="SaveNewEngineerAsync">Сохранить</button>
             </div>
         </div>
     </div>
@@ -245,8 +298,16 @@ else
     private string _contactManual = string.Empty;
     private DateOnly _startDate = DateOnly.FromDateTime(DateTime.Today);
     private DateOnly? _endDate;
-    private List<EngineerDirectoryEntry> _engineerOptions = [];
-    private readonly HashSet<int> _selectedEngineers = [];
+    private string _engineerSearch = string.Empty;
+    private bool _engineerDropdown;
+    private List<EngineerDirectoryEntry> _engineerSearchOptions = [];
+    private readonly List<EngineerDirectoryEntry> _selectedEngineers = [];
+
+    private bool _showCreateEngineer;
+    private string _newEngLast = string.Empty;
+    private string _newEngFirst = string.Empty;
+    private string _newEngMiddle = string.Empty;
+    private string? _engineerCreateError;
 
     private bool _showPrep;
     private int? _createdVisitId;
@@ -266,10 +327,19 @@ else
         _viewYear = today.Year;
         _viewMonth = today.Month;
         _organizations = (await Hierarchy.GetOrganizationsAsync()).ToList();
-        _engineerOptions = (await Engineers.ListActiveAsync()).ToList();
-        var user = Session.Current;
-        _selectedEngineers.Add(user.UserId);
+        await SeedDefaultEngineerAsync();
         await ReloadCalendarAsync();
+    }
+
+    private async Task SeedDefaultEngineerAsync()
+    {
+        _selectedEngineers.Clear();
+        var user = Session.Current;
+        var all = await Engineers.ListActiveAsync();
+        var match = all.FirstOrDefault(e => e.UserId == user.UserId)
+                    ?? all.FirstOrDefault(e => string.Equals(e.DisplayName, user.DisplayName, StringComparison.OrdinalIgnoreCase));
+        if (match is not null)
+            _selectedEngineers.Add(match);
     }
 
     private async Task ReloadCalendarAsync()
@@ -318,7 +388,7 @@ else
         _viewMonth = d.Month;
     }
 
-    private void OpenCreate()
+    private async Task OpenCreate()
     {
         _showCreate = true;
         _error = null;
@@ -327,9 +397,17 @@ else
         _contactSearch = string.Empty;
         _contactManual = string.Empty;
         _selectedContactId = null;
+        _engineerSearch = string.Empty;
+        _engineerDropdown = false;
+        _engineerSearchOptions = [];
+        await SeedDefaultEngineerAsync();
     }
 
-    private void CloseCreate() => _showCreate = false;
+    private void CloseCreate()
+    {
+        _showCreate = false;
+        _engineerDropdown = false;
+    }
 
     private async Task OnOrgChanged(ChangeEventArgs e)
     {
@@ -361,17 +439,77 @@ else
         _contactDropdown = false;
     }
 
-    private void ToggleEngineer(int userId, ChangeEventArgs e)
+    private async Task OnEngineerFocus()
     {
-        var on = e.Value is bool b && b;
-        if (on) _selectedEngineers.Add(userId);
-        else _selectedEngineers.Remove(userId);
+        _engineerDropdown = true;
+        await RefreshEngineerOptionsAsync();
+    }
+
+    private async Task OnEngineerSearch(ChangeEventArgs e)
+    {
+        _engineerSearch = e.Value?.ToString() ?? string.Empty;
+        _engineerDropdown = true;
+        await RefreshEngineerOptionsAsync();
+    }
+
+    private async Task RefreshEngineerOptionsAsync()
+    {
+        var found = await Engineers.SearchAsync(_engineerSearch);
+        var selectedIds = _selectedEngineers.Select(x => x.UserId).ToHashSet();
+        _engineerSearchOptions = found.Where(x => !selectedIds.Contains(x.UserId)).ToList();
+    }
+
+    private void AddEngineer(EngineerDirectoryEntry entry)
+    {
+        if (_selectedEngineers.All(x => x.UserId != entry.UserId))
+            _selectedEngineers.Add(entry);
+        _engineerSearch = string.Empty;
+        _engineerDropdown = false;
+        _engineerSearchOptions = [];
+    }
+
+    private void RemoveEngineer(int userId) =>
+        _selectedEngineers.RemoveAll(x => x.UserId == userId);
+
+    private void OpenCreateEngineer()
+    {
+        _engineerDropdown = false;
+        _engineerCreateError = null;
+        var typed = _engineerSearch.Trim();
+        _newEngLast = typed;
+        _newEngFirst = string.Empty;
+        _newEngMiddle = string.Empty;
+        _showCreateEngineer = true;
+    }
+
+    private void CloseCreateEngineer() => _showCreateEngineer = false;
+
+    private async Task SaveNewEngineerAsync()
+    {
+        _saving = true;
+        _engineerCreateError = null;
+        try
+        {
+            var created = await Engineers.CreateAsync(new CreateEngineerRequest(
+                _newEngLast, _newEngFirst,
+                string.IsNullOrWhiteSpace(_newEngMiddle) ? null : _newEngMiddle));
+            AddEngineer(created);
+            _showCreateEngineer = false;
+        }
+        catch (Exception ex)
+        {
+            _engineerCreateError = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private async Task CreateVisitAsync()
     {
         if (_facilityId <= 0) { _error = "Выберите объект."; return; }
-        if (_selectedEngineers.Count == 0) { _error = "Выберите хотя бы одного инженера."; return; }
+        if (_selectedEngineers.Count == 0) { _error = "Добавьте хотя бы одного инженера."; return; }
 
         _saving = true;
         _error = null;
@@ -382,7 +520,7 @@ else
                 _facilityId, _selectedContactId,
                 string.IsNullOrWhiteSpace(_contactManual) ? null : _contactManual.Trim(),
                 _startDate, end,
-                _selectedEngineers.ToList(), null));
+                _selectedEngineers.Select(e => e.UserId).ToList(), null));
 
             _showCreate = false;
             _createdVisitId = id;

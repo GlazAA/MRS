@@ -70,7 +70,7 @@ public static class TemplateFieldTypeHints
 	public static string? GetForFieldCode(string? fieldCode)
 	{
 		if (EquipmentModelFieldCodes.IsManufacturerField(fieldCode))
-			return "Производитель из справочника по типу оборудования. Код поля должен заканчиваться на «_manufacturer». Справочник пополняется в «Управлении объектами».";
+			return "Производитель из общего справочника по типу оборудования. Начните вводить — выберите совпадение или сохраните новое. Код поля: «…_manufacturer».";
 
 		if (EquipmentModelFieldCodes.IsModelField(fieldCode))
 			return "Модель выбирается после производителя из того же справочника. Код поля — «_model» с тем же префиксом, что у производителя.";

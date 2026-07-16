@@ -8,7 +8,7 @@ public sealed record InstallationEquipmentModelInfo(
 	string? ModelName,
 	int? EquipmentModelId);
 
-/// <summary>Справочник производителей и моделей по типу оборудования.</summary>
+/// <summary>Справочник производителей и моделей по типу оборудования (общий, не привязан к объекту/компании).</summary>
 public interface IEquipmentModelCatalogService
 {
 	Task<IReadOnlyList<string>> GetManufacturersAsync(int equipmentTypeId, CancellationToken cancellationToken = default);
@@ -21,6 +21,13 @@ public interface IEquipmentModelCatalogService
 	Task<bool> HasAnyModelsAsync(int equipmentTypeId, CancellationToken cancellationToken = default);
 
 	Task<int> EnsureModelAsync(
+		int equipmentTypeId,
+		string manufacturer,
+		string modelName,
+		CancellationToken cancellationToken = default);
+
+	/// <summary>Найти или создать пару производитель+модель без дубликатов (без учёта регистра).</summary>
+	Task<EquipmentModelListItem> EnsureModelEntryAsync(
 		int equipmentTypeId,
 		string manufacturer,
 		string modelName,

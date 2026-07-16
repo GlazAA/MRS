@@ -1,0 +1,79 @@
+@namespace MRS.Maui.Components.Shared
+
+<div class="mrs-combobox">
+    <input class="mrs-select"
+           type="text"
+           value="@Value"
+           placeholder="@Placeholder"
+           disabled="@Disabled"
+           autocomplete="off"
+           @oninput="OnInput"
+           @onfocus="OnFocus"
+           @onblur="OnBlur" />
+    @if (_open && Filtered.Count > 0)
+    {
+        <ul class="mrs-combobox-list" @onmousedown:preventDefault="true">
+            @foreach (var item in Filtered)
+            {
+                <li class="mrs-combobox-item" @onclick="() => SelectAsync(item)">@item</li>
+            }
+        </ul>
+    }
+    else if (_open && !string.IsNullOrWhiteSpace(Value) && Filtered.Count == 0 && ShowNewHint)
+    {
+        <ul class="mrs-combobox-list" @onmousedown:preventDefault="true">
+            <li class="mrs-combobox-empty">Новое значение — сохранится в справочник</li>
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = [];
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool ShowNewHint { get; set; } = true;
+    [Parameter] public EventCallback OnCommitted { get; set; }
+
+    private bool _open;
+
+    private IReadOnlyList<string> Filtered
+    {
+        get
+        {
+            var q = (Value ?? string.Empty).Trim();
+            if (q.Length == 0)
+                return Options.Take(40).ToList();
+
+            return Options
+                .Where(o => o.Contains(q, StringComparison.OrdinalIgnoreCase))
+                .Take(40)
+                .ToList();
+        }
+    }
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        _open = true;
+        var next = e.Value?.ToString() ?? string.Empty;
+        await ValueChanged.InvokeAsync(next).ConfigureAwait(false);
+        await OnCommitted.InvokeAsync().ConfigureAwait(false);
+    }
+
+    private void OnFocus() => _open = true;
+
+    private async Task OnBlur()
+    {
+        await Task.Delay(150).ConfigureAwait(false);
+        _open = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SelectAsync(string item)
+    {
+        _open = false;
+        await ValueChanged.InvokeAsync(item).ConfigureAwait(false);
+        await OnCommitted.InvokeAsync().ConfigureAwait(false);
+    }
+}

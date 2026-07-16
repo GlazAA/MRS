@@ -1,3 +1,2 @@
-2026/07/07-02:36:56.139 30a8 Reusing MANIFEST C:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\MRS.Maui.exe.WebView2\EBWebView\Default\Session Storage/MANIFEST-000001
-2026/07/07-02:36:56.140 30a8 Recovering log #3
-2026/07/07-02:36:56.143 30a8 Reusing old log C:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\MRS.Maui.exe.WebView2\EBWebView\Default\Session Storage/000003.log 
+2026/07/16-17:42:16.592 6a40 Creating DB C:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\MRS.Maui.exe.WebView2\EBWebView\Default\Session Storage since it was missing.
+2026/07/16-17:42:16.610 6a40 Reusing MANIFEST C:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\MRS.Maui.exe.WebView2\EBWebView\Default\Session Storage/MANIFEST-000001

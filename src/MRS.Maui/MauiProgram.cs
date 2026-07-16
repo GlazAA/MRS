@@ -50,6 +50,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IChecklistEditService, SqliteChecklistEditService>();
 		builder.Services.AddSingleton<IScheduledVisitService, SqliteScheduledVisitService>();
 		builder.Services.AddSingleton<IEngineerDirectoryService, SqliteEngineerDirectoryService>();
+		builder.Services.AddSingleton<IChecklistTemplateOptionService, SqliteChecklistTemplateOptionService>();
 		builder.Services.AddSingleton<IEngineerNoteService, SqliteEngineerNoteService>();
 		builder.Services.AddSingleton<IOrganizationEmployeeQueryService, SqliteOrganizationEmployeeQueryService>();
 		builder.Services.AddSingleton<ISyncOutboxQueryService, SqliteSyncOutboxService>();

@@ -32,15 +32,17 @@
             </span>
             <span class="mrs-menu-sync-text">@_syncButtonLabel</span>
         </button>
-        <button type="button" class="mrs-menu-item" disabled="@_backupBusy" @onclick="DownloadBackupAsync">Скачать копию БД</button>
-        <button type="button" class="mrs-menu-item" disabled="@_backupBusy" @onclick="RestoreBackupAsync">Импорт копии БД</button>
+        <button type="button" class="mrs-menu-item mrs-menu-item-util" disabled="@_backupBusy" @onclick="DownloadBackupAsync">Скачать резервную копию</button>
+        <button type="button" class="mrs-menu-item mrs-menu-item-util" disabled="@_backupBusy" @onclick="RestoreBackupAsync">Импорт копии БД</button>
         @if (Session.IsDbAdministrator)
         {
-            <button type="button" class="mrs-menu-item" @onclick="GoToSql">SQL-окно</button>
+            <button type="button" class="mrs-menu-item mrs-menu-item-util" @onclick="GoToSql">SQL-окно</button>
         }
-        <button type="button" class="mrs-menu-item" @onclick="GoToChecklistWork">Контрольный лист</button>
-        <button type="button" class="mrs-menu-item" @onclick="GoToManagement">Управление листами</button>
-        <button type="button" class="mrs-menu-item" @onclick="GoToFacilities">Управление объектами</button>
+        <div class="mrs-menu-divider" aria-hidden="true"></div>
+        <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToVisits">Календарь</button>
+        <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToNotes">Заметки</button>
+        <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToManagement">Управление листами</button>
+        <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToRegister">Внести объект / данные</button>
     </div>
 }
 
@@ -83,7 +85,7 @@
     private ServerSyncResult? _syncResult;
 
     private string _syncButtonLabel => !MauiSyncDefaults.ServerSyncEnabled
-        ? "Обновить с сервера (отключено)"
+        ? "Обновить с сервера"
         : _syncing ? "Обновление…" : "Обновить с сервера";
 
     private string? _syncDisabledTitle => !MauiSyncDefaults.ServerSyncEnabled
@@ -179,10 +181,16 @@
         }
     }
 
-    private void GoToChecklistWork()
+    private void GoToVisits()
     {
         _showMenu = false;
-        Nav.NavigateTo("/checklists");
+        Nav.NavigateTo("/objects/visits");
+    }
+
+    private void GoToNotes()
+    {
+        _showMenu = false;
+        Nav.NavigateTo("/objects/comments");
     }
 
     private void GoToManagement()
@@ -191,10 +199,10 @@
         Nav.NavigateTo("/management");
     }
 
-    private void GoToFacilities()
+    private void GoToRegister()
     {
         _showMenu = false;
-        Nav.NavigateTo("/objects");
+        Nav.NavigateTo("/objects/register");
     }
 
     private void GoToSql()

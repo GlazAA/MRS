@@ -84,27 +84,22 @@ else
 
                     @if (EquipmentModelFieldCodes.IsManufacturerField(field.FieldCode))
                     {
-                        <select class="mrs-select" disabled="@disabled" value="@GetValue(field.TemplateItemId)"
-                                @onchange="@(e => OnManufacturerChangedAsync(field, e))">
-                            <option value="">—</option>
-                            @foreach (var mfg in _manufacturers)
-                            {
-                                <option value="@mfg">@mfg</option>
-                            }
-                        </select>
+                        <p class="mrs-field-hint">Начните вводить — выберите из списка или оставьте новое (необязательно).</p>
+                        <EquipmentCatalogCombobox Value="@GetValue(field.TemplateItemId)"
+                                                  ValueChanged="@(v => OnManufacturerValueAsync(field, v))"
+                                                  Options="@GetManufacturersForField(field.FieldCode)"
+                                                  Disabled="@disabled"
+                                                  Placeholder="Производитель…" />
                     }
                     else if (EquipmentModelFieldCodes.IsModelField(field.FieldCode))
                     {
                         var selectedMfg = GetSelectedManufacturerForModelField(field);
-                        var models = GetCachedModels(selectedMfg);
-                        <select class="mrs-select" disabled="@(disabled || string.IsNullOrWhiteSpace(selectedMfg))" value="@GetValue(field.TemplateItemId)"
-                                @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))">
-                            <option value="">—</option>
-                            @foreach (var m in models)
-                            {
-                                <option value="@m.Name">@m.Name</option>
-                            }
-                        </select>
+                        <p class="mrs-field-hint">Сначала производитель, затем модель — из списка или новая.</p>
+                        <EquipmentCatalogCombobox Value="@GetValue(field.TemplateItemId)"
+                                                  ValueChanged="@(v => SetValue(field.TemplateItemId, v))"
+                                                  Options="@GetCachedModelNames(field.FieldCode, selectedMfg)"
+                                                  Disabled="@(disabled || string.IsNullOrWhiteSpace(selectedMfg))"
+                                                  Placeholder="Модель…" />
                     }
                     else
                     {
@@ -160,21 +155,13 @@ else
                             break;
                         case "checkbox":
                         case "dropdown_multiple":
-                            @if (field.Options.Count > 0)
-                            {
-                                <div class="mrs-check-grid">
-                                    @foreach (var opt in field.Options)
-                                    {
-                                        var cid = $"cb_{field.TemplateItemId}_{opt.OptionId}";
-                                        <label class="mrs-check-label" for="@cid">
-                                            <input id="@cid" class="mrs-check" type="checkbox" disabled="@disabled"
-                                                   checked="@IsMultiOn(field.TemplateItemId, opt.OptionId)"
-                                                   @onchange="@(e => ToggleMulti(field.TemplateItemId, opt.OptionId, e))" />
-                                            @opt.Label
-                                        </label>
-                                    }
-                                </div>
-                            }
+                            <MultiSelectSearchPicker TemplateItemId="field.TemplateItemId"
+                                                     Options="field.Options"
+                                                     Value="@GetValue(field.TemplateItemId)"
+                                                     ValueChanged="@(v => SetValue(field.TemplateItemId, v))"
+                                                     AllowCreateEngineer="ChecklistFieldCodes.IsWorkers(field.FieldCode)"
+                                                     Disabled="@disabled"
+                                                     Placeholder="@(ChecklistFieldCodes.IsWorkers(field.FieldCode) ? "ФИО или фрагмент…" : "Поиск…")" />
                             break;
                         default:
                             <input type="text" class="mrs-select" disabled="@disabled"
@@ -324,8 +311,8 @@ else
     private int _adminRequestId;
     private ChecklistUpdateDryRunResult? _dryRun;
 
-    private List<string> _manufacturers = [];
-    private readonly Dictionary<string, List<EquipmentModelListItem>> _modelsByManufacturer = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<int, List<string>> _manufacturersByEquipmentType = [];
+    private readonly Dictionary<string, List<string>> _modelsByKey = new(StringComparer.OrdinalIgnoreCase);
 
     private static string FormatFieldSummary(ChecklistUpdateDryRunField field)
     {
@@ -345,46 +332,38 @@ else
         _values[templateItemId] = value ?? string.Empty;
     }
 
-    private bool IsMultiOn(int itemId, int optionId)
+    private async Task LoadCatalogsForTemplateAsync()
     {
-        if (!_values.TryGetValue(itemId, out var raw) || string.IsNullOrWhiteSpace(raw))
-            return false;
-
-        foreach (var p in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (int.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) && id == optionId)
-                return true;
-        }
-        return false;
-    }
-
-    private void ToggleMulti(int itemId, int optionId, ChangeEventArgs e)
-    {
-        if (!_isEditing)
+        _manufacturersByEquipmentType.Clear();
+        _modelsByKey.Clear();
+        if (_model is null)
             return;
 
-        var on = e.Value is bool b && b;
-        var set = new HashSet<int>();
+        var fallback = _model.Info.EquipmentTypeId;
+        var typeIds = _model.Fields
+            .Where(f => EquipmentModelFieldCodes.IsManufacturerField(f.FieldCode) || EquipmentModelFieldCodes.IsModelField(f.FieldCode))
+            .Select(f => EquipmentModelFieldCodes.ResolveCatalogEquipmentTypeId(f.FieldCode, fallback))
+            .Append(fallback)
+            .Distinct()
+            .ToList();
 
-        if (_values.TryGetValue(itemId, out var raw) && !string.IsNullOrWhiteSpace(raw))
+        foreach (var etId in typeIds)
         {
-            foreach (var p in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                if (int.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
-                    set.Add(id);
-            }
+            _manufacturersByEquipmentType[etId] =
+                (await ModelCatalog.GetManufacturersAsync(etId).ConfigureAwait(false)).ToList();
         }
-
-        if (on) set.Add(optionId);
-        else set.Remove(optionId);
-
-        _values[itemId] = set.Count == 0 ? string.Empty : string.Join(",", set.OrderBy(x => x));
     }
 
-    private async Task LoadCatalogAsync(int equipmentTypeId)
+    private int ResolveFieldEquipmentTypeId(string? fieldCode)
     {
-        _manufacturers = (await ModelCatalog.GetManufacturersAsync(equipmentTypeId).ConfigureAwait(false)).ToList();
-        _modelsByManufacturer.Clear();
+        var fallback = _model?.Info.EquipmentTypeId ?? 0;
+        return EquipmentModelFieldCodes.ResolveCatalogEquipmentTypeId(fieldCode, fallback);
+    }
+
+    private IReadOnlyList<string> GetManufacturersForField(string? fieldCode)
+    {
+        var etId = ResolveFieldEquipmentTypeId(fieldCode);
+        return _manufacturersByEquipmentType.TryGetValue(etId, out var list) ? list : [];
     }
 
     private async Task PrefetchModelOptionsAsync()
@@ -396,32 +375,33 @@ else
         {
             var manufacturer = GetSelectedManufacturerForModelField(field);
             if (!string.IsNullOrWhiteSpace(manufacturer))
-                await EnsureModelsCachedAsync(manufacturer).ConfigureAwait(false);
+                await EnsureModelsCachedAsync(field.FieldCode, manufacturer).ConfigureAwait(false);
         }
     }
 
-    private async Task EnsureModelsCachedAsync(string manufacturer)
+    private async Task EnsureModelsCachedAsync(string? fieldCode, string manufacturer)
     {
-        if (_model is null)
+        var etId = ResolveFieldEquipmentTypeId(fieldCode);
+        var key = CacheKey(etId, manufacturer);
+        if (key.Length == 0 || _modelsByKey.ContainsKey(key))
             return;
 
-        var key = manufacturer.Trim();
-        if (key.Length == 0 || _modelsByManufacturer.ContainsKey(key))
-            return;
-
-        var models = (await ModelCatalog.GetModelsAsync(_model.Info.EquipmentTypeId, key).ConfigureAwait(false)).ToList();
-        _modelsByManufacturer[key] = models;
+        var models = (await ModelCatalog.GetModelsAsync(etId, manufacturer).ConfigureAwait(false)).ToList();
+        _modelsByKey[key] = models.Select(m => m.Name).ToList();
     }
 
-    private IReadOnlyList<EquipmentModelListItem> GetCachedModels(string? manufacturer)
+    private IReadOnlyList<string> GetCachedModelNames(string? fieldCode, string? manufacturer)
     {
         if (string.IsNullOrWhiteSpace(manufacturer))
             return [];
 
-        return _modelsByManufacturer.TryGetValue(manufacturer.Trim(), out var models)
-            ? models
-            : [];
+        var etId = ResolveFieldEquipmentTypeId(fieldCode);
+        var key = CacheKey(etId, manufacturer);
+        return _modelsByKey.TryGetValue(key, out var models) ? models : [];
     }
+
+    private static string CacheKey(int equipmentTypeId, string manufacturer) =>
+        equipmentTypeId + "|" + manufacturer.Trim().ToLowerInvariant();
 
     private string? GetSelectedManufacturerForModelField(ChecklistEditField modelField)
     {
@@ -437,12 +417,11 @@ else
         return manufacturerField is null ? null : GetValue(manufacturerField.TemplateItemId);
     }
 
-    private async Task OnManufacturerChangedAsync(ChecklistEditField field, ChangeEventArgs e)
+    private async Task OnManufacturerValueAsync(ChecklistEditField field, string value)
     {
         if (!_isEditing)
             return;
 
-        var value = e.Value?.ToString() ?? string.Empty;
         SetValue(field.TemplateItemId, value);
 
         var modelCode = EquipmentModelFieldCodes.GetModelFieldCode(field.FieldCode);
@@ -455,7 +434,37 @@ else
         }
 
         if (!string.IsNullOrWhiteSpace(value))
-            await EnsureModelsCachedAsync(value).ConfigureAwait(false);
+            await EnsureModelsCachedAsync(field.FieldCode, value).ConfigureAwait(false);
+    }
+
+    private async Task PersistCatalogEntriesAsync()
+    {
+        if (_model is null)
+            return;
+
+        var fallbackEtId = _model.Info.EquipmentTypeId;
+        foreach (var mfgField in _model.Fields.Where(f => EquipmentModelFieldCodes.IsManufacturerField(f.FieldCode)))
+        {
+            var mfg = GetValue(mfgField.TemplateItemId)?.Trim() ?? string.Empty;
+            var modelCode = EquipmentModelFieldCodes.GetModelFieldCode(mfgField.FieldCode);
+            var modelField = _model.Fields.FirstOrDefault(f =>
+                string.Equals(f.FieldCode, modelCode, StringComparison.OrdinalIgnoreCase));
+            var model = modelField is null ? string.Empty : (GetValue(modelField.TemplateItemId)?.Trim() ?? string.Empty);
+            if (mfg.Length == 0 || model.Length == 0)
+                continue;
+
+            var etId = EquipmentModelFieldCodes.ResolveCatalogEquipmentTypeId(mfgField.FieldCode, fallbackEtId);
+            try
+            {
+                var entry = await ModelCatalog.EnsureModelEntryAsync(etId, mfg, model).ConfigureAwait(false);
+                SetValue(mfgField.TemplateItemId, entry.Manufacturer);
+                if (modelField is not null)
+                    SetValue(modelField.TemplateItemId, entry.Name);
+            }
+            catch
+            {
+            }
+        }
     }
 
     private async Task LoadAsync(bool resetEditing = true)
@@ -484,7 +493,7 @@ else
             _values = _model.Fields.ToDictionary(f => f.TemplateItemId, f => f.ValueRaw);
             _originalValues = new Dictionary<int, string>(_values);
             _loadedChecklistId = id;
-            await LoadCatalogAsync(_model.Info.EquipmentTypeId).ConfigureAwait(false);
+            await LoadCatalogsForTemplateAsync().ConfigureAwait(false);
             await PrefetchModelOptionsAsync().ConfigureAwait(false);
             if (resetEditing)
                 _isEditing = false;
@@ -597,6 +606,7 @@ else
         {
             if (templateItemIds.Count > 0)
             {
+                await PersistCatalogEntriesAsync().ConfigureAwait(false);
                 var request = new UpdateChecklistAnswersRequest(_model.Info.ChecklistId, _values);
                 var apply = await ChecklistEdit.ApplyAsync(request, templateItemIds);
                 if (!apply.Ok)
