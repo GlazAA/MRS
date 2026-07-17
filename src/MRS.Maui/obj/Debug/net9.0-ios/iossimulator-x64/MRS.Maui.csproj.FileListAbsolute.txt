@@ -359,7 +359,6 @@ c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-ios\iossimulator-x64\Microsoft.
 c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-ios\iossimulator-x64\Microsoft.IdentityModel.Tokens.dll
 c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-ios\iossimulator-x64\Npgsql.dll
 c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-ios\iossimulator-x64\System.IdentityModel.Tokens.Jwt.dll
-c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\souv6qmtrc-{0}-hk4orqwrif-hk4orqwrif.gz
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\p29xzp9bu0-{0}-6gzpyzhau4-6gzpyzhau4.gz
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\l0h6wptfdg-{0}-8inm30yfxf-8inm30yfxf.gz
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\y7mzhz1ymk-{0}-k0qzmur628-k0qzmur628.gz
@@ -369,9 +368,10 @@ c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\swae.build.ex.cache
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\b27dyhz6s7-{0}-2ivz8nm5hu-2ivz8nm5hu.br
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\mwzmlv6fkl-{0}-2ivz8nm5hu-2ivz8nm5hu.br
-c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\souv6qmtrc-{0}-hk4orqwrif-hk4orqwrif.br
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\p29xzp9bu0-{0}-6gzpyzhau4-6gzpyzhau4.br
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\l0h6wptfdg-{0}-8inm30yfxf-8inm30yfxf.br
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\y7mzhz1ymk-{0}-k0qzmur628-k0qzmur628.br
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\1nnyvyky3s-{0}-eyrc21dley-eyrc21dley.br
 c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\swae.publish.ex.cache
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\souv6qmtrc-{0}-pdm7pvemsz-pdm7pvemsz.gz
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-ios\iossimulator-x64\compressed\publish\souv6qmtrc-{0}-pdm7pvemsz-pdm7pvemsz.br

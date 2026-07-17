@@ -2,8 +2,6 @@
 @using System.Globalization
 @using MRS.Application.Checklists
 @inject IChecklistManagementService ChecklistManagement
-@inject IChecklistDocumentExportService ChecklistExport
-@inject IJSRuntime JS
 @inject NavigationManager Nav
 
 <PageTitle>Работа с контрольными листами</PageTitle>
@@ -60,30 +58,12 @@ else
     </div>
 
     <section class="mrs-list-window">
-        <button type="button"
-                class="mrs-export-arrow"
-                aria-label="Экспорт выбранных листов"
-                title="Экспорт выбранных листов"
-                disabled="@(_filteredRows.Count == 0 || _exporting)"
-                @onclick="ExportDocsZip">
-            ↓
-        </button>
-
         @foreach (var row in _filteredRows)
         {
             <button type="button"
                     class="mrs-worklist-item"
                     @onclick="() => GoEdit(row.ChecklistId)">
-                <div class="mrs-worklist-item-row">
-                    <input type="checkbox"
-                           class="mrs-worklist-checkbox"
-                           checked="@_selectedIds.Contains(row.ChecklistId)"
-                           @onchange="(e) => ToggleSelected(row.ChecklistId, e)"
-                           @onclick:stopPropagation="true" />
-
-                    <div class="mrs-worklist-title">@BuildToken(row)</div>
-                </div>
-
+                <div class="mrs-worklist-title">@BuildToken(row)</div>
                 <div class="mrs-info-note">
                     @row.OrganizationName • @row.EquipmentTypeName • @row.InstallationLabel
                 </div>
@@ -98,32 +78,21 @@ else
 }
 
 @code {
-    // Исходные строки (до фильтрации).
     private List<ChecklistManagementRow> _rows = [];
-    // UI-состояния страницы.
     private bool _busy;
-    private bool _exporting;
     private string? _error;
-
-    // Выбранные пользователем checklistId для точечного экспорта.
-    // Если пусто, экспортируем весь текущий фильтр.
-    private readonly HashSet<int> _selectedIds = [];
 
     private string _objectFilter = "all";
     private string _equipmentFilter = "all";
     private string _installationFilter = "all";
 
-    // Значения в выпадающих фильтрах.
     private List<string> _objectOptions = [];
     private List<string> _equipmentOptions = [];
-	private List<string> _installationOptions = [];
-
-	// Результат применения трех фильтров.
-	private List<ChecklistManagementRow> _filteredRows = [];
+    private List<string> _installationOptions = [];
+    private List<ChecklistManagementRow> _filteredRows = [];
 
     protected override async Task OnInitializedAsync()
     {
-        // Первичная загрузка таблицы листов и опций фильтра.
         _busy = true;
         _error = null;
         try
@@ -144,14 +113,11 @@ else
         }
     }
 
-    private void GoEdit(int checklistId)
-    {
+    private void GoEdit(int checklistId) =>
         Nav.NavigateTo($"/checklists/work/edit?checklistId={checklistId}");
-    }
 
     private void ApplyFilters()
     {
-        // Фильтры применяются последовательно к полной коллекции _rows.
         IEnumerable<ChecklistManagementRow> q = _rows;
         if (_objectFilter != "all")
             q = q.Where(r => r.FacilityName == _objectFilter);
@@ -186,18 +152,6 @@ else
         ApplyFilters();
     }
 
-    private void ToggleSelected(int checklistId, ChangeEventArgs e)
-    {
-        // Нормализуем значение checkbox из браузера к bool.
-        var on = e.Value is bool b && b
-                  || string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase)
-                  || string.Equals(e.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
-        if (on)
-            _selectedIds.Add(checklistId);
-        else
-            _selectedIds.Remove(checklistId);
-    }
-
     private static string BuildToken(ChecklistManagementRow row)
     {
         var localDate = row.StartedAt?.ToLocalTime().ToString("dd/MM/yy", CultureInfo.InvariantCulture) ?? "—";
@@ -209,7 +163,6 @@ else
 
     private static string ExtractEquipmentToken(string equipmentTypeName)
     {
-        // "Винтовой компрессор" -> "компрессор"
         var idx = equipmentTypeName.IndexOf("компресс", StringComparison.OrdinalIgnoreCase);
         return idx >= 0 ? equipmentTypeName[idx..] : equipmentTypeName;
     }
@@ -218,40 +171,6 @@ else
     {
         if (string.IsNullOrWhiteSpace(s))
             return "—";
-        // Keep spaces inside tokens; only trim and normalize separators.
         return s.Trim().Replace('/', '_');
     }
-
-    private async Task ExportDocsZip()
-    {
-        // Правило выбора:
-        // 1) если пользователь отметил чекбоксы — экспортируем только их;
-        // 2) иначе экспортируем все строки в текущем фильтре.
-        var checklistIds =
-            _selectedIds.Count > 0
-                ? _rows.Where(r => _selectedIds.Contains(r.ChecklistId)).Select(r => r.ChecklistId).Distinct().ToList()
-                : _filteredRows.Select(r => r.ChecklistId).Distinct().ToList();
-        if (checklistIds.Count == 0)
-            return;
-
-        _exporting = true;
-        _error = null;
-        try
-        {
-            // Серверная часть формирует ZIP с .doc файлами.
-            var file = await ChecklistExport.ExportZipAsync(checklistIds).ConfigureAwait(false);
-            var base64 = Convert.ToBase64String(file.Content);
-            // JS-функция создает Blob и инициирует download в WebView.
-            await JS.InvokeVoidAsync("mrsDownloadBase64File", file.FileName, file.MimeType, base64).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
-        finally
-        {
-            _exporting = false;
-        }
-    }
 }
-

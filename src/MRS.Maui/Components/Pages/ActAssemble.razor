@@ -1,0 +1,341 @@
+@page "/checklists/acts"
+@using System.Globalization
+@using MRS.Application.Checklists
+@using MRS.Maui.Services
+@inject IChecklistManagementService ChecklistManagement
+@inject IActAssemblyPrototypeService ActAssembly
+@inject IAppFileSaveService FileSave
+
+<PageTitle>Сборка акта</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="/management">←</a>
+    <h1 class="mrs-title">Сборка акта</h1>
+    <MrsTopMenu />
+</div>
+
+@if (_busy)
+{
+    <p>Загрузка…</p>
+}
+else if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+
+<section class="mrs-act-step">
+    <h2 class="mrs-info-title">1. Выберите контрольные листы</h2>
+    <p class="mrs-info-note">Тестовые данные: объект «Площадка G301», установка G301.</p>
+    <div class="mrs-filter-row">
+        <div class="mrs-field mrs-field-inline">
+            <label class="mrs-label">Объект</label>
+            <select class="mrs-select" value="@_objectFilter" @onchange="OnObjectFilterChanged">
+                <option value="all">Все</option>
+                @foreach (var opt in _objectOptions)
+                {
+                    <option value="@opt">@opt</option>
+                }
+            </select>
+        </div>
+        <div class="mrs-field mrs-field-inline">
+            <label class="mrs-label">№ установки</label>
+            <select class="mrs-select" value="@_installationFilter" @onchange="OnInstallationFilterChanged">
+                <option value="all">Все</option>
+                @foreach (var opt in _installationOptions)
+                {
+                    <option value="@opt">@opt</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="mrs-form-actions mrs-mb">
+        <button type="button" class="mrs-btn-secondary" @onclick="SelectAllFiltered" disabled="@(_filteredRows.Count == 0)">Отметить все в фильтре</button>
+        <button type="button" class="mrs-btn-secondary" @onclick="ClearSelection" disabled="@(_selectedIds.Count == 0)">Снять отметки</button>
+    </div>
+
+    <section class="mrs-list-window">
+        @foreach (var row in _filteredRows)
+        {
+            <label class="mrs-worklist-item mrs-act-pick">
+                <input type="checkbox"
+                       class="mrs-worklist-checkbox"
+                       checked="@_selectedIds.Contains(row.ChecklistId)"
+                       @onchange="(e) => ToggleSelected(row.ChecklistId, e)" />
+                <div>
+                    <div class="mrs-worklist-title">@FormatRowTitle(row)</div>
+                    <div class="mrs-info-note">@row.OrganizationName • @row.EquipmentTypeName • @row.InstallationLabel</div>
+                </div>
+            </label>
+        }
+        @if (_filteredRows.Count == 0)
+        {
+            <p class="mrs-info-note">Нет контрольных листов по фильтру. Перезапустите приложение, если только что обновляли БД.</p>
+        }
+    </section>
+    <p class="mrs-info-note">Выбрано: @_selectedIds.Count</p>
+</section>
+
+<section class="mrs-act-step">
+    <h2 class="mrs-info-title">2. Что сформировать?</h2>
+    <label class="mrs-check-label mrs-act-option">
+        <input class="mrs-check" type="checkbox" @bind="_wantInstallationAct" />
+        <span><strong>Акт по установке</strong> — «компоненты установки», одна страница на выбранные КЛ.</span>
+    </label>
+    <label class="mrs-check-label mrs-act-option">
+        <input class="mrs-check" type="checkbox" @bind="_wantUnitActs" />
+        <span><strong>Акты по единицам</strong> — отдельный бланк на каждый КЛ (компрессор / осушитель / …).</span>
+    </label>
+
+    <div class="mrs-form-actions">
+        <button type="button"
+                class="mrs-btn-primary"
+                disabled="@(_selectedIds.Count == 0 || (!_wantInstallationAct && !_wantUnitActs) || _building)"
+                @onclick="BuildDraftsAsync">
+            @(_building ? "Собираю…" : "Собрать акт")
+        </button>
+    </div>
+</section>
+
+@if (_preview is not null)
+{
+    <section class="mrs-act-step">
+        <h2 class="mrs-info-title">3. Проверьте текст перед скачиванием</h2>
+        <p class="mrs-info-note">Источник: @_preview.SourceRows.Count КЛ. «Доп. работы» и «Замечания» склеены автоматически — при необходимости поправьте.</p>
+
+        @if (_wantInstallationAct && _installationDraft is not null)
+        {
+            <div class="mrs-act-card">
+                <h3 class="mrs-act-card-title">@_installationDraft.Title</h3>
+                <p class="mrs-info-note">
+                    @_installationDraft.Customer · @_installationDraft.WorkDates · уст. @_installationDraft.InstallationLabel · @_installationDraft.WorkKind
+                </p>
+                <p class="mrs-info-note">Объект: @_installationDraft.ObjectAddress</p>
+                <p class="mrs-label">Перечень работ</p>
+                <ul class="mrs-act-works">
+                    @foreach (var line in _installationDraft.WorkLines)
+                    {
+                        <li><span class="mrs-act-mark">@line.Mark</span> @line.Label</li>
+                    }
+                </ul>
+                <div class="mrs-field">
+                    <label class="mrs-label">Дополнительные работы</label>
+                    <textarea class="mrs-select" rows="4" @bind="_installationDraft.ExtraWorksText" @bind:event="oninput"></textarea>
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Замечания и рекомендации</label>
+                    <textarea class="mrs-select" rows="4" @bind="_installationDraft.RemarksText" @bind:event="oninput"></textarea>
+                </div>
+                <button type="button" class="mrs-btn-secondary" disabled="@_exporting" @onclick="() => DownloadDraftAsync(_installationDraft)">
+                    Скачать этот акт
+                </button>
+            </div>
+        }
+
+        @if (_wantUnitActs)
+        {
+            @foreach (var draft in _unitDrafts)
+            {
+                <div class="mrs-act-card">
+                    <h3 class="mrs-act-card-title">@draft.Title</h3>
+                    <p class="mrs-info-note">
+                        @draft.EquipmentTypeName · уст. @draft.InstallationLabel · @draft.WorkDates
+                        @if (!string.IsNullOrWhiteSpace(draft.ModelName))
+                        {
+                            <text> · модель @draft.ModelName</text>
+                        }
+                    </p>
+                    <p class="mrs-info-note">Объект: @draft.ObjectAddress</p>
+                    <p class="mrs-label">Перечень работ</p>
+                    <ul class="mrs-act-works">
+                        @foreach (var line in draft.WorkLines.Take(8))
+                        {
+                            <li><span class="mrs-act-mark">@line.Mark</span> @line.Label</li>
+                        }
+                        @if (draft.WorkLines.Count > 8)
+                        {
+                            <li class="mrs-info-note">… ещё @(draft.WorkLines.Count - 8)</li>
+                        }
+                    </ul>
+                    <div class="mrs-field">
+                        <label class="mrs-label">Дополнительные работы</label>
+                        <textarea class="mrs-select" rows="3" @bind="draft.ExtraWorksText" @bind:event="oninput"></textarea>
+                    </div>
+                    <div class="mrs-field">
+                        <label class="mrs-label">Замечания и рекомендации</label>
+                        <textarea class="mrs-select" rows="3" @bind="draft.RemarksText" @bind:event="oninput"></textarea>
+                    </div>
+                    <button type="button" class="mrs-btn-secondary" disabled="@_exporting" @onclick="() => DownloadDraftAsync(draft)">
+                        Скачать этот акт
+                    </button>
+                </div>
+            }
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_downloadNote))
+        {
+            <p class="mrs-info-note">@_downloadNote</p>
+        }
+    </section>
+}
+
+@code {
+    private List<ChecklistManagementRow> _rows = [];
+    private List<ChecklistManagementRow> _filteredRows = [];
+    private readonly HashSet<int> _selectedIds = [];
+    private List<string> _objectOptions = [];
+    private List<string> _installationOptions = [];
+    private string _objectFilter = "all";
+    private string _installationFilter = "all";
+
+    private bool _wantInstallationAct = true;
+    private bool _wantUnitActs;
+
+    private bool _busy;
+    private bool _building;
+    private bool _exporting;
+    private string? _error;
+    private string? _downloadNote;
+
+    private ActAssemblyPreview? _preview;
+    private ActDraft? _installationDraft;
+    private List<ActDraft> _unitDrafts = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            _rows = (await ChecklistManagement.GetAllAsync().ConfigureAwait(false)).ToList();
+            _objectOptions = _rows.Select(r => r.FacilityName).Distinct().OrderBy(x => x).ToList();
+            _installationOptions = _rows.Select(r => r.InstallationLabel).Distinct().OrderBy(x => x).ToList();
+            if (_objectOptions.Contains("Площадка G301"))
+                _objectFilter = "Площадка G301";
+            if (_installationOptions.Contains("G301"))
+                _installationFilter = "G301";
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        IEnumerable<ChecklistManagementRow> q = _rows;
+        if (_objectFilter != "all")
+            q = q.Where(r => r.FacilityName == _objectFilter);
+        if (_installationFilter != "all")
+            q = q.Where(r => r.InstallationLabel == _installationFilter);
+        _filteredRows = q
+            .OrderByDescending(r => r.StartedAt)
+            .ThenBy(r => r.EquipmentTypeName)
+            .ToList();
+    }
+
+    private void OnObjectFilterChanged(ChangeEventArgs e)
+    {
+        _objectFilter = e.Value?.ToString() ?? "all";
+        ApplyFilters();
+    }
+
+    private void OnInstallationFilterChanged(ChangeEventArgs e)
+    {
+        _installationFilter = e.Value?.ToString() ?? "all";
+        ApplyFilters();
+    }
+
+    private void ToggleSelected(int checklistId, ChangeEventArgs e)
+    {
+        var on = e.Value is bool b && b
+                 || string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(e.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
+        if (on)
+            _selectedIds.Add(checklistId);
+        else
+            _selectedIds.Remove(checklistId);
+    }
+
+    private void SelectAllFiltered()
+    {
+        foreach (var row in _filteredRows)
+            _selectedIds.Add(row.ChecklistId);
+    }
+
+    private void ClearSelection() => _selectedIds.Clear();
+
+    private async Task BuildDraftsAsync()
+    {
+        _building = true;
+        _error = null;
+        _downloadNote = null;
+        _preview = null;
+        _installationDraft = null;
+        _unitDrafts = [];
+        try
+        {
+            var ids = _selectedIds.Where(id => id < 9000).ToList();
+            if (ids.Count == 0)
+            {
+                _error = "Отметьте контрольные листы в списке выше.";
+                return;
+            }
+
+            _preview = await ActAssembly.BuildPreviewAsync(ids).ConfigureAwait(false);
+            _installationDraft = _preview.InstallationAct;
+            _unitDrafts = _preview.UnitActs.ToList();
+
+            var hasNarrative = (_installationDraft?.ExtraWorksText.Length ?? 0) > 0
+                || (_installationDraft?.RemarksText.Length ?? 0) > 0
+                || _unitDrafts.Any(d => d.ExtraWorksText.Length > 0 || d.RemarksText.Length > 0);
+            if (!hasNarrative)
+            {
+                _downloadNote =
+                    "Перечень собран, но в выбранных КЛ пустые «Доп. работы» / «Замечания».";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _building = false;
+        }
+    }
+
+    private async Task DownloadDraftAsync(ActDraft draft)
+    {
+        _exporting = true;
+        _error = null;
+        _downloadNote = null;
+        try
+        {
+            var file = ActAssembly.RenderDraftDoc(draft);
+            var path = await FileSave.SaveAsync(file.FileName, file.Content);
+            _downloadNote = path is null
+                ? "Сохранение отменено."
+                : $"Сохранено в «Загрузки»: {path}";
+        }
+        catch (Exception ex)
+        {
+            _error = $"Не удалось сохранить акт: {ex.Message}";
+        }
+        finally
+        {
+            _exporting = false;
+        }
+    }
+
+    private static string FormatRowTitle(ChecklistManagementRow row)
+    {
+        var d = row.StartedAt?.ToLocalTime().ToString("dd.MM.yy", CultureInfo.InvariantCulture) ?? "—";
+        return $"{d} · {row.MaintenanceTypeName} · #{row.ChecklistId}";
+    }
+}

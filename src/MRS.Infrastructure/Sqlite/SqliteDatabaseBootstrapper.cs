@@ -5,7 +5,7 @@ namespace MRS.Infrastructure.Sqlite;
 
 public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 {
-	public const int CurrentSchemaVersion = 16;
+	public const int CurrentSchemaVersion = 17;
 
 	private const string SchemaResourceName = "MRS.Infrastructure.Sqlite.Schema.sql";
 	private const string SeedResourceName = "MRS.Infrastructure.Sqlite.Seed.sql";
@@ -24,6 +24,7 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 	private const string ManufacturerModelFieldsResourceName = "MRS.Infrastructure.Sqlite.ManufacturerModelFields.sql";
 	private const string SyncMergeResourceName = "MRS.Infrastructure.Sqlite.SyncMerge.sql";
 	private const string FacilityContactsResourceName = "MRS.Infrastructure.Sqlite.FacilityContacts.sql";
+	private const string ActAssemblyDemoResourceName = "MRS.Infrastructure.Sqlite.ActAssemblyDemo.sql";
 
 	public async Task<LocalDatabaseStatus> EnsureReadyAsync(string databaseFilePath, CancellationToken cancellationToken = default)
 	{
@@ -173,6 +174,14 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 				await SqliteScriptRunner.ExecuteScriptAsync(connection, facilityContacts, cancellationToken).ConfigureAwait(false);
 				await WriteUserVersionAsync(connection, 16, cancellationToken).ConfigureAwait(false);
 				version = 16;
+			}
+
+			if (version < 17)
+			{
+				var actAssemblyDemo = await ReadEmbeddedResourceAsync(ActAssemblyDemoResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, actAssemblyDemo, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 17, cancellationToken).ConfigureAwait(false);
+				version = 17;
 			}
 
 			var fieldTypes = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM field_types;", cancellationToken).ConfigureAwait(false);

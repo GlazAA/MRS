@@ -66,6 +66,8 @@ public static class MauiProgram
 		// Регистрация сервиса экспорта DOC/ZIP.
 		// Если появится другая реализация (например, API-based), меняется только эта строка.
 		builder.Services.AddSingleton<IChecklistDocumentExportService, SqliteChecklistDocumentExportService>();
+		builder.Services.AddSingleton<IActAssemblyPrototypeService, SqliteActAssemblyPrototypeService>();
+		builder.Services.AddSingleton<IAppFileSaveService, MauiAppFileSaveService>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

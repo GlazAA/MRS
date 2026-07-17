@@ -190,9 +190,9 @@
             <div class="mrs-field">
                 <label class="mrs-label">Тип поля *</label>
                 <select class="mrs-select" @bind="field.FieldTypeName">
-                    @foreach (var t in FieldTypeOptions)
+                    @foreach (var t in TemplateFieldTypeHints.AuthoringFieldTypes)
                     {
-                        <option value="@t">@t</option>
+                        <option value="@t">@TemplateFieldTypeHints.GetFieldTypeLabel(t)</option>
                     }
                 </select>
                 @if (TemplateFieldTypeHints.GetForFieldType(field.FieldTypeName) is { } typeHint)
@@ -207,11 +207,12 @@
                 </label>
             </div>
 
-            @if (FieldNeedsOptions(field.FieldTypeName))
+            @if (TemplateFieldTypeHints.FieldTypeNeedsOptions(field.FieldTypeName))
             {
                 <div class="mrs-field">
-                    <label class="mrs-label">Варианты (каждый с новой строки)</label>
+                    <label class="mrs-label">Варианты ответа</label>
                     <textarea class="mrs-select" rows="4" @bind="field.OptionsRaw" @bind:event="oninput"></textarea>
+                    <p class="mrs-hint-dashed">@TemplateFieldTypeHints.FieldOptionsHint</p>
                 </div>
             }
         </div>
@@ -224,20 +225,6 @@
 </div>
 
 @code {
-    private static readonly string[] FieldTypeOptions =
-    [
-        "text",
-        "textarea",
-        "date",
-        "time",
-        "number",
-        "boolean",
-        "radio",
-        "dropdown",
-        "dropdown_multiple",
-        "checkbox"
-    ];
-
     private readonly List<HierarchyOption> _equipmentTypes = [];
     private readonly List<MaintenanceTypeOption> _maintenanceTypes = [];
     private readonly List<FieldDraft> _fields = [];
@@ -366,12 +353,6 @@
         if (_fields.Count == 0)
             AddField();
     }
-
-    private static bool FieldNeedsOptions(string fieldTypeName) =>
-        string.Equals(fieldTypeName, "radio", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(fieldTypeName, "dropdown", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(fieldTypeName, "dropdown_multiple", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(fieldTypeName, "checkbox", StringComparison.OrdinalIgnoreCase);
 
     private void OnTemplateDetailsToggle() { }
 

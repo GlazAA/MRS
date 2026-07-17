@@ -603,5 +603,5 @@ c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\M
 c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\Microsoft.IdentityModel.Tokens.dll
 c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\Npgsql.dll
 c:\Development\MRS\src\MRS.Maui\bin\Debug\net9.0-windows10.0.19041.0\win10-x64\System.IdentityModel.Tokens.Jwt.dll
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\souv6qmtrc-{0}-pdm7pvemsz-pdm7pvemsz.gz
-C:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\souv6qmtrc-{0}-pdm7pvemsz-pdm7pvemsz.br
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\souv6qmtrc-{0}-dixp9urg2s-dixp9urg2s.gz
+c:\Development\MRS\src\MRS.Maui\obj\Debug\net9.0-windows10.0.19041.0\win10-x64\compressed\publish\souv6qmtrc-{0}-dixp9urg2s-dixp9urg2s.br

@@ -82,6 +82,9 @@
     <EmbeddedResource Include="..\..\database\sqlite\017_facility_contacts.sql">
       <LogicalName>MRS.Infrastructure.Sqlite.FacilityContacts.sql</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\018_act_assembly_demo.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.ActAssemblyDemo.sql</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\database\postgres\007_facility_contacts.sql">
       <LogicalName>MRS.Infrastructure.Postgres.FacilityContacts.sql</LogicalName>
     </EmbeddedResource>

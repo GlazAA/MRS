@@ -1727,17 +1727,17 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Glaz0112\\.nuget\\packages\\": {},
+    "C:\\Users\\Glaz0112\\AppData\\Local\\Temp\\cursor-sandbox-cache\\0ecf077142983f48481b6cc154769e0b\\nuget": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
+      "projectUniqueName": "c:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
       "projectName": "MRS.Infrastructure.Tests",
-      "projectPath": "C:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
-      "packagesPath": "C:\\Users\\Glaz0112\\.nuget\\packages\\",
-      "outputPath": "C:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\obj\\",
+      "projectPath": "c:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\MRS.Infrastructure.Tests.csproj",
+      "packagesPath": "C:\\Users\\Glaz0112\\AppData\\Local\\Temp\\cursor-sandbox-cache\\0ecf077142983f48481b6cc154769e0b\\nuget",
+      "outputPath": "c:\\Development\\MRS\\tests\\MRS.Infrastructure.Tests\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -1760,11 +1760,11 @@
           "framework": "net9.0",
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
-              "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
+            "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
+              "projectPath": "c:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
             },
-            "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-              "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+            "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+              "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
             }
           }
         }

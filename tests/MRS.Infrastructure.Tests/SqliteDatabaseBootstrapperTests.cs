@@ -21,8 +21,9 @@ public class SqliteDatabaseBootstrapperTests
 			Assert.Equal(11, status.FieldTypeCount);
 			Assert.Equal(9, status.MaintenanceTypeCount);
 
-			Assert.Equal(3, await CountAsync(path, "SELECT COUNT(*) FROM organizations WHERE is_active = 1;"));
-			Assert.Equal(0, await CountAsync(path, "SELECT COUNT(*) FROM checklists WHERE is_active = 1;"));
+			Assert.Equal(4, await CountAsync(path, "SELECT COUNT(*) FROM organizations WHERE is_active = 1;"));
+			Assert.Equal(9, await CountAsync(path, "SELECT COUNT(*) FROM checklists WHERE is_active = 1;"));
+			Assert.True(await CountAsync(path, "SELECT COUNT(*) FROM checklist_responses;") >= 20);
 			Assert.Equal(20, await CountAsync(path, "SELECT COUNT(*) FROM checklist_templates WHERE is_active = 1;"));
 			Assert.Equal(4, await CountAsync(path, "SELECT COUNT(*) FROM equipment_models WHERE equipment_type_id = 1;"));
 			Assert.Equal(39, await CountAsync(path, "SELECT COUNT(*) FROM system_equipment_types WHERE system_id IN (1,2,3);"));
@@ -50,8 +51,9 @@ public class SqliteDatabaseBootstrapperTests
 			var paths = new FixedDbPath(path);
 			var svc = new SqliteFacilityHierarchyService(paths, bootstrapper);
 			var orgs = await svc.GetOrganizationsAsync();
-			Assert.Equal(3, orgs.Count);
+			Assert.Equal(4, orgs.Count);
 			var mir = Assert.Single(orgs, o => o.Name == "Мираторг");
+			Assert.Contains(orgs, o => o.Name.Contains("Демо", StringComparison.OrdinalIgnoreCase));
 			var facilities = await svc.GetFacilitiesAsync(mir.Id);
 			Assert.Contains(facilities, f => f.Name == "Курск");
 			var kursk = Assert.Single(facilities, f => f.Name == "Курск");
