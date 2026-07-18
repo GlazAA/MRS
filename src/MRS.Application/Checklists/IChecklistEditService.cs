@@ -17,6 +17,9 @@ public interface IChecklistEditService
 	/// <summary>Создаёт лист «В работе» и фиксирует момент начала учёта времени.</summary>
 	Task<int> BeginInProgressAsync(BeginInProgressChecklistRequest request, CancellationToken cancellationToken = default);
 
+	/// <summary>Меняет установку у листа «В работе» (например, после уточнения номера новой установки).</summary>
+	Task SetInstallationAsync(int checklistId, int installationId, CancellationToken cancellationToken = default);
+
 	/// <summary>Ставит учёт времени на паузу (end_at = сейчас), статус остаётся in_progress.</summary>
 	Task PauseWorkAsync(int checklistId, CancellationToken cancellationToken = default);
 

@@ -68,6 +68,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IChecklistDocumentExportService, SqliteChecklistDocumentExportService>();
 		builder.Services.AddSingleton<IActAssemblyPrototypeService, SqliteActAssemblyPrototypeService>();
 		builder.Services.AddSingleton<IAppFileSaveService, MauiAppFileSaveService>();
+		builder.Services.AddSingleton<IUiFlashService, MauiUiFlashService>();
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

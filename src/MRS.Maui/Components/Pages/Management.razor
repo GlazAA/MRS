@@ -1,4 +1,7 @@
 @page "/management"
+@using MRS.Maui.Services
+@inject IUiFlashService Flash
+@implements IDisposable
 
 <PageTitle>Управление листами</PageTitle>
 
@@ -8,8 +11,65 @@
     <MrsTopMenu />
 </div>
 
+@if (_flash is not null)
+{
+    <div class="mrs-flash-banner" role="status">
+        <span>@_flash</span>
+        <button type="button" class="mrs-flash-dismiss" @onclick="DismissFlash" aria-label="Закрыть">×</button>
+    </div>
+}
+
 <div class="mrs-management">
     <a class="mrs-home-btn" href="checklists/work">Работа с контрольным листом</a>
     <a class="mrs-home-btn" href="checklists/acts">Сборка акта</a>
     <a class="mrs-home-btn" href="templates/create">Создать шаблон ТО</a>
 </div>
+
+@code {
+    private string? _flash;
+    private CancellationTokenSource? _hideCts;
+
+    protected override void OnInitialized()
+    {
+        _flash = Flash.Consume();
+        if (_flash is not null)
+            ScheduleAutoHide();
+    }
+
+    private void DismissFlash()
+    {
+        _hideCts?.Cancel();
+        _flash = null;
+    }
+
+    private void ScheduleAutoHide()
+    {
+        _hideCts?.Cancel();
+        _hideCts = new CancellationTokenSource();
+        var token = _hideCts.Token;
+        _ = HideAfterDelayAsync(token);
+    }
+
+    private async Task HideAfterDelayAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(8), token);
+            await InvokeAsync(() =>
+            {
+                _flash = null;
+                StateHasChanged();
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // dismissed early
+        }
+    }
+
+    public void Dispose()
+    {
+        _hideCts?.Cancel();
+        _hideCts?.Dispose();
+    }
+}

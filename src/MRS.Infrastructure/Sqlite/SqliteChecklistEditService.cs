@@ -48,7 +48,8 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 				mt.type_name AS maintenance_type_name,
 				i.equipment_type_id AS equipment_type_id,
 				c.maintenance_type_id AS maintenance_type_id,
-				ct.id AS checklist_template_id
+				ct.id AS checklist_template_id,
+				f.id AS facility_id
 			FROM checklists c
 			INNER JOIN installations i ON i.id = c.installation_id
 			INNER JOIN equipment_types et ON et.id = i.equipment_type_id
@@ -83,9 +84,10 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		var maintenanceType = infoReader.GetString(11);
 		var equipmentTypeId = infoReader.GetInt32(12);
 		int? templateId = infoReader.IsDBNull(14) ? null : infoReader.GetInt32(14);
+		var facilityId = infoReader.GetInt32(15);
 
 		// demo-данные могут хранить checklist_template_id = NULL.
-		// Тогда находим актуальный шаблон по (equipment_type_id, maintenance_type_id).
+		// Тогда находим актуальный шаблон по объекту + (equipment_type_id, maintenance_type_id).
 		if (templateId is null)
 		{
 			var maintenanceTypeId = infoReader.GetInt32(13);
@@ -94,12 +96,18 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 			resolve.CommandText = """
 				SELECT id
 				FROM checklist_templates
-				WHERE equipment_type_id = $et AND maintenance_type_id = $mt AND is_active = 1
-				ORDER BY version DESC
+				WHERE equipment_type_id = $et
+				  AND maintenance_type_id = $mt
+				  AND is_active = 1
+				  AND (facility_id IS NULL OR facility_id = $fid)
+				ORDER BY
+					CASE WHEN facility_id = $fid THEN 0 ELSE 1 END,
+					version DESC
 				LIMIT 1;
 				""";
 			resolve.Parameters.AddWithValue("$et", equipmentTypeId);
 			resolve.Parameters.AddWithValue("$mt", maintenanceTypeId);
+			resolve.Parameters.AddWithValue("$fid", facilityId);
 			var scalar = await resolve.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 			templateId = scalar is long l ? (int)l : (scalar is null ? null : Convert.ToInt32(scalar, CultureInfo.InvariantCulture));
 		}
@@ -181,10 +189,17 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 				{
 					valueRaw = row.numResp.HasValue ? row.numResp.Value.ToString("G", CultureInfo.InvariantCulture) : string.Empty;
 				}
-				else if (EquipmentModelFieldCodes.IsManufacturerField(fieldCode) ||
+				else if (ChecklistFieldCodes.IsUnitNumber(fieldCode) ||
+				         EquipmentModelFieldCodes.IsManufacturerField(fieldCode) ||
 				         EquipmentModelFieldCodes.IsModelField(fieldCode))
 				{
+					// unit_number храним как текст (зеркало installations.custom_name), даже если в шаблоне dropdown.
 					valueRaw = row.textResp ?? string.Empty;
+					if (string.IsNullOrWhiteSpace(valueRaw) && row.selectedOptId is int legacyOptId)
+					{
+						var legacy = options.FirstOrDefault(o => o.OptionId == legacyOptId);
+						valueRaw = legacy?.Label ?? legacyOptId.ToString(CultureInfo.InvariantCulture);
+					}
 				}
 				else if (string.Equals(fieldType, "radio", StringComparison.OrdinalIgnoreCase) ||
 				         string.Equals(fieldType, "dropdown", StringComparison.OrdinalIgnoreCase))
@@ -279,6 +294,25 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		cmd.Parameters.AddWithValue("$start", request.WorkStartedAt.ToString("O", CultureInfo.InvariantCulture));
 		var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 		return scalar is long l ? (int)l : Convert.ToInt32(scalar ?? throw new InvalidOperationException("Не удалось создать контрольный лист."));
+	}
+
+	public async Task SetInstallationAsync(int checklistId, int installationId, CancellationToken cancellationToken = default)
+	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			UPDATE checklists
+			SET installation_id = $i,
+			    local_updated_at = datetime('now')
+			WHERE id = $id
+			  AND is_active = 1
+			  AND status = 'in_progress';
+			""";
+		cmd.Parameters.AddWithValue("$id", checklistId);
+		cmd.Parameters.AddWithValue("$i", installationId);
+		var rows = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+		if (rows == 0)
+			throw new InvalidOperationException("Не удалось привязать установку к контрольному листу.");
 	}
 
 	public async Task PauseWorkAsync(int checklistId, CancellationToken cancellationToken = default)
@@ -659,7 +693,8 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		if (string.Equals(fieldType, "radio", StringComparison.OrdinalIgnoreCase) ||
 		    string.Equals(fieldType, "dropdown", StringComparison.OrdinalIgnoreCase))
 		{
-			if (EquipmentModelFieldCodes.IsManufacturerField(fieldCode) ||
+			if (ChecklistFieldCodes.IsUnitNumber(fieldCode) ||
+			    EquipmentModelFieldCodes.IsManufacturerField(fieldCode) ||
 			    EquipmentModelFieldCodes.IsModelField(fieldCode))
 			{
 				using var updCatalog = connection.CreateCommand();

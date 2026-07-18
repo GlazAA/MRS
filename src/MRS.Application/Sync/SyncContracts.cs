@@ -168,6 +168,7 @@ public sealed record TemplateSyncPayload(
 	[property: JsonPropertyName("localId")] int LocalId,
 	[property: JsonPropertyName("equipmentTypeId")] int EquipmentTypeId,
 	[property: JsonPropertyName("maintenanceTypeId")] int MaintenanceTypeId,
+	[property: JsonPropertyName("facilityId")] int? FacilityId,
 	[property: JsonPropertyName("templateName")] string TemplateName,
 	[property: JsonPropertyName("scenarioCode")] string? ScenarioCode,
 	[property: JsonPropertyName("version")] int Version,

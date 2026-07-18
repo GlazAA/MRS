@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using Microsoft.Data.Sqlite;
+using MRS.Application;
 using MRS.Application.Checklists;
 using MRS.Application.Facilities;
 using MRS.Application.Storage;
@@ -700,19 +701,7 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
 
     private static string FormatWorkDateRange(ChecklistDocumentHeader header)
     {
-        var s = header.StartedAt?.ToLocalTime();
-        var e = header.EndedAt?.ToLocalTime();
-        if (s is null && e is null)
-            return "___________";
-        if (s is not null && e is not null)
-        {
-            var ds = s.Value.ToString("dd.MM.yy", CultureInfo.InvariantCulture);
-            var de = e.Value.ToString("dd.MM.yy", CultureInfo.InvariantCulture);
-            return $"{ds} — {de}";
-        }
-
-        var one = (s ?? e)!.Value.ToString("dd.MM.yy", CultureInfo.InvariantCulture);
-        return one;
+        return MrsDateFormat.FormatDateRange(header.StartedAt, header.EndedAt);
     }
 
     private static string GetLogoDataUri()
@@ -850,18 +839,22 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         if (scalar is int i)
             return i;
 
-        // Если там null/пусто — fallback по связке equipment_type + maintenance_type.
+        // Если там null/пусто — fallback по объекту + equipment_type + maintenance_type.
         using var resolve = connection.CreateCommand();
         resolve.CommandText = """
             SELECT ct.id
             FROM checklists c
             INNER JOIN installations i ON i.id = c.installation_id
+            INNER JOIN facility_systems fs ON fs.id = i.system_id
             INNER JOIN checklist_templates ct
                 ON ct.equipment_type_id = i.equipment_type_id
                AND ct.maintenance_type_id = c.maintenance_type_id
                AND ct.is_active = 1
+               AND (ct.facility_id IS NULL OR ct.facility_id = fs.facility_id)
             WHERE c.id = $cid
-            ORDER BY ct.version DESC
+            ORDER BY
+                CASE WHEN ct.facility_id = fs.facility_id THEN 0 ELSE 1 END,
+                ct.version DESC
             LIMIT 1;
             """;
         resolve.Parameters.AddWithValue("$cid", checklistId);
@@ -983,15 +976,15 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
             if (fieldCode.Equals("start_date", StringComparison.OrdinalIgnoreCase))
             {
                 var raw = header.StartedAt?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty;
-                var display = header.StartedAt?.ToLocalTime().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? string.Empty;
-                return (raw, display);
+                var display = MrsDateFormat.FormatDate(header.StartedAt);
+                return (raw, display == "—" ? string.Empty : display);
             }
 
             if (fieldCode.Equals("end_date", StringComparison.OrdinalIgnoreCase))
             {
                 var raw = header.EndedAt?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty;
-                var display = header.EndedAt?.ToLocalTime().ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? string.Empty;
-                return (raw, display);
+                var display = MrsDateFormat.FormatDate(header.EndedAt);
+                return (raw, display == "—" ? string.Empty : display);
             }
 
             if (fieldCode.Equals("start_time", StringComparison.OrdinalIgnoreCase))
@@ -1004,6 +997,16 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
             {
                 var raw = header.EndedAt?.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
                 return (raw, raw);
+            }
+
+            if (ChecklistFieldCodes.IsUnitNumber(fieldCode))
+            {
+                var unit = !string.IsNullOrWhiteSpace(textRaw)
+                    ? textRaw.Trim()
+                    : (selectedOptionLabel ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(unit))
+                    unit = header.InstallationLabel ?? string.Empty;
+                return (unit, unit);
             }
         }
 

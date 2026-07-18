@@ -59,11 +59,207 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
                 reader.IsDBNull(2) ? null : reader.GetString(2)));
         }
 
-        return list;
-    }
+		return list;
+	}
 
-    public async Task<int> CreateTemplateAsync(CreateChecklistTemplateRequest request, CancellationToken cancellationToken = default)
+	public async Task<IReadOnlyList<TemplateCloneSourceOption>> ListTemplatesForCloneAsync(CancellationToken cancellationToken = default)
+	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			SELECT
+				ct.id,
+				ct.template_name,
+				ct.equipment_type_id,
+				et.type_name,
+				ct.maintenance_type_id,
+				mt.type_name,
+				ct.facility_id,
+				f.name,
+				COALESCE(NULLIF(TRIM(o.short_name), ''), o.full_name),
+				(
+					SELECT COUNT(1)
+					FROM checklist_template_items cti
+					WHERE cti.checklist_template_id = ct.id
+				) AS field_count
+			FROM checklist_templates ct
+			INNER JOIN equipment_types et ON et.id = ct.equipment_type_id
+			INNER JOIN maintenance_types mt ON mt.id = ct.maintenance_type_id
+			LEFT JOIN facilities f ON f.id = ct.facility_id
+			LEFT JOIN organizations o ON o.id = f.organization_id
+			WHERE ct.is_active = 1
+			ORDER BY
+				CASE WHEN ct.facility_id IS NULL THEN 1 ELSE 0 END,
+				COALESCE(o.full_name, ''),
+				COALESCE(f.name, ''),
+				et.type_name, mt.type_name, ct.template_name, ct.version DESC;
+			""";
+
+		var list = new List<TemplateCloneSourceOption>();
+		var seenPair = new HashSet<string>(StringComparer.Ordinal);
+		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+		{
+			var etId = reader.GetInt32(2);
+			var mtId = reader.GetInt32(4);
+			int? facilityId = reader.IsDBNull(6) ? null : reader.GetInt32(6);
+			// Одна актуальная версия на пару оборудование+ТО+объект (или общий).
+			var key = $"{etId}:{mtId}:{facilityId?.ToString() ?? "_"}";
+			if (!seenPair.Add(key))
+				continue;
+
+			list.Add(new TemplateCloneSourceOption(
+				reader.GetInt32(0),
+				reader.GetString(1),
+				etId,
+				reader.GetString(3),
+				mtId,
+				reader.GetString(5),
+				facilityId,
+				reader.IsDBNull(7) ? null : reader.GetString(7),
+				reader.IsDBNull(8) ? null : reader.GetString(8),
+				reader.GetInt32(9)));
+		}
+
+		return list;
+	}
+
+	public async Task<TemplateCloneDraft> GetTemplateCloneDraftAsync(int templateId, CancellationToken cancellationToken = default)
+	{
+		if (templateId <= 0)
+			throw new InvalidOperationException("Выберите шаблон-образец.");
+
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		using var metaCmd = connection.CreateCommand();
+		metaCmd.CommandText = """
+			SELECT ct.id, ct.template_name, ct.equipment_type_id, ct.maintenance_type_id,
+			       ct.top_plate_text, ct.safety_modal_text, ct.red_button_enabled,
+			       ct.facility_id, f.organization_id
+			FROM checklist_templates ct
+			LEFT JOIN facilities f ON f.id = ct.facility_id
+			WHERE ct.id = $id AND ct.is_active = 1;
+			""";
+		metaCmd.Parameters.AddWithValue("$id", templateId);
+
+		string templateName;
+		int equipmentTypeId;
+		int maintenanceTypeId;
+		string? topPlate;
+		string? safety;
+		bool redButton;
+		int? facilityId;
+		int? organizationId;
+		await using (var reader = await metaCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+		{
+			if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				throw new InvalidOperationException("Шаблон-образец не найден.");
+
+			templateName = reader.GetString(1);
+			equipmentTypeId = reader.GetInt32(2);
+			maintenanceTypeId = reader.GetInt32(3);
+			topPlate = reader.IsDBNull(4) ? null : reader.GetString(4);
+			safety = reader.IsDBNull(5) ? null : reader.GetString(5);
+			redButton = reader.GetInt32(6) != 0;
+			facilityId = reader.IsDBNull(7) ? null : reader.GetInt32(7);
+			organizationId = reader.IsDBNull(8) ? null : reader.GetInt32(8);
+		}
+
+		using var fieldsCmd = connection.CreateCommand();
+		fieldsCmd.CommandText = """
+			SELECT cti.id, cti.sort_order, cti.field_code, cti.question_text, cti.hint_text,
+			       ft.type_name, cti.is_required
+			FROM checklist_template_items cti
+			INNER JOIN field_types ft ON ft.id = cti.field_type_id
+			WHERE cti.checklist_template_id = $tid
+			ORDER BY cti.sort_order;
+			""";
+		fieldsCmd.Parameters.AddWithValue("$tid", templateId);
+
+		var rawFields = new List<(int ItemId, int SortOrder, string? FieldCode, string Question, string? Hint, string TypeName, bool Required)>();
+		await using (var reader = await fieldsCmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+		{
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+			{
+				var fieldCode = reader.IsDBNull(2) ? null : reader.GetString(2);
+				if (ChecklistFieldCodes.IsEndTime(fieldCode) || ChecklistFieldCodes.IsUnitNumber(fieldCode))
+					continue;
+
+				rawFields.Add((
+					reader.GetInt32(0),
+					reader.GetInt32(1),
+					fieldCode,
+					reader.GetString(3),
+					reader.IsDBNull(4) ? null : reader.GetString(4),
+					NormalizeAuthoringFieldType(reader.GetString(5)),
+					reader.GetInt32(6) != 0));
+			}
+		}
+
+		var fields = new List<TemplateCloneFieldDraft>(rawFields.Count);
+		foreach (var row in rawFields)
+		{
+			var options = await LoadOptionLabelsAsync(connection, row.ItemId, cancellationToken).ConfigureAwait(false);
+			fields.Add(new TemplateCloneFieldDraft(
+				row.SortOrder,
+				row.FieldCode,
+				row.Question,
+				row.Hint,
+				row.TypeName,
+				row.Required,
+				options));
+		}
+
+		if (fields.Count == 0)
+			throw new InvalidOperationException("В шаблоне-образце нет полей для копирования.");
+
+		return new TemplateCloneDraft(
+			templateId,
+			templateName,
+			equipmentTypeId,
+			maintenanceTypeId,
+			facilityId,
+			organizationId,
+			topPlate,
+			safety,
+			redButton,
+			fields);
+	}
+
+	private static string NormalizeAuthoringFieldType(string typeName)
+	{
+		var t = (typeName ?? string.Empty).Trim().ToLowerInvariant();
+		return t switch
+		{
+			"radio" => "dropdown",
+			"checkbox" => "dropdown_multiple",
+			_ => t
+		};
+	}
+
+	private static async Task<IReadOnlyList<string>> LoadOptionLabelsAsync(
+		SqliteConnection connection,
+		int templateItemId,
+		CancellationToken cancellationToken)
+	{
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			SELECT option_label
+			FROM checklist_template_item_options
+			WHERE checklist_template_item_id = $iid
+			ORDER BY sort_order;
+			""";
+		cmd.Parameters.AddWithValue("$iid", templateItemId);
+		var list = new List<string>();
+		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+			list.Add(reader.GetString(0));
+		return list;
+	}
+
+	public async Task<int> CreateTemplateAsync(CreateChecklistTemplateRequest request, CancellationToken cancellationToken = default)
     {
+        if (request.FacilityId <= 0)
+            throw new InvalidOperationException("Выберите объект (площадку) — шаблон привязывается к объекту.");
         if (request.EquipmentTypeId <= 0)
             throw new InvalidOperationException("Выберите тип оборудования.");
         var templateName = (request.TemplateName ?? string.Empty).Trim();
@@ -77,8 +273,10 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
 
         try
         {
+            await EnsureFacilityExistsAsync(connection, tx, request.FacilityId, cancellationToken).ConfigureAwait(false);
             var maintenanceTypeId = await EnsureMaintenanceTypeAsync(connection, tx, request, cancellationToken).ConfigureAwait(false);
-            var version = await ResolveNextTemplateVersionAsync(connection, tx, request.EquipmentTypeId, maintenanceTypeId, cancellationToken).ConfigureAwait(false);
+            var version = await ResolveNextTemplateVersionAsync(
+                connection, tx, request.FacilityId, request.EquipmentTypeId, maintenanceTypeId, cancellationToken).ConfigureAwait(false);
             var templateId = await InsertTemplateAsync(connection, tx, request, maintenanceTypeId, version, templateName, cancellationToken).ConfigureAwait(false);
             await InsertFieldsAsync(connection, tx, templateId, request.Fields, cancellationToken).ConfigureAwait(false);
             await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -97,6 +295,20 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
             await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
             throw;
         }
+    }
+
+    private static async Task EnsureFacilityExistsAsync(
+        SqliteConnection connection,
+        SqliteTransaction tx,
+        int facilityId,
+        CancellationToken cancellationToken)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = "SELECT 1 FROM facilities WHERE id = $id AND is_active = 1 LIMIT 1;";
+        cmd.Parameters.AddWithValue("$id", facilityId);
+        if (await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is null)
+            throw new InvalidOperationException("Объект не найден или неактивен.");
     }
 
     private static async Task<int> EnsureMaintenanceTypeAsync(
@@ -151,6 +363,7 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
     private static async Task<int> ResolveNextTemplateVersionAsync(
         SqliteConnection connection,
         SqliteTransaction tx,
+        int facilityId,
         int equipmentTypeId,
         int maintenanceTypeId,
         CancellationToken cancellationToken)
@@ -160,10 +373,13 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
         cmd.CommandText = """
             SELECT COALESCE(MAX(version), 0)
             FROM checklist_templates
-            WHERE equipment_type_id = $et AND maintenance_type_id = $mt;
+            WHERE equipment_type_id = $et
+              AND maintenance_type_id = $mt
+              AND facility_id = $fid;
             """;
         cmd.Parameters.AddWithValue("$et", equipmentTypeId);
         cmd.Parameters.AddWithValue("$mt", maintenanceTypeId);
+        cmd.Parameters.AddWithValue("$fid", facilityId);
         var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         var current = Convert.ToInt32(scalar ?? 0);
         return current + 1;
@@ -187,6 +403,7 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
         cmd.Transaction = tx;
         cmd.CommandText = """
             INSERT INTO checklist_templates (
+                facility_id,
                 equipment_type_id,
                 maintenance_type_id,
                 template_name,
@@ -198,9 +415,10 @@ public sealed class SqliteChecklistTemplateAuthoringService : IChecklistTemplate
                 safety_modal_text,
                 red_button_enabled
             )
-            VALUES ($et, $mt, $name, $scenario, $version, 1, $top, $intro, $safety, $red);
+            VALUES ($fid, $et, $mt, $name, $scenario, $version, 1, $top, $intro, $safety, $red);
             SELECT last_insert_rowid();
             """;
+        cmd.Parameters.AddWithValue("$fid", request.FacilityId);
         cmd.Parameters.AddWithValue("$et", request.EquipmentTypeId);
         cmd.Parameters.AddWithValue("$mt", maintenanceTypeId);
         cmd.Parameters.AddWithValue("$name", templateName);

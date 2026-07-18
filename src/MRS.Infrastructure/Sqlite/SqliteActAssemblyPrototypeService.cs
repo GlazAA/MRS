@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
+using MRS.Application;
 using MRS.Application.Checklists;
 using MRS.Application.Facilities;
 
@@ -150,7 +151,7 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 			Profile = ActBlankProfile.Installation,
 			Title = "Акт технического обслуживания компонентов установки",
 			Customer = "ООО «Мираторг-Курск»",
-			WorkDates = "17.03 — 21.03.25",
+			WorkDates = "03/17 — 03/21/25",
 			InstallationLabel = "G301",
 			WorkKind = "техническое обслуживание",
 			ObjectAddress = "Курск\n(Курск, промзона Демо-ТО, 1)",
@@ -179,7 +180,7 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 			Profile = ActBlankProfile.Compressor,
 			Title = "Акт технического обслуживания компрессора",
 			Customer = "ООО «Мираторг-Курск»",
-			WorkDates = "18.03 — 19.03.25",
+			WorkDates = "03/18 — 03/19/25",
 			InstallationLabel = "G301",
 			WorkKind = "ТО-3000",
 			ObjectAddress = "Курск\n(Курск, промзона Демо-ТО, 1)",
@@ -213,7 +214,7 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 			Profile = ActBlankProfile.Dryer,
 			Title = "Акт технического обслуживания осушителя",
 			Customer = "ООО «Мираторг-Курск»",
-			WorkDates = "17.03 — 20.03.25",
+			WorkDates = "03/17 — 03/20/25",
 			InstallationLabel = "G301",
 			WorkKind = "ТО-1",
 			ObjectAddress = "Курск\n(Курск, промзона Демо-ТО, 1)",
@@ -490,21 +491,21 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 	private static string FormatDateRange(IReadOnlyList<ChecklistManagementRow> rows)
 	{
 		var dates = rows
-			.Select(r => r.StartedAt?.ToLocalTime().Date)
+			.Select(r => r.StartedAt?.ToLocalTime())
 			.Where(d => d.HasValue)
-			.Select(d => d!.Value)
+			.Select(d => DateOnly.FromDateTime(d!.Value.DateTime))
 			.Distinct()
 			.OrderBy(d => d)
 			.ToList();
 		if (dates.Count == 0)
 			return "—";
 		if (dates.Count == 1)
-			return dates[0].ToString("dd.MM.yy", CultureInfo.InvariantCulture);
-		return $"{dates[0]:dd.MM} — {dates[^1]:dd.MM.yy}";
+			return MrsDateFormat.FormatDateShort(dates[0]);
+		return $"{MrsDateFormat.FormatDateShort(dates[0])} — {MrsDateFormat.FormatDateShort(dates[^1])}";
 	}
 
 	private static string FormatSingleDate(DateTimeOffset? startedAt) =>
-		startedAt?.ToLocalTime().ToString("dd.MM.yy", CultureInfo.InvariantCulture) ?? "—";
+		MrsDateFormat.FormatDateShort(startedAt);
 
 	private static string Sanitize(string? s)
 	{

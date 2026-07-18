@@ -1,4 +1,5 @@
 ﻿@page "/weather"
+@using MRS.Application
 
 <h1>Weather</h1>
 
@@ -23,7 +24,7 @@ else
             @foreach (var forecast in forecasts)
             {
                 <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@MrsDateFormat.FormatDate(forecast.Date)</td>
                     <td>@forecast.TemperatureC</td>
                     <td>@forecast.TemperatureF</td>
                     <td>@forecast.Summary</td>

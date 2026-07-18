@@ -1,5 +1,6 @@
 @page "/objects/visits"
 @using System.Globalization
+@using MRS.Application
 @using MRS.Application.Contacts
 @using MRS.Application.Facilities
 @using MRS.Application.Notes
@@ -261,7 +262,7 @@ else
                         {
                             <li class="@(n.IsCompleted ? "mrs-note-done" : "mrs-note-open")">
                                 @n.Body
-                                @if (n.DeadlineDate is not null) { <span> (до @n.DeadlineDate.Value.ToString("dd.MM.yyyy"))</span> }
+                                @if (n.DeadlineDate is not null) { <span> (до @MrsDateFormat.FormatDate(n.DeadlineDate))</span> }
                             </li>
                         }
                     </ul>

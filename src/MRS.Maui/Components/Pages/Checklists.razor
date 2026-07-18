@@ -1,5 +1,6 @@
 @page "/checklists"
 @using System.Globalization
+@using MRS.Application
 @using MRS.Application.Checklists
 @using MRS.Application.Facilities
 @inject IFacilityHierarchyService Hierarchy
@@ -254,8 +255,7 @@ else
 			var rows = await ChecklistSummaries.GetForSystemAsync(facilitySystemId).ConfigureAwait(false);
 			foreach (var r in rows)
 			{
-				var local = r.StartedAt?.ToLocalTime();
-				var d = local?.ToString("dd.MM.yyyy", CultureInfo.InvariantCulture) ?? "—";
+				var d = MrsDateFormat.FormatDate(r.StartedAt);
 				var statusLabel = FormatStatus(r.StatusCode);
 				var clickable = r.StatusCode == "in_progress";
 				_historyRows.Add(new HistoryRow(

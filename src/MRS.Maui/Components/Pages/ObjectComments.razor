@@ -1,5 +1,6 @@
 @page "/objects/comments"
 @using System.Globalization
+@using MRS.Application
 @using MRS.Application.Checklists
 @using MRS.Application.Facilities
 @using MRS.Application.Notes
@@ -10,6 +11,7 @@
 @inject IScheduledVisitService Visits
 @inject IChecklistManagementService Checklists
 @inject ICurrentUserSession Session
+@implements IDisposable
 
 <PageTitle>Комментарии и заметки</PageTitle>
 
@@ -24,36 +26,48 @@
     <p class="text-danger">@_error</p>
 }
 
+@if (_flash is not null)
+{
+    <div class="mrs-flash-banner" role="status">
+        <span>@_flash</span>
+        <button type="button" class="mrs-flash-dismiss" @onclick="DismissFlash" aria-label="Закрыть">×</button>
+    </div>
+}
+
 <div class="mrs-comments-toolbar">
     <div class="mrs-filter-row">
         <div class="mrs-field mrs-field-inline">
             <label class="mrs-label">Объект</label>
-            <select class="mrs-select" @bind="_filterFacilityId">
+            <select class="mrs-select" value="@_filterFacilityId" @onchange="OnFilterFacilityChanged">
                 <option value="">Все</option>
                 @foreach (var f in _facilityFilterOptions)
                 {
-                    <option value="@f.Id">@f.Name</option>
+                    <option value="@f.Id.ToString(CultureInfo.InvariantCulture)">@f.Name</option>
                 }
             </select>
         </div>
         <div class="mrs-field mrs-field-inline">
             <label class="mrs-label">Выезд</label>
-            <select class="mrs-select" @bind="_filterVisitId">
+            <select class="mrs-select" value="@_filterVisitId" @onchange="OnFilterVisitChanged">
                 <option value="">Все</option>
                 @foreach (var v in _visitFilterOptions)
                 {
-                    <option value="@v.VisitId">@v.Label</option>
+                    <option value="@v.VisitId.ToString(CultureInfo.InvariantCulture)">@v.Label</option>
                 }
             </select>
         </div>
         <div class="mrs-field mrs-field-inline">
             <label class="mrs-label">Дедлайн</label>
-            <input type="date" class="mrs-select" @bind="_filterDeadlineDay" />
+            <input type="date"
+                   class="mrs-select"
+                   value="@FormatDateInput(_filterDeadlineDay)"
+                   @onchange="OnFilterDeadlineChanged" />
         </div>
     </div>
     <div class="mrs-comments-actions">
-        <button type="button" class="mrs-btn-secondary mrs-btn-compact" @onclick="LoadNotesAsync">Применить</button>
-        <button type="button" class="mrs-btn-primary mrs-btn-compact" @onclick="OpenCreate">+ Заметка</button>
+        <button type="button" class="mrs-btn-secondary mrs-btn-compact" @onclick="ApplyFiltersAsync">Применить фильтры</button>
+        <button type="button" class="mrs-btn-secondary mrs-btn-compact" @onclick="ClearFiltersAsync">Сбросить</button>
+        <button type="button" class="mrs-btn-primary mrs-btn-compact" @onclick="OpenCreate">Создать заметку</button>
     </div>
 </div>
 
@@ -75,7 +89,7 @@ else
                     <strong>@(n.Title ?? "Заметка")</strong>
                     @if (n.DeadlineDate is not null)
                     {
-                        <span class="mrs-note-deadline">до @n.DeadlineDate.Value.ToString("dd.MM.yyyy")</span>
+                        <span class="mrs-note-deadline">до @MrsDateFormat.FormatDate(n.DeadlineDate)</span>
                     }
                 </div>
                 <div class="mrs-note-preview">@n.BodyPreview</div>
@@ -107,7 +121,10 @@ else
                 </div>
                 <div class="mrs-field">
                     <label class="mrs-label">Дедлайн</label>
-                    <input type="date" class="mrs-select" @bind="_editDeadline" />
+                    <input type="date"
+                           class="mrs-select"
+                           value="@FormatDateInput(_editDeadline)"
+                           @onchange="OnEditDeadlineChanged" />
                 </div>
                 <div class="mrs-field">
                     <label class="mrs-label">Объект</label>
@@ -115,7 +132,7 @@ else
                         <option value="">—</option>
                         @foreach (var f in _facilityFilterOptions)
                         {
-                            <option value="@f.Id">@f.Name</option>
+                            <option value="@f.Id.ToString(CultureInfo.InvariantCulture)">@f.Name</option>
                         }
                     </select>
                 </div>
@@ -125,7 +142,7 @@ else
                         <option value="">—</option>
                         @foreach (var v in _visitFilterOptions)
                         {
-                            <option value="@v.VisitId">@v.Label</option>
+                            <option value="@v.VisitId.ToString(CultureInfo.InvariantCulture)">@v.Label</option>
                         }
                     </select>
                 </div>
@@ -135,7 +152,7 @@ else
                         <option value="">—</option>
                         @foreach (var c in _checklistFilterOptions)
                         {
-                            <option value="@c.ChecklistId">@c.Label</option>
+                            <option value="@c.ChecklistId.ToString(CultureInfo.InvariantCulture)">@c.Label</option>
                         }
                     </select>
                 </div>
@@ -160,10 +177,10 @@ else
             <button type="button" class="mrs-modal-close" @onclick="CloseDetail">×</button>
             <h3 class="mrs-modal-title">@(_detail.Title ?? "Заметка")</h3>
             <div class="mrs-modal-body mrs-pre-wrap">
-                <p class="mrs-note-meta">Автор: @_detail.AuthorLabel • обновлено @_detail.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+                <p class="mrs-note-meta">Автор: @_detail.AuthorLabel • обновлено @MrsDateFormat.FormatDateTime(_detail.UpdatedAt)</p>
                 @if (_detail.DeadlineDate is not null)
                 {
-                    <p><strong>Дедлайн:</strong> @_detail.DeadlineDate.Value.ToString("dd.MM.yyyy")</p>
+                    <p><strong>Дедлайн:</strong> @MrsDateFormat.FormatDate(_detail.DeadlineDate)</p>
                 }
                 <p>@_detail.Body</p>
                 @if (_detail.Revisions.Count > 0)
@@ -172,7 +189,7 @@ else
                     @foreach (var r in _detail.Revisions)
                     {
                         <div class="mrs-note-revision">
-                            <div class="mrs-note-revision-head">Изменено @r.EditedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm") — @r.EditedByLabel</div>
+                            <div class="mrs-note-revision-head">Изменено @MrsDateFormat.FormatDateTime(r.EditedAt) — @r.EditedByLabel</div>
                             <div class="mrs-pre-wrap">@r.Body</div>
                         </div>
                     }
@@ -198,6 +215,8 @@ else
     private bool _loading;
     private bool _saving;
     private string? _error;
+    private string? _flash;
+    private CancellationTokenSource? _hideCts;
     private List<EngineerNoteListItem> _notes = [];
 
     private string _filterFacilityId = string.Empty;
@@ -228,6 +247,38 @@ else
         await LoadNotesAsync();
     }
 
+    private void OnFilterFacilityChanged(ChangeEventArgs e) =>
+        _filterFacilityId = e.Value?.ToString() ?? string.Empty;
+
+    private void OnFilterVisitChanged(ChangeEventArgs e) =>
+        _filterVisitId = e.Value?.ToString() ?? string.Empty;
+
+    private void OnFilterDeadlineChanged(ChangeEventArgs e) =>
+        _filterDeadlineDay = ParseDateInput(e.Value?.ToString());
+
+    private void OnEditDeadlineChanged(ChangeEventArgs e) =>
+        _editDeadline = ParseDateInput(e.Value?.ToString());
+
+    private static string FormatDateInput(DateOnly? value) =>
+        value?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty;
+
+    private static DateOnly? ParseDateInput(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+        return DateOnly.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+    }
+
+    private async Task ApplyFiltersAsync() => await LoadNotesAsync();
+
+    private async Task ClearFiltersAsync()
+    {
+        _filterFacilityId = string.Empty;
+        _filterVisitId = string.Empty;
+        _filterDeadlineDay = null;
+        await LoadNotesAsync();
+    }
+
     private async Task LoadFilterOptionsAsync()
     {
         var orgs = await Hierarchy.GetOrganizationsAsync();
@@ -239,7 +290,7 @@ else
         _checklistFilterOptions = (await Checklists.GetAllAsync())
             .OrderByDescending(c => c.StartedAt)
             .Take(100)
-            .Select(c => new ChecklistFilterRow(c.ChecklistId, $"КЛ №{c.ChecklistId} • {c.FacilityName} • {c.StartedAt?.ToLocalTime():dd.MM.yyyy}"))
+            .Select(c => new ChecklistFilterRow(c.ChecklistId, $"КЛ №{c.ChecklistId} • {c.FacilityName} • {MrsDateFormat.FormatDate(c.StartedAt)}"))
             .ToList();
     }
 
@@ -249,9 +300,16 @@ else
         _error = null;
         try
         {
-            int? fid = int.TryParse(_filterFacilityId, out var f) && f > 0 ? f : null;
-            int? vid = int.TryParse(_filterVisitId, out var v) && v > 0 ? v : null;
-            _notes = (await Notes.ListAsync(new EngineerNoteFilter(fid, vid, null, null, _filterDeadlineDay))).ToList();
+            int? fid = int.TryParse(_filterFacilityId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var f) && f > 0
+                ? f : null;
+            int? vid = int.TryParse(_filterVisitId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) && v > 0
+                ? v : null;
+            _notes = (await Notes.ListAsync(new EngineerNoteFilter(
+                FacilityId: fid,
+                ScheduledVisitId: vid,
+                ChecklistId: null,
+                DeadlineOnOrBefore: null,
+                DeadlineOnDay: _filterDeadlineDay))).ToList();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
@@ -275,14 +333,16 @@ else
     {
         if (string.IsNullOrWhiteSpace(_editBody)) { _error = "Введите текст заметки."; return; }
         _saving = true;
+        _error = null;
         try
         {
             var user = Session.Current;
             int? fid = int.TryParse(_editFacilityId, out var f) && f > 0 ? f : null;
             int? vid = int.TryParse(_editVisitId, out var v) && v > 0 ? v : null;
             int? cid = int.TryParse(_editChecklistId, out var c) && c > 0 ? c : null;
+            var isNew = _editingId is null;
 
-            if (_editingId is null)
+            if (isNew)
             {
                 await Notes.CreateAsync(new CreateEngineerNoteRequest(
                     user.UserId, _editBody.Trim(), _editDeadline,
@@ -299,9 +359,47 @@ else
 
             _showEditor = false;
             await LoadNotesAsync();
+            ShowFlash(isNew ? "Заметка успешно сохранена." : "Заметка обновлена.");
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _saving = false; }
+    }
+
+    private void ShowFlash(string message)
+    {
+        _flash = message;
+        ScheduleAutoHide();
+    }
+
+    private void DismissFlash()
+    {
+        _hideCts?.Cancel();
+        _flash = null;
+    }
+
+    private void ScheduleAutoHide()
+    {
+        _hideCts?.Cancel();
+        _hideCts = new CancellationTokenSource();
+        var token = _hideCts.Token;
+        _ = HideAfterDelayAsync(token);
+    }
+
+    private async Task HideAfterDelayAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(8), token);
+            await InvokeAsync(() =>
+            {
+                _flash = null;
+                StateHasChanged();
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            // dismissed early
+        }
     }
 
     private async Task OpenDetail(int noteId)
@@ -336,6 +434,7 @@ else
         await Notes.SetCompletedAsync(_detail.NoteId, done);
         _showDetail = false;
         await LoadNotesAsync();
+        ShowFlash(done ? "Заметка отмечена выполненной." : "Отметка о выполнении снята.");
     }
 
     private async Task DeleteNoteAsync()
@@ -344,5 +443,12 @@ else
         await Notes.DeleteAsync(_editingId.Value);
         _showEditor = false;
         await LoadNotesAsync();
+        ShowFlash("Заметка удалена.");
+    }
+
+    public void Dispose()
+    {
+        _hideCts?.Cancel();
+        _hideCts?.Dispose();
     }
 }

@@ -7,4 +7,5 @@ public sealed record MaintenanceForkOption(
 	string? MaintenanceCode,
 	int ChecklistTemplateId,
 	string TemplateName,
-	string? ScenarioCode);
+	string? ScenarioCode,
+	bool IsFacilitySpecific);

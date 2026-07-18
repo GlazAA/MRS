@@ -1,5 +1,6 @@
 @page "/checklists/acts"
 @using System.Globalization
+@using MRS.Application
 @using MRS.Application.Checklists
 @using MRS.Maui.Services
 @inject IChecklistManagementService ChecklistManagement
@@ -335,7 +336,7 @@ else if (_error is not null)
 
     private static string FormatRowTitle(ChecklistManagementRow row)
     {
-        var d = row.StartedAt?.ToLocalTime().ToString("dd.MM.yy", CultureInfo.InvariantCulture) ?? "—";
+        var d = MrsDateFormat.FormatDateShort(row.StartedAt);
         return $"{d} · {row.MaintenanceTypeName} · #{row.ChecklistId}";
     }
 }

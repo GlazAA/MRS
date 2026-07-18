@@ -7,7 +7,7 @@ namespace MRS.Infrastructure.Tests;
 public class ChecklistEditValidateTests
 {
 	[Fact]
-	public async Task GetForEdit_unit_number_is_editable()
+	public async Task GetForEdit_unit_number_is_present_and_editable_for_apply()
 	{
 		var path = CreateTempDbPath();
 		try
@@ -19,6 +19,9 @@ public class ChecklistEditValidateTests
 			var unitField = model.Fields.First(f =>
 				string.Equals(f.FieldCode, "unit_number", StringComparison.OrdinalIgnoreCase));
 
+			// Остаётся в модели для Apply/экспорта, на UI скрыто (IsHiddenOnFillForm).
+			Assert.True(ChecklistFieldCodes.IsUnitNumber(unitField.FieldCode));
+			Assert.True(ChecklistFieldCodes.IsHiddenOnFillForm(unitField.FieldCode));
 			Assert.False(unitField.IsLocked);
 		}
 		finally

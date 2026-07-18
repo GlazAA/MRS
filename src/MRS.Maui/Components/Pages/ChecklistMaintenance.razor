@@ -37,7 +37,10 @@ else
             <li>
                 <button type="button" class="mrs-fork-item" @onclick="() => GoCreate(fork.MaintenanceTypeId)">
                     <span class="mrs-fork-title">@fork.MaintenanceTypeName</span>
-                    <span class="mrs-fork-sub">@fork.TemplateName</span>
+                    <span class="mrs-fork-sub">
+                        @fork.TemplateName
+                        @(fork.IsFacilitySpecific ? " · для этого объекта" : " · общий шаблон")
+                    </span>
                 </button>
             </li>
         }
@@ -73,7 +76,7 @@ else
 		{
 			var types = await EquipmentCatalog.GetForSystemAsync(sid).ConfigureAwait(false);
 			_equipmentName = types.FirstOrDefault(t => t.Id == etid)?.Name ?? $"Тип #{etid}";
-			var list = await Flow.GetMaintenanceForkAsync(etid).ConfigureAwait(false);
+			var list = await Flow.GetMaintenanceForkAsync(etid, FacilityId).ConfigureAwait(false);
 			_forks.AddRange(list);
 		}
 		catch (Exception ex)

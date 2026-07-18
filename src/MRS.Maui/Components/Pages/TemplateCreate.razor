@@ -2,8 +2,12 @@
 @using System.Globalization
 @using MRS.Application.Checklists
 @using MRS.Application.Facilities
+@using MRS.Maui.Services
 @using Microsoft.Maui.ApplicationModel.DataTransfer
 @inject IChecklistTemplateAuthoringService TemplateAuthoring
+@inject IFacilityHierarchyService Hierarchy
+@inject IUiFlashService Flash
+@inject NavigationManager Nav
 @implements IDisposable
 
 <PageTitle>Создание шаблона ТО</PageTitle>
@@ -16,15 +20,87 @@
 
 @if (_error is not null)
 {
-    <p class="text-danger">@_error</p>
-}
-@if (_savedMessage is not null)
-{
-    <p class="mrs-save-msg">@_savedMessage</p>
+    <div class="mrs-alert-toast mrs-alert-toast-error" role="alert">
+        <span>@_error</span>
+        <button type="button" class="mrs-flash-dismiss" @onclick="DismissError" aria-label="Закрыть">×</button>
+    </div>
 }
 
 <div class="mrs-object-form">
-    <div class="mrs-field">
+    <section class="mrs-field">
+        <label class="mrs-label">Как создать?</label>
+        <label class="mrs-check-label mrs-act-option">
+            <input class="mrs-check" type="radio" name="template-mode" checked="@(_createMode == CreateMode.Blank)" @onchange="() => SetCreateMode(CreateMode.Blank)" />
+            <span>С нуля</span>
+        </label>
+        <label class="mrs-check-label mrs-act-option">
+            <input class="mrs-check" type="radio" name="template-mode" checked="@(_createMode == CreateMode.Analogy)" @onchange="() => SetCreateMode(CreateMode.Analogy)" />
+            <span>По аналогии — скопировать поля из готового шаблона</span>
+        </label>
+    </section>
+
+    @if (_createMode == CreateMode.Analogy)
+    {
+        <section class="mrs-field">
+            <label class="mrs-label">Шаблон-образец *</label>
+            <select class="mrs-select" value="@_cloneSourceId" @onchange="OnCloneSourceChanged">
+                <option value="">— выберите —</option>
+                @foreach (var src in _cloneSources)
+                {
+                    var scope = src.FacilityId is null
+                        ? "общий"
+                        : $"{src.OrganizationName} · {src.FacilityName}";
+                    <option value="@src.TemplateId.ToString(CultureInfo.InvariantCulture)">
+                        [@scope] @src.EquipmentTypeName · @src.MaintenanceTypeName — @src.TemplateName (@src.FieldCount полей)
+                    </option>
+                }
+            </select>
+            <p class="mrs-hint-dashed">
+                Подставятся вопросы, типы и служебные коды. Номер установки не копируется — он выбирается при заполнении КЛ.
+                Дальше отметьте лишние поля и при необходимости добавьте новые.
+            </p>
+            <div class="mrs-form-actions">
+                <button type="button" class="mrs-btn-primary" disabled="@(_busy || string.IsNullOrEmpty(_cloneSourceId))" @onclick="ApplyCloneAsync">
+                    Подставить поля
+                </button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_cloneNotice))
+            {
+                <p class="mrs-save-msg">@_cloneNotice</p>
+            }
+        </section>
+    }
+
+    <div class="mrs-field @FieldClass(string.IsNullOrEmpty(_organizationChoice))">
+        <label class="mrs-label">Клиент (компания) *</label>
+        <select class="mrs-select" value="@_organizationChoice" @onchange="OnOrganizationChanged">
+            <option value="">— выберите —</option>
+            @foreach (var o in _organizations)
+            {
+                <option value="@o.Id.ToString(CultureInfo.InvariantCulture)">@o.Name</option>
+            }
+        </select>
+    </div>
+
+    <div class="mrs-field @FieldClass(string.IsNullOrEmpty(_facilityChoice))">
+        <label class="mrs-label">Объект *</label>
+        <select class="mrs-select" @bind="_facilityChoice" disabled="@(string.IsNullOrEmpty(_organizationChoice))">
+            <option value="">— выберите —</option>
+            @foreach (var f in _facilities)
+            {
+                <option value="@f.Id.ToString(CultureInfo.InvariantCulture)">@f.Name</option>
+            }
+        </select>
+        <p class="mrs-hint-dashed">Шаблон сохраняется для этого объекта: на других площадках он не подставится автоматически.</p>
+    </div>
+
+    <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(_templateName))">
+        <label class="mrs-label">Название шаблона *</label>
+        <input class="mrs-select" type="text" @bind="_templateName" @bind:event="oninput" placeholder="Например: Винтовой компрессор — ежегодное (Сахарово)" />
+        <p class="mrs-hint-dashed">Можно оставить подставленное название или задать своё — так шаблон будет видно в списке видов ТО.</p>
+    </div>
+
+    <div class="mrs-field @FieldClass(string.IsNullOrEmpty(_equipmentTypeChoice))">
         <label class="mrs-label">Тип оборудования *</label>
         <select class="mrs-select" @bind="_equipmentTypeChoice">
             <option value="">— выберите —</option>
@@ -33,9 +109,10 @@
                 <option value="@et.Id.ToString(CultureInfo.InvariantCulture)">@et.Name</option>
             }
         </select>
+        <p class="mrs-hint-dashed">Куда привязать новый шаблон на выбранном объекте.</p>
     </div>
 
-    <div class="mrs-field">
+    <div class="mrs-field @FieldClass(string.IsNullOrEmpty(_maintenanceChoice))">
         <label class="mrs-label">Вид ТО *</label>
         <select class="mrs-select" @bind="_maintenanceChoice">
             <option value="">— выберите —</option>
@@ -65,11 +142,6 @@
             <p class="mrs-hint-dashed">@TemplateFieldTypeHints.MaintenanceTypeDescriptionHint</p>
         </div>
     }
-
-    <div class="mrs-field">
-        <label class="mrs-label">Название шаблона *</label>
-        <input class="mrs-select" type="text" @bind="_templateName" @bind:event="oninput" />
-    </div>
 
     <details class="mrs-object-details" @ontoggle="OnTemplateDetailsToggle">
         <summary>Доп. параметры шаблона</summary>
@@ -149,32 +221,73 @@
         }
     </details>
 
-    <p class="mrs-info-title">Поля шаблона</p>
+    <p class="mrs-info-title">Поля шаблона (@KeptFieldCount)</p>
+    @if (_createMode == CreateMode.Analogy && _fields.Count > 0)
+    {
+        <div class="mrs-form-actions mrs-mb">
+            <button type="button" class="mrs-btn-secondary" @onclick="KeepAllFields">Оставить все</button>
+            <button type="button" class="mrs-btn-secondary" @onclick="KeepOnlyCoreFields">Только каркас</button>
+        </div>
+    }
+
     @for (var i = 0; i < _fields.Count; i++)
     {
         var field = _fields[i];
-        <div class="mrs-template-field-card">
+        var index = i;
+        <div class="mrs-template-field-card @(field.Keep ? null : "mrs-template-field-card-off")">
             <div class="mrs-template-field-header">
-                <span>Поле #@(i + 1)</span>
-                <button type="button" class="mrs-btn-small-danger" @onclick="() => RemoveField(i)">Удалить</button>
+                @if (_createMode == CreateMode.Analogy)
+                {
+                    <label class="mrs-check-label">
+                        <input class="mrs-check" type="checkbox" @bind="field.Keep" />
+                        <span>Поле #@(index + 1)</span>
+                    </label>
+                }
+                else
+                {
+                    <span>Поле #@(index + 1)</span>
+                }
+                <div class="mrs-template-field-actions">
+                    @if (_createMode == CreateMode.Analogy)
+                    {
+                        <button type="button" class="mrs-btn-secondary mrs-btn-compact" @onclick="() => ToggleFieldExpanded(index)">
+                            @(field.Expanded ? "Свернуть" : "Изменить")
+                        </button>
+                    }
+                    <button type="button" class="mrs-btn-small-danger" @onclick="() => RemoveField(index)">Удалить</button>
+                </div>
             </div>
 
+            @if (_createMode == CreateMode.Analogy && !field.Expanded)
+            {
+                <p class="mrs-template-field-summary">
+                    <strong>@field.QuestionText</strong>
+                    <span class="mrs-info-note"> · @TemplateFieldTypeHints.GetFieldTypeLabel(field.FieldTypeName)
+                        @if (!string.IsNullOrWhiteSpace(field.FieldCode))
+                        {
+                            <text> · @field.FieldCode</text>
+                        }
+                    </span>
+                </p>
+            }
+            else
+            {
             <div class="mrs-field">
                 <label class="mrs-label">Текст вопроса *</label>
-                <input class="mrs-select" type="text" @bind="field.QuestionText" @bind:event="oninput" @bind:after="() => OnQuestionTextChanged(i)" />
+                <input class="mrs-select" type="text" @bind="field.QuestionText" @bind:event="oninput" @bind:after="() => OnQuestionTextChanged(index)" />
             </div>
             <div class="mrs-field">
                 <label class="mrs-label">Служебный код поля</label>
                 @if (field.FieldCodeManual)
                 {
                     <input class="mrs-select" type="text" @bind="field.FieldCode" @bind:event="oninput" />
-                    <button type="button" class="mrs-btn-secondary mrs-mt" @onclick="() => ResetFieldCodeToAuto(i)">Вернуть автоподбор</button>
+                    <button type="button" class="mrs-btn-secondary mrs-mt" @onclick="() => ResetFieldCodeToAuto(index)">Вернуть автоподбор</button>
                     <p class="mrs-hint-dashed">@TemplateFieldTypeHints.FieldCodeManualHint</p>
                 }
                 else
                 {
                     <input class="mrs-select mrs-readonly" type="text" readonly value="@field.FieldCode" />
-                    <button type="button" class="mrs-btn-secondary mrs-mt" @onclick="() => EnableManualFieldCode(i)">Задать код вручную</button>
+                    <button type="button" class="mrs-btn-secondary mrs-mt" @onclick="() => EnableManualFieldCode(index)">Задать код вручную</button>
                     <p class="mrs-hint-dashed">@TemplateFieldTypeHints.FieldCodeAutoHint</p>
                 }
                 @if (TemplateFieldTypeHints.GetForFieldCode(field.FieldCode) is { } codeHint)
@@ -215,6 +328,7 @@
                     <p class="mrs-hint-dashed">@TemplateFieldTypeHints.FieldOptionsHint</p>
                 </div>
             }
+            }
         </div>
     }
 
@@ -225,14 +339,21 @@
 </div>
 
 @code {
+    private readonly List<HierarchyOption> _organizations = [];
+    private readonly List<HierarchyOption> _facilities = [];
     private readonly List<HierarchyOption> _equipmentTypes = [];
     private readonly List<MaintenanceTypeOption> _maintenanceTypes = [];
+    private readonly List<TemplateCloneSourceOption> _cloneSources = [];
     private readonly List<FieldDraft> _fields = [];
 
     private bool _busy;
     private string? _error;
-    private string? _savedMessage;
+    private CreateMode _createMode = CreateMode.Blank;
+    private string _cloneSourceId = string.Empty;
+    private string? _cloneNotice;
 
+    private string _organizationChoice = string.Empty;
+    private string _facilityChoice = string.Empty;
     private string _equipmentTypeChoice = string.Empty;
     private string _maintenanceChoice = string.Empty;
     private string _newMaintenanceName = string.Empty;
@@ -250,6 +371,25 @@
     private bool _longPressTriggered;
 
     private enum TextSourceMode { Default, Custom }
+    private enum CreateMode { Blank, Analogy }
+
+    private int KeptFieldCount => _fields.Count(f => f.Keep);
+    private bool _highlightMissing;
+
+    private string? FieldClass(bool isEmpty) =>
+        _highlightMissing && isEmpty ? "mrs-field-invalid" : null;
+
+    private void DismissError()
+    {
+        _error = null;
+    }
+
+    private void ShowError(string message)
+    {
+        _error = message;
+        _highlightMissing = true;
+    }
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -257,8 +397,10 @@
         _error = null;
         try
         {
+            _organizations.AddRange(await Hierarchy.GetOrganizationsAsync().ConfigureAwait(false));
             _equipmentTypes.AddRange(await TemplateAuthoring.GetEquipmentTypesAsync().ConfigureAwait(false));
             _maintenanceTypes.AddRange(await TemplateAuthoring.GetMaintenanceTypesAsync().ConfigureAwait(false));
+            _cloneSources.AddRange(await TemplateAuthoring.ListTemplatesForCloneAsync().ConfigureAwait(false));
             AddField();
         }
         catch (Exception ex)
@@ -271,11 +413,143 @@
         }
     }
 
+    private async Task OnOrganizationChanged(ChangeEventArgs e)
+    {
+        _organizationChoice = e.Value?.ToString() ?? string.Empty;
+        _facilityChoice = string.Empty;
+        _facilities.Clear();
+        if (int.TryParse(_organizationChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var orgId) && orgId > 0)
+        {
+            try
+            {
+                _facilities.AddRange(await Hierarchy.GetFacilitiesWithAddressAsync(orgId).ConfigureAwait(false));
+            }
+            catch (Exception ex)
+            {
+                _error = ex.Message;
+            }
+        }
+    }
+
+    private void SetCreateMode(CreateMode mode)
+    {
+        if (_createMode == mode)
+            return;
+
+        _createMode = mode;
+        _cloneNotice = null;
+        _error = null;
+        _fields.Clear();
+        if (mode == CreateMode.Blank)
+        {
+            _cloneSourceId = string.Empty;
+            AddField();
+        }
+    }
+
+    private void OnCloneSourceChanged(ChangeEventArgs e)
+    {
+        _cloneSourceId = e.Value?.ToString() ?? string.Empty;
+        _cloneNotice = null;
+    }
+
+    private async Task ApplyCloneAsync()
+    {
+        _error = null;
+        _cloneNotice = null;
+        _busy = true;
+        try
+        {
+            if (!int.TryParse(_cloneSourceId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var templateId))
+                throw new InvalidOperationException("Выберите шаблон-образец.");
+
+            var draft = await TemplateAuthoring.GetTemplateCloneDraftAsync(templateId).ConfigureAwait(false);
+
+            if (draft.OrganizationId is int orgId && orgId > 0)
+            {
+                _organizationChoice = orgId.ToString(CultureInfo.InvariantCulture);
+                _facilities.Clear();
+                _facilities.AddRange(await Hierarchy.GetFacilitiesWithAddressAsync(orgId).ConfigureAwait(false));
+            }
+
+            if (draft.FacilityId is int fid && fid > 0)
+                _facilityChoice = fid.ToString(CultureInfo.InvariantCulture);
+
+            _equipmentTypeChoice = draft.EquipmentTypeId.ToString(CultureInfo.InvariantCulture);
+            _maintenanceChoice = draft.MaintenanceTypeId.ToString(CultureInfo.InvariantCulture);
+            _templateName = string.IsNullOrWhiteSpace(draft.TemplateName)
+                ? "Новый шаблон"
+                : $"{draft.TemplateName} (копия)";
+            _scenarioCode = string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(draft.TopPlateText) || !string.IsNullOrWhiteSpace(draft.SafetyModalText))
+            {
+                _textSourceChoice = TextSourceMode.Custom;
+                _topPlateText = draft.TopPlateText ?? string.Empty;
+                _safetyModalText = draft.SafetyModalText ?? string.Empty;
+                _redButtonEnabled = draft.RedButtonEnabled;
+            }
+
+            _fields.Clear();
+            foreach (var f in draft.Fields)
+            {
+                _fields.Add(new FieldDraft
+                {
+                    FieldCode = f.FieldCode ?? string.Empty,
+                    FieldCodeManual = !string.IsNullOrWhiteSpace(f.FieldCode),
+                    QuestionText = f.QuestionText,
+                    HintText = f.HintText ?? string.Empty,
+                    FieldTypeName = f.FieldTypeName,
+                    IsRequired = f.IsRequired,
+                    OptionsRaw = string.Join('\n', f.Options),
+                    Keep = true,
+                    Expanded = false
+                });
+            }
+
+            _cloneNotice = draft.FacilityId is null
+                ? $"Подставлено {draft.Fields.Count} полей из «{draft.TemplateName}» (общий шаблон). Выберите объект для нового шаблона."
+                : $"Подставлено {draft.Fields.Count} полей из «{draft.TemplateName}». При необходимости смените объект.";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void KeepAllFields()
+    {
+        foreach (var f in _fields)
+            f.Keep = true;
+    }
+
+    private void KeepOnlyCoreFields()
+    {
+        foreach (var f in _fields)
+        {
+            f.Keep = ChecklistWorkSessionFieldCodes.IsTimingField(f.FieldCode)
+                     || ChecklistFieldCodes.IsWorkers(f.FieldCode);
+        }
+    }
+
+    private void ToggleFieldExpanded(int index)
+    {
+        if (index < 0 || index >= _fields.Count)
+            return;
+        _fields[index].Expanded = !_fields[index].Expanded;
+    }
+
     private void AddField()
     {
         _fields.Add(new FieldDraft
         {
-            FieldTypeName = "text"
+            FieldTypeName = "text",
+            Keep = true,
+            Expanded = true
         });
         SyncAllFieldCodes();
     }
@@ -423,18 +697,41 @@
     private async Task SaveTemplateAsync()
     {
         _error = null;
-        _savedMessage = null;
         _busy = true;
         try
         {
+            if (!int.TryParse(_organizationChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            {
+                ShowError("Выберите клиента (компанию).");
+                return;
+            }
+
+            if (!int.TryParse(_facilityChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var facilityId))
+            {
+                ShowError("Выберите объект — шаблон привязывается к объекту компании.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(_templateName))
+            {
+                ShowError("Укажите название нового шаблона.");
+                return;
+            }
+
             if (!int.TryParse(_equipmentTypeChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var equipmentTypeId))
-                throw new InvalidOperationException("Выберите тип оборудования.");
+            {
+                ShowError("Выберите тип оборудования.");
+                return;
+            }
 
             int? existingMaintenanceTypeId = null;
             if (_maintenanceChoice != "new")
             {
                 if (!int.TryParse(_maintenanceChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtid))
-                    throw new InvalidOperationException("Выберите вид ТО или создайте новый.");
+                {
+                    ShowError("Выберите вид ТО или создайте новый.");
+                    return;
+                }
                 existingMaintenanceTypeId = mtid;
             }
 
@@ -442,13 +739,22 @@
             SyncAllFieldCodes();
             EnsureMaintenanceAndScenarioCodes(equipmentTypeId);
 
-            var fieldRequests = new List<CreateTemplateFieldRequest>(_fields.Count);
-            var sortOrder = 0;
-            for (var i = 0; i < _fields.Count; i++)
+            var kept = _fields.Where(f => f.Keep).ToList();
+            if (kept.Count == 0)
             {
-                var f = _fields[i];
+                ShowError("Оставьте хотя бы одно поле шаблона.");
+                return;
+            }
+
+            var fieldRequests = new List<CreateTemplateFieldRequest>(kept.Count);
+            var sortOrder = 0;
+            foreach (var f in kept)
+            {
                 if (ChecklistFieldCodes.IsEndTime(f.FieldCode))
-                    throw new InvalidOperationException("Поле «Время окончания» (end_time) больше не используется — удалите его из шаблона.");
+                {
+                    ShowError("Поле «Время окончания» (end_time) больше не используется — удалите его из шаблона.");
+                    return;
+                }
 
                 sortOrder++;
                 fieldRequests.Add(new CreateTemplateFieldRequest(
@@ -464,6 +770,7 @@
             }
 
             var request = new CreateChecklistTemplateRequest(
+                FacilityId: facilityId,
                 EquipmentTypeId: equipmentTypeId,
                 ExistingMaintenanceTypeId: existingMaintenanceTypeId,
                 NewMaintenanceTypeName: _maintenanceChoice == "new" ? _newMaintenanceName : null,
@@ -478,11 +785,17 @@
                 Fields: fieldRequests);
 
             var newTemplateId = await TemplateAuthoring.CreateTemplateAsync(request).ConfigureAwait(false);
-            _savedMessage = $"Шаблон создан (ID: {newTemplateId}). Служебные коды полей подобраны автоматически — при необходимости их проверит администратор.";
+            var title = _templateName.Trim();
+            var facilityName = _facilities.FirstOrDefault(x => x.Id == facilityId)?.Name ?? $"объект #{facilityId}";
+            var equipmentName = _equipmentTypes.FirstOrDefault(x => x.Id == equipmentTypeId)?.Name ?? $"тип #{equipmentTypeId}";
+            Flash.Set(
+                $"Шаблон «{title}» сохранён для «{facilityName}» (ID: {newTemplateId}). " +
+                $"В контрольных листах: этот объект → {equipmentName} → нужный вид ТО (подпись «для этого объекта»).");
+            Nav.NavigateTo("/management");
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            ShowError(ex.Message);
         }
         finally
         {
@@ -515,5 +828,7 @@
         public string FieldTypeName { get; set; } = "text";
         public bool IsRequired { get; set; }
         public string OptionsRaw { get; set; } = string.Empty;
+        public bool Keep { get; set; } = true;
+        public bool Expanded { get; set; }
     }
 }

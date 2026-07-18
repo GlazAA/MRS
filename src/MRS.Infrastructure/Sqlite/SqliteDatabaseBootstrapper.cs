@@ -5,7 +5,7 @@ namespace MRS.Infrastructure.Sqlite;
 
 public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 {
-	public const int CurrentSchemaVersion = 17;
+	public const int CurrentSchemaVersion = 19;
 
 	private const string SchemaResourceName = "MRS.Infrastructure.Sqlite.Schema.sql";
 	private const string SeedResourceName = "MRS.Infrastructure.Sqlite.Seed.sql";
@@ -25,6 +25,8 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 	private const string SyncMergeResourceName = "MRS.Infrastructure.Sqlite.SyncMerge.sql";
 	private const string FacilityContactsResourceName = "MRS.Infrastructure.Sqlite.FacilityContacts.sql";
 	private const string ActAssemblyDemoResourceName = "MRS.Infrastructure.Sqlite.ActAssemblyDemo.sql";
+	private const string FixHypoxicSpellingResourceName = "MRS.Infrastructure.Sqlite.FixHypoxicSpelling.sql";
+	private const string TemplateFacilityResourceName = "MRS.Infrastructure.Sqlite.TemplateFacility.sql";
 
 	public async Task<LocalDatabaseStatus> EnsureReadyAsync(string databaseFilePath, CancellationToken cancellationToken = default)
 	{
@@ -182,6 +184,22 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 				await SqliteScriptRunner.ExecuteScriptAsync(connection, actAssemblyDemo, cancellationToken).ConfigureAwait(false);
 				await WriteUserVersionAsync(connection, 17, cancellationToken).ConfigureAwait(false);
 				version = 17;
+			}
+
+			if (version < 18)
+			{
+				var fixHypoxic = await ReadEmbeddedResourceAsync(FixHypoxicSpellingResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, fixHypoxic, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 18, cancellationToken).ConfigureAwait(false);
+				version = 18;
+			}
+
+			if (version < 19)
+			{
+				var templateFacility = await ReadEmbeddedResourceAsync(TemplateFacilityResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, templateFacility, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 19, cancellationToken).ConfigureAwait(false);
+				version = 19;
 			}
 
 			var fieldTypes = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM field_types;", cancellationToken).ConfigureAwait(false);

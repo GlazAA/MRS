@@ -63,7 +63,7 @@ else
     }
 
     <div class="mrs-edit-fields" style="margin-top: 1rem">
-        @foreach (var field in _model.Fields.Where(f => !ChecklistFieldCodes.IsEndTime(f.FieldCode)))
+        @foreach (var field in _model.Fields.Where(f => !ChecklistFieldCodes.IsHiddenOnFillForm(f.FieldCode)))
         {
             var disabled = _loading || _saving || !_isEditing || field.IsLocked;
             var wrapperClass = field.IsLocked ? "mrs-locked" : (!_isEditing ? "mrs-readonly" : null);
@@ -123,7 +123,7 @@ else
                         case "number":
                             <input type="number" class="mrs-select" disabled="@disabled"
                                    value="@GetValue(field.TemplateItemId)"
-                                   @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                                   @oninput="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
                             break;
                         case "boolean":
                             <select class="mrs-select" disabled="@disabled" value="@GetValue(field.TemplateItemId)"

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Data.Sqlite;
+using MRS.Application;
 using MRS.Application.Facilities;
 using MRS.Application.Notes;
 using MRS.Application.Storage;
@@ -63,7 +64,23 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 
 		if (filter.FacilityId is int fid)
 		{
-			cmd.CommandText += " AND n.facility_id = $fid";
+			// Прямая привязка к объекту ИЛИ через выезд / КЛ (у заметки facility_id может быть пустым).
+			cmd.CommandText += """
+				 AND (
+				   n.facility_id = $fid
+				   OR EXISTS (
+				     SELECT 1 FROM scheduled_visits svf
+				     WHERE svf.id = n.scheduled_visit_id AND svf.facility_id = $fid
+				   )
+				   OR EXISTS (
+				     SELECT 1
+				     FROM checklists cf
+				     INNER JOIN installations ifc ON ifc.id = cf.installation_id
+				     INNER JOIN facility_systems fsf ON fsf.id = ifc.system_id
+				     WHERE cf.id = n.checklist_id AND fsf.facility_id = $fid
+				   )
+				 )
+				""";
 			cmd.Parameters.AddWithValue("$fid", fid);
 		}
 
@@ -81,13 +98,14 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 
 		if (filter.DeadlineOnDay is DateOnly day)
 		{
-			cmd.CommandText += " AND date(n.deadline_date) = date($deadlineDay)";
-			cmd.Parameters.AddWithValue("$deadlineDay", day.ToString("O", CultureInfo.InvariantCulture));
+			// Сравниваем первые 10 символов (yyyy-MM-dd) — устойчиво к хранению с временем.
+			cmd.CommandText += " AND n.deadline_date IS NOT NULL AND substr(n.deadline_date, 1, 10) = $deadlineDay";
+			cmd.Parameters.AddWithValue("$deadlineDay", day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
 		}
 		else if (filter.DeadlineOnOrBefore is DateOnly before)
 		{
-			cmd.CommandText += " AND date(n.deadline_date) <= date($deadlineBefore)";
-			cmd.Parameters.AddWithValue("$deadlineBefore", before.ToString("O", CultureInfo.InvariantCulture));
+			cmd.CommandText += " AND n.deadline_date IS NOT NULL AND substr(n.deadline_date, 1, 10) <= $deadlineBefore";
+			cmd.Parameters.AddWithValue("$deadlineBefore", before.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
 		}
 
 		cmd.CommandText += """
@@ -137,8 +155,8 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 		var title = reader.IsDBNull(1) ? null : reader.GetString(1);
 		var body = reader.GetString(2);
 		DateOnly? deadline = null;
-		if (!reader.IsDBNull(3) && DateOnly.TryParse(reader.GetString(3), out var dd))
-			deadline = dd;
+		if (!reader.IsDBNull(3))
+			deadline = ParseDeadlineDate(reader.GetString(3));
 		var isCompleted = reader.GetInt32(4) == 1;
 		var completedAt = ParseDateTimeOffset(reader, 5);
 		var createdAt = ParseDateTimeOffset(reader, 6) ?? DateTimeOffset.Now;
@@ -161,7 +179,7 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 		if (visitId is not null && !reader.IsDBNull(16))
 		{
 			var start = ParseDateOnlyString(reader.GetString(16));
-			visitLabel = start.HasValue ? $"Выезд {start:dd.MM.yyyy}" : $"Выезд #{visitId}";
+			visitLabel = start.HasValue ? $"Выезд {MrsDateFormat.FormatDate(start)}" : $"Выезд #{visitId}";
 		}
 
 		int? checklistId = reader.IsDBNull(17) ? null : reader.GetInt32(17);
@@ -234,7 +252,7 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 			}
 
 			var newBody = request.Body.Trim();
-			var newDeadline = request.DeadlineDate?.ToString("O", CultureInfo.InvariantCulture);
+			var newDeadline = request.DeadlineDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 			if (!string.Equals(oldBody, newBody, StringComparison.Ordinal) ||
 			    !string.Equals(oldDeadline, newDeadline, StringComparison.Ordinal))
 			{
@@ -350,7 +368,7 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 		cmd.Parameters.AddWithValue("$author", authorUserId);
 		cmd.Parameters.AddWithValue("$body", body.Trim());
 		cmd.Parameters.AddWithValue("$deadline", deadline.HasValue
-			? deadline.Value.ToString("O", CultureInfo.InvariantCulture)
+			? deadline.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
 			: DBNull.Value);
 		cmd.Parameters.AddWithValue("$title", string.IsNullOrWhiteSpace(title) ? DBNull.Value : title.Trim());
 		cmd.Parameters.AddWithValue("$fid", facilityId.HasValue ? facilityId.Value : DBNull.Value);
@@ -367,11 +385,7 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 
 		DateOnly? deadline = null;
 		if (!reader.IsDBNull(3))
-		{
-			var raw = reader.GetString(3);
-			if (DateOnly.TryParse(raw, out var d))
-				deadline = d;
-		}
+			deadline = ParseDeadlineDate(reader.GetString(3));
 
 		var isCompleted = reader.GetInt32(4) == 1;
 		var completedAt = ParseDateTimeOffset(reader, 5);
@@ -394,7 +408,7 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 		if (visitId is not null && !reader.IsDBNull(15))
 		{
 			var start = ParseDateOnlyString(reader.GetString(15));
-			visitLabel = start.HasValue ? $"Выезд {start:dd.MM.yyyy}" : $"Выезд #{visitId}";
+			visitLabel = start.HasValue ? $"Выезд {MrsDateFormat.FormatDate(start)}" : $"Выезд #{visitId}";
 		}
 
 		int? checklistId = reader.IsDBNull(16) ? null : reader.GetInt32(16);
@@ -437,11 +451,7 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 		{
 			DateOnly? deadline = null;
 			if (!reader.IsDBNull(2))
-			{
-				var raw = reader.GetString(2);
-				if (DateOnly.TryParse(raw, out var d))
-					deadline = d;
-			}
+				deadline = ParseDeadlineDate(reader.GetString(2));
 
 			var editorId = reader.GetInt32(3);
 			var fn = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
@@ -455,8 +465,31 @@ public sealed class SqliteEngineerNoteService : IEngineerNoteService
 		return list;
 	}
 
-	private static DateOnly? ParseDateOnlyString(string raw) =>
-		DateOnly.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+	private static DateOnly? ParseDateOnlyString(string raw) => ParseDeadlineDate(raw);
+
+	private static DateOnly? ParseDeadlineDate(string? raw)
+	{
+		if (string.IsNullOrWhiteSpace(raw))
+			return null;
+
+		if (DateOnly.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+			return d;
+
+		if (raw.Length >= 10
+		    && DateOnly.TryParse(raw[..10], CultureInfo.InvariantCulture, DateTimeStyles.None, out var head))
+			return head;
+
+		if (SqliteDateTimeParsing.TryParseStored(raw, out var dto))
+			return DateOnly.FromDateTime(dto.LocalDateTime);
+
+		if (DateOnly.TryParse(raw, CultureInfo.GetCultureInfo("en-US"), DateTimeStyles.None, out var us))
+			return us;
+
+		if (DateOnly.TryParse(raw, CultureInfo.GetCultureInfo("ru-RU"), DateTimeStyles.None, out var ru))
+			return ru;
+
+		return null;
+	}
 
 	private static DateTimeOffset? ParseDateTimeOffset(SqliteDataReader reader, int ordinal)
 	{

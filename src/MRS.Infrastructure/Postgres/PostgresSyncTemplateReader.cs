@@ -31,7 +31,7 @@ internal static class PostgresSyncTemplateReader
 		await using var headerCmd = new NpgsqlCommand("""
 			SELECT ct.equipment_type_id, ct.maintenance_type_id, ct.template_name, ct.scenario_code, ct.version,
 			       ct.top_plate_text, ct.intro_modal_text, ct.safety_modal_text, ct.red_button_enabled,
-			       mt.type_name, mt.code
+			       mt.type_name, mt.code, ct.facility_id
 			FROM checklist_templates ct
 			INNER JOIN maintenance_types mt ON mt.id = ct.maintenance_type_id
 			WHERE ct.id = @id;
@@ -52,6 +52,7 @@ internal static class PostgresSyncTemplateReader
 		var red = headerReader.GetBoolean(8);
 		var mtName = headerReader.GetString(9);
 		var mtCode = headerReader.IsDBNull(10) ? null : headerReader.GetString(10);
+		int? facilityId = headerReader.IsDBNull(11) ? null : Convert.ToInt32(headerReader.GetValue(11));
 		await headerReader.CloseAsync().ConfigureAwait(false);
 
 		var fields = await LoadFieldsAsync(connection, templateId, cancellationToken).ConfigureAwait(false);
@@ -61,6 +62,7 @@ internal static class PostgresSyncTemplateReader
 			templateId,
 			equipmentTypeId,
 			maintenanceTypeId,
+			facilityId,
 			templateName,
 			scenarioCode,
 			version,

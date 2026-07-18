@@ -85,6 +85,15 @@
     <EmbeddedResource Include="..\..\database\sqlite\018_act_assembly_demo.sql">
       <LogicalName>MRS.Infrastructure.Sqlite.ActAssemblyDemo.sql</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\019_fix_hypoxic_spelling.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.FixHypoxicSpelling.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\020_template_facility.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.TemplateFacility.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\postgres\020_template_facility.sql">
+      <LogicalName>MRS.Infrastructure.Postgres.TemplateFacility.sql</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\database\postgres\007_facility_contacts.sql">
       <LogicalName>MRS.Infrastructure.Postgres.FacilityContacts.sql</LogicalName>
     </EmbeddedResource>

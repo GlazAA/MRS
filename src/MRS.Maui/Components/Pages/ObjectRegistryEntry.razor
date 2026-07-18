@@ -21,7 +21,7 @@
 
 @if (_saved is not null)
 {
-    <p class="mrs-save-msg">@_saved</p>
+    <div class="mrs-flash-banner" role="status">@_saved</div>
 }
 
 <div class="mrs-object-form">
@@ -133,7 +133,10 @@
         <div class="mrs-field">
             <label class="mrs-label">Описание системы</label>
             <textarea class="mrs-select" rows="3" @bind="_systemDescription" @bind:event="oninput" disabled="@_busy"></textarea>
-            <p class="mrs-field-hint">Для внутреннего пользования (не для документов)</p>
+            <p class="mrs-field-hint">
+                Внутренние заметки — в акты и документы не попадают.
+                Имеет смысл указать: сколько установок на объекте; какие расходники обычно нужны, в каком количестве и за какой срок их заказывать.
+            </p>
         </div>
 
         <h2 class="mrs-section-title">Установки / оборудование</h2>

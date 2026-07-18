@@ -35,9 +35,9 @@ ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, organization_id = EXCLUDED.
 SELECT setval(pg_get_serial_sequence('facilities', 'id'), GREATEST((SELECT MAX(id) FROM facilities), 3));
 
 INSERT INTO facility_systems (id, facility_id, name, description, is_active) VALUES
-    (1, 1, 'Гипаксическая система предотвращения пожара', 'Демо', TRUE),
-    (2, 2, 'Гипаксическая система предотвращения пожара', 'Демо', TRUE),
-    (3, 3, 'Гипаксическая система предотвращения пожара', 'Демо', TRUE)
+    (1, 1, 'Гипоксическая система предотвращения пожара', 'Демо', TRUE),
+    (2, 2, 'Гипоксическая система предотвращения пожара', 'Демо', TRUE),
+    (3, 3, 'Гипоксическая система предотвращения пожара', 'Демо', TRUE)
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
 SELECT setval(pg_get_serial_sequence('facility_systems', 'id'), GREATEST((SELECT MAX(id) FROM facility_systems), 3));

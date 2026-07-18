@@ -1,5 +1,6 @@
 @page "/sql"
 @using System.Globalization
+@using MRS.Application
 @using MRS.Application.Admin
 @using MRS.Application.Security
 @inject ICurrentUserSession Session
@@ -255,7 +256,7 @@ else
 
         if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var dt)
             || DateTime.TryParse(raw, out dt))
-            return dt.ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
+            return MrsDateFormat.FormatDateTime(dt);
 
         return raw;
     }

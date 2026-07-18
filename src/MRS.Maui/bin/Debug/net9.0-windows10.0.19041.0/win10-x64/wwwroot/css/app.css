@@ -596,6 +596,68 @@ h1:focus {
     font-size: 0.95rem;
 }
 
+.mrs-flash-banner {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0.75rem 0 1rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 8px;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    color: #1b5e20;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.mrs-alert-toast {
+    position: fixed;
+    top: 0.65rem;
+    left: 0.65rem;
+    right: 0.65rem;
+    z-index: 2000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    line-height: 1.35;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+
+.mrs-alert-toast-error {
+    background: #fdecea;
+    border: 1px solid #ef9a9a;
+    color: #b71c1c;
+}
+
+.mrs-alert-toast-error .mrs-flash-dismiss {
+    color: #b71c1c;
+}
+
+.mrs-field-invalid .mrs-label {
+    color: #b71c1c;
+}
+
+.mrs-field-invalid .mrs-select {
+    border-color: #e53935;
+    box-shadow: 0 0 0 1px rgba(229, 57, 53, 0.25);
+}
+
+.mrs-flash-dismiss {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: #2e7d32;
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.15rem;
+}
+
 .mrs-home {
     flex: 1;
     min-height: 100%;
@@ -1358,9 +1420,29 @@ h1:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
     margin-bottom: 0.5rem;
     font-weight: 700;
     font-size: 0.9rem;
+}
+
+.mrs-template-field-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.mrs-template-field-card-off {
+    opacity: 0.55;
+    background: #f7f7f7;
+}
+
+.mrs-template-field-summary {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.35;
+    word-break: break-word;
 }
 
 .mrs-btn-small-danger {

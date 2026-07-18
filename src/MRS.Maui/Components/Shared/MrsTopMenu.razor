@@ -7,7 +7,7 @@
 @inject ICurrentUserSession Session
 @inject IServerSyncService ServerSync
 @inject ILocalDatabaseBackupService DatabaseBackup
-@inject IJSRuntime JS
+@inject IAppFileSaveService FileSave
 @implements IDisposable
 
 <button type="button" class="mrs-menu-button" @onclick="ToggleMenu" aria-label="Меню">
@@ -129,11 +129,18 @@
         _backupBusy = true;
         try
         {
-            var file = await DatabaseBackup.CreateBackupAsync().ConfigureAwait(false);
-            var base64 = Convert.ToBase64String(file.Content);
-            await JS.InvokeVoidAsync("mrsDownloadBase64File", file.FileName, "application/x-sqlite3", base64).ConfigureAwait(false);
-            _backupTitle = "Копия сохранена";
-            _backupMessage = $"Файл {file.FileName} скачан. Храните его в надёжном месте — это полная офлайн-база устройства.";
+            var file = await DatabaseBackup.CreateBackupAsync();
+            var savedPath = await FileSave.SaveAsync(file.FileName, file.Content);
+            if (savedPath is null)
+            {
+                _backupTitle = "Отменено";
+                _backupMessage = "Сохранение резервной копии отменено.";
+            }
+            else
+            {
+                _backupTitle = "Копия сохранена";
+                _backupMessage = $"Файл сохранён: {savedPath}. Храните его в надёжном месте — это полная офлайн-база устройства.";
+            }
             _showBackupMessage = true;
         }
         catch (Exception ex)

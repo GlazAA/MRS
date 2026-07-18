@@ -54,10 +54,11 @@ internal static class SqliteTemplateSyncApplier
 		cmd.Transaction = tx;
 		cmd.CommandText = """
 			INSERT INTO checklist_templates (
-			    id, equipment_type_id, maintenance_type_id, template_name, scenario_code, version,
+			    id, facility_id, equipment_type_id, maintenance_type_id, template_name, scenario_code, version,
 			    is_active, top_plate_text, intro_modal_text, safety_modal_text, red_button_enabled)
-			VALUES ($id, $et, $mt, $name, $scenario, $version, 1, $top, $intro, $safety, $red)
+			VALUES ($id, $fid, $et, $mt, $name, $scenario, $version, 1, $top, $intro, $safety, $red)
 			ON CONFLICT(id) DO UPDATE SET
+			    facility_id = excluded.facility_id,
 			    equipment_type_id = excluded.equipment_type_id,
 			    maintenance_type_id = excluded.maintenance_type_id,
 			    template_name = excluded.template_name,
@@ -69,6 +70,7 @@ internal static class SqliteTemplateSyncApplier
 			    red_button_enabled = excluded.red_button_enabled;
 			""";
 		cmd.Parameters.AddWithValue("$id", payload.LocalId);
+		cmd.Parameters.AddWithValue("$fid", payload.FacilityId is int fid ? fid : DBNull.Value);
 		cmd.Parameters.AddWithValue("$et", payload.EquipmentTypeId);
 		cmd.Parameters.AddWithValue("$mt", payload.MaintenanceTypeId);
 		cmd.Parameters.AddWithValue("$name", payload.TemplateName);

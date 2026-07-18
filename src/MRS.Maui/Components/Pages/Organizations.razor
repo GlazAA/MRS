@@ -1,4 +1,5 @@
 @page "/objects/organizations"
+@using MRS.Application
 @using MRS.Application.Facilities
 @using Microsoft.Maui.ApplicationModel.DataTransfer
 @inject IOrganizationDirectoryService Directory
@@ -57,7 +58,7 @@
                             Последний выезд: @org.LastVisitEngineerName
                             @if (org.LastVisitAt is DateTimeOffset at)
                             {
-                                <span> (@at.LocalDateTime.ToString("dd.MM.yyyy"))</span>
+                                <span> (@MrsDateFormat.FormatDate(at.LocalDateTime))</span>
                             }
                         </div>
                     }
@@ -91,7 +92,7 @@
                             @_detail.LastVisitEngineerName
                             @if (_detail.LastVisitAt is DateTimeOffset at)
                             {
-                                <span> — @at.LocalDateTime.ToString("dd.MM.yyyy HH:mm")</span>
+                                <span> — @MrsDateFormat.FormatDateTime(at.LocalDateTime)</span>
                             }
                             @if (!string.IsNullOrWhiteSpace(_detail.LastVisitFacilityName))
                             {

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Data.Sqlite;
+using MRS.Application;
 using MRS.Application.Facilities;
 using MRS.Application.Storage;
 using MRS.Application.Sync;
@@ -308,7 +309,7 @@ public sealed class SqliteScheduledVisitService : IScheduledVisitService
 			var facility = reader.GetString(4);
 			var start = ParseDateOnly(reader, 5) ?? DateOnly.FromDateTime(DateTime.Today);
 			var end = ParseDateOnly(reader, 6);
-			var label = $"{start:dd.MM.yyyy} — {org}, {facility}";
+			var label = $"{MrsDateFormat.FormatDate(start)} — {org}, {facility}";
 			list.Add(new VisitFilterOption(id, label, start, end == start ? null : end));
 		}
 

@@ -15,49 +15,116 @@ public sealed class SqliteChecklistFlowService : IChecklistFlowService
 		_bootstrapper = bootstrapper;
 	}
 
-	public async Task<IReadOnlyList<MaintenanceForkOption>> GetMaintenanceForkAsync(int equipmentTypeId, CancellationToken cancellationToken = default)
+	public async Task<IReadOnlyList<MaintenanceForkOption>> GetMaintenanceForkAsync(
+		int equipmentTypeId,
+		int? facilityId = null,
+		CancellationToken cancellationToken = default)
 	{
 		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
 		using var cmd = connection.CreateCommand();
-		cmd.CommandText = """
-			SELECT mt.id, mt.type_name, mt.code, ct.id, ct.template_name, ct.scenario_code
-			FROM checklist_templates ct
-			INNER JOIN maintenance_types mt ON mt.id = ct.maintenance_type_id
-			WHERE ct.equipment_type_id = $et AND ct.is_active = 1
-			ORDER BY
-				CASE WHEN mt.code = 'INT-UNIFIED' THEN 1 ELSE 0 END,
-				mt.id;
-			""";
-		cmd.Parameters.AddWithValue("$et", equipmentTypeId);
 
-		var list = new List<MaintenanceForkOption>();
+		var hasFacility = facilityId is int f && f > 0;
+		if (hasFacility)
+		{
+			cmd.CommandText = """
+				SELECT mt.id, mt.type_name, mt.code, ct.id, ct.template_name, ct.scenario_code,
+				       ct.facility_id, ct.version
+				FROM checklist_templates ct
+				INNER JOIN maintenance_types mt ON mt.id = ct.maintenance_type_id
+				WHERE ct.equipment_type_id = $et
+				  AND ct.is_active = 1
+				  AND (ct.facility_id = $fid OR ct.facility_id IS NULL)
+				ORDER BY
+					CASE WHEN mt.code = 'INT-UNIFIED' THEN 1 ELSE 0 END,
+					mt.id,
+					CASE WHEN ct.facility_id = $fid THEN 0 ELSE 1 END,
+					ct.version DESC;
+				""";
+			cmd.Parameters.AddWithValue("$et", equipmentTypeId);
+			cmd.Parameters.AddWithValue("$fid", facilityId!.Value);
+		}
+		else
+		{
+			cmd.CommandText = """
+				SELECT mt.id, mt.type_name, mt.code, ct.id, ct.template_name, ct.scenario_code,
+				       ct.facility_id, ct.version
+				FROM checklist_templates ct
+				INNER JOIN maintenance_types mt ON mt.id = ct.maintenance_type_id
+				WHERE ct.equipment_type_id = $et
+				  AND ct.is_active = 1
+				  AND ct.facility_id IS NULL
+				ORDER BY
+					CASE WHEN mt.code = 'INT-UNIFIED' THEN 1 ELSE 0 END,
+					mt.id,
+					ct.version DESC;
+				""";
+			cmd.Parameters.AddWithValue("$et", equipmentTypeId);
+		}
+
+		// Один вид ТО — один лучший шаблон (объектный предпочтительнее общего).
+		var bestByMt = new Dictionary<int, MaintenanceForkOption>();
 		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
 		{
-			list.Add(new MaintenanceForkOption(
-				reader.GetInt32(0),
+			var mtId = reader.GetInt32(0);
+			if (bestByMt.ContainsKey(mtId))
+				continue;
+
+			var isFacilitySpecific = !reader.IsDBNull(6);
+			bestByMt[mtId] = new MaintenanceForkOption(
+				mtId,
 				reader.GetString(1),
 				reader.IsDBNull(2) ? null : reader.GetString(2),
 				reader.GetInt32(3),
 				reader.GetString(4),
-				reader.IsDBNull(5) ? null : reader.GetString(5)));
+				reader.IsDBNull(5) ? null : reader.GetString(5),
+				isFacilitySpecific);
 		}
 
-		return list;
+		return bestByMt.Values.ToList();
 	}
 
-	public async Task<int?> ResolveTemplateIdAsync(int equipmentTypeId, int maintenanceTypeId, CancellationToken cancellationToken = default)
+	public async Task<int?> ResolveTemplateIdAsync(
+		int equipmentTypeId,
+		int maintenanceTypeId,
+		int? facilityId = null,
+		CancellationToken cancellationToken = default)
 	{
 		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
 		using var cmd = connection.CreateCommand();
-		cmd.CommandText = """
-			SELECT id FROM checklist_templates
-			WHERE equipment_type_id = $e AND maintenance_type_id = $m AND is_active = 1
-			ORDER BY version DESC
-			LIMIT 1;
-			""";
-		cmd.Parameters.AddWithValue("$e", equipmentTypeId);
-		cmd.Parameters.AddWithValue("$m", maintenanceTypeId);
+
+		if (facilityId is int fid && fid > 0)
+		{
+			cmd.CommandText = """
+				SELECT id FROM checklist_templates
+				WHERE equipment_type_id = $e
+				  AND maintenance_type_id = $m
+				  AND is_active = 1
+				  AND (facility_id = $fid OR facility_id IS NULL)
+				ORDER BY
+					CASE WHEN facility_id = $fid THEN 0 ELSE 1 END,
+					version DESC
+				LIMIT 1;
+				""";
+			cmd.Parameters.AddWithValue("$e", equipmentTypeId);
+			cmd.Parameters.AddWithValue("$m", maintenanceTypeId);
+			cmd.Parameters.AddWithValue("$fid", fid);
+		}
+		else
+		{
+			cmd.CommandText = """
+				SELECT id FROM checklist_templates
+				WHERE equipment_type_id = $e
+				  AND maintenance_type_id = $m
+				  AND is_active = 1
+				  AND facility_id IS NULL
+				ORDER BY version DESC
+				LIMIT 1;
+				""";
+			cmd.Parameters.AddWithValue("$e", equipmentTypeId);
+			cmd.Parameters.AddWithValue("$m", maintenanceTypeId);
+		}
+
 		var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 		if (scalar is null)
 			return null;
@@ -138,14 +205,14 @@ public sealed class SqliteChecklistFlowService : IChecklistFlowService
 		cmd.CommandText = """
 			SELECT id, option_label, sort_order
 			FROM checklist_template_item_options
-			WHERE checklist_template_item_id = $iid
+			WHERE checklist_template_item_id = $item
 			ORDER BY sort_order;
 			""";
-		cmd.Parameters.AddWithValue("$iid", templateItemId);
-		var opts = new List<TemplateFieldOption>();
+		cmd.Parameters.AddWithValue("$item", templateItemId);
+		var list = new List<TemplateFieldOption>();
 		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-			opts.Add(new TemplateFieldOption(reader.GetInt32(0), reader.GetString(1), reader.GetInt32(2)));
-		return opts;
+			list.Add(new TemplateFieldOption(reader.GetInt32(0), reader.GetString(1), reader.GetInt32(2)));
+		return list;
 	}
 }

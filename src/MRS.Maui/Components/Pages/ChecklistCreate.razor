@@ -51,7 +51,7 @@ else
     <div class="mrs-field">
         <label class="mrs-label">Установка *</label>
         <p class="mrs-hint">Выберите существующую или создайте по номеру (например G301).</p>
-        <select class="mrs-select" value="@_installationChoice" @onchange="OnInstallationSelectAsync" disabled="@(_existingChecklistId is not null)">
+        <select class="mrs-select" value="@_installationChoice" @onchange="OnInstallationSelectAsync" disabled="@_installationLocked">
             <option value="">—</option>
             @foreach (var ins in _installations)
             {
@@ -61,7 +61,14 @@ else
         </select>
         @if (_installationChoice == "new")
         {
-            <input type="text" class="mrs-select mrs-mt" placeholder="Номер установки" @bind="_newUnitNumber" @bind:event="oninput" @bind:after="OnNewUnitNumberChangedAsync" />
+            <input type="text"
+                   class="mrs-select mrs-mt"
+                   placeholder="Номер установки (например G301)"
+                   @bind="_newUnitNumber"
+                   @bind:event="oninput"
+                   @onblur="OnNewUnitNumberBlurAsync"
+                   disabled="@_installationLocked" />
+            <p class="mrs-field-hint">Номер зафиксируется, когда уйдёте из поля (не по первой цифре).</p>
         }
     </div>
 
@@ -97,7 +104,7 @@ else
             @switch (ft)
             {
                 case "textarea":
-                    <textarea class="mrs-select" rows="4" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))"></textarea>
+                    <textarea class="mrs-select" rows="4" value="@GetValue(field.TemplateItemId)" @oninput="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))"></textarea>
                     break;
                 case "date":
                     <input type="date" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
@@ -106,7 +113,7 @@ else
                     <input type="time" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
                     break;
                 case "number":
-                    <input type="number" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                    <input type="number" class="mrs-select" value="@GetValue(field.TemplateItemId)" @oninput="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
                     break;
                 case "boolean":
                     <select class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))">
@@ -138,11 +145,11 @@ else
                     }
                     else
                     {
-                        <input type="text" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                        <input type="text" class="mrs-select" value="@GetValue(field.TemplateItemId)" @oninput="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
                     }
                     break;
                 default:
-                    <input type="text" class="mrs-select" value="@GetValue(field.TemplateItemId)" @onchange="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
+                    <input type="text" class="mrs-select" value="@GetValue(field.TemplateItemId)" @oninput="@(e => SetValue(field.TemplateItemId, e.Value?.ToString()))" />
                     break;
             }
             }
@@ -191,6 +198,7 @@ else
 	private ChecklistTemplateMeta? _meta;
 	private int? _templateId;
 	private int? _existingChecklistId;
+	private bool _installationLocked;
 	private string? _error;
 	private string? _saveMessage;
 	private bool _busy;
@@ -209,7 +217,7 @@ else
 	private readonly Dictionary<string, List<string>> _modelsByKey = new(StringComparer.OrdinalIgnoreCase);
 
 	private IEnumerable<TemplateFieldDefinition> VisibleFields =>
-		_fields.Where(f => !ChecklistFieldCodes.IsEndTime(f.FieldCode));
+		_fields.Where(f => !ChecklistFieldCodes.IsHiddenOnFillForm(f.FieldCode));
 
 	private string BackLink =>
 		OrganizationId is int o && FacilityId is int f && SystemId is int s && EquipmentTypeId is int e
@@ -254,6 +262,7 @@ else
 		_installations = [];
 		_templateId = null;
 		_existingChecklistId = null;
+		_installationLocked = false;
 		_showSafety = false;
 		_skipPauseOnDispose = false;
 		_pageWorkStartedAt = null;
@@ -279,7 +288,7 @@ else
 
 			_installations = (await InstallationQuery.GetForSystemAndEquipmentAsync(sid, etid).ConfigureAwait(false)).ToList();
 
-			_templateId = await Flow.ResolveTemplateIdAsync(etid, mtid).ConfigureAwait(false);
+			_templateId = await Flow.ResolveTemplateIdAsync(etid, mtid, FacilityId).ConfigureAwait(false);
 			if (_templateId is not int tid)
 				return;
 
@@ -304,6 +313,7 @@ else
 				editModel = await ChecklistEdit.GetForEditAsync(resumeId).ConfigureAwait(false);
 
 				_existingChecklistId = resumeId;
+				_installationLocked = true;
 				_pageWorkStartedAt = editModel.Info.StartedAt ?? DateTimeOffset.Now;
 				_sessionStartedAt = editModel.Info.StartedAt;
 				_installationChoice = editModel.Info.InstallationId.ToString(CultureInfo.InvariantCulture);
@@ -335,16 +345,79 @@ else
 		if (_installationChoice != "new")
 			_newUnitNumber = "";
 
-		await TryEnsureWorkSessionAsync().ConfigureAwait(false);
+		// Для «новой» установки ждём blur по полю номера — иначе «301» успевает сохраниться как «3».
+		if (_installationChoice == "new")
+			return;
+
+		await BindInstallationToSessionAsync().ConfigureAwait(false);
 
 		if (int.TryParse(_installationChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var installationId))
 			await ApplyInstallationModelPrefillAsync(installationId).ConfigureAwait(false);
 	}
 
-	private async Task OnNewUnitNumberChangedAsync()
+	private async Task OnNewUnitNumberBlurAsync()
+	{
+		if (_installationChoice != "new" || string.IsNullOrWhiteSpace(_newUnitNumber))
+			return;
+
+		await BindInstallationToSessionAsync().ConfigureAwait(false);
+		await RefreshInstallationsListAsync().ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// Привязывает выбранную/введённую установку к черновику КЛ.
+	/// Если лист уже создан — обновляет installation_id (не оставляет первую цифру номера).
+	/// </summary>
+	private async Task BindInstallationToSessionAsync()
+	{
+		var installationId = await ResolveInstallationIdAsync().ConfigureAwait(false);
+		if (installationId is null)
+			return;
+
+		SyncUnitNumberAnswerFromInstallation();
+
+		if (_existingChecklistId is int cid)
+		{
+			await ChecklistEdit.SetInstallationAsync(cid, installationId.Value).ConfigureAwait(false);
+			return;
+		}
+
+		await TryEnsureWorkSessionAsync().ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// Пишет номер из блока «Установка» в ответ unit_number (поле шаблона скрыто, но остаётся в БД для экспорта/синка).
+	/// </summary>
+	private void SyncUnitNumberAnswerFromInstallation()
+	{
+		var field = _fields.FirstOrDefault(f => ChecklistFieldCodes.IsUnitNumber(f.FieldCode));
+		if (field is null)
+			return;
+
+		var label = ResolveSelectedInstallationLabel();
+		if (string.IsNullOrWhiteSpace(label))
+			return;
+
+		SetValue(field.TemplateItemId, label);
+	}
+
+	private string? ResolveSelectedInstallationLabel()
 	{
 		if (_installationChoice == "new")
-			await TryEnsureWorkSessionAsync().ConfigureAwait(false);
+			return string.IsNullOrWhiteSpace(_newUnitNumber) ? null : _newUnitNumber.Trim();
+
+		if (!int.TryParse(_installationChoice, NumberStyles.Integer, CultureInfo.InvariantCulture, out var installationId))
+			return null;
+
+		return _installations.FirstOrDefault(i => i.Id == installationId)?.Label;
+	}
+
+	private async Task RefreshInstallationsListAsync()
+	{
+		if (SystemId is not int sid || EquipmentTypeId is not int etid)
+			return;
+
+		_installations = (await InstallationQuery.GetForSystemAndEquipmentAsync(sid, etid).ConfigureAwait(false)).ToList();
 	}
 
 	private void StartElapsedTimer()
@@ -497,7 +570,14 @@ else
 			return;
 		}
 
-		if (_existingChecklistId is null)
+		SyncUnitNumberAnswerFromInstallation();
+
+		if (_existingChecklistId is int existingId)
+		{
+			// Номер мог уточниться после старта сессии — перепривязываем установку перед сохранением.
+			await ChecklistEdit.SetInstallationAsync(existingId, installationId.Value).ConfigureAwait(false);
+		}
+		else
 		{
 			try
 			{

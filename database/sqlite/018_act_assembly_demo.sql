@@ -15,7 +15,7 @@ INSERT OR IGNORE INTO facilities (id, organization_id, name, address_id, ui_flow
     (90, 90, 'Площадка G301', 90, 'hierarchical', 1, 'Курск, промзона Демо-ТО, 1');
 
 INSERT OR IGNORE INTO facility_systems (id, facility_id, name, description, is_active) VALUES
-    (90, 90, 'Гипаксическая система предотвращения пожара', 'Тестовый контур для сборки актов', 1);
+    (90, 90, 'Гипоксическая система предотвращения пожара', 'Тестовый контур для сборки актов', 1);
 
 INSERT OR IGNORE INTO system_equipment_types (system_id, equipment_type_id)
 SELECT 90, et.id FROM equipment_types et;

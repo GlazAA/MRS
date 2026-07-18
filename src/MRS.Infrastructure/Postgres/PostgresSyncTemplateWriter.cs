@@ -58,10 +58,11 @@ internal static class PostgresSyncTemplateWriter
 	{
 		await using var cmd = new NpgsqlCommand("""
 			INSERT INTO checklist_templates (
-			    id, equipment_type_id, maintenance_type_id, template_name, scenario_code, version,
+			    id, facility_id, equipment_type_id, maintenance_type_id, template_name, scenario_code, version,
 			    is_active, top_plate_text, intro_modal_text, safety_modal_text, red_button_enabled)
-			VALUES (@id, @et, @mt, @name, @scenario, @version, TRUE, @top, @intro, @safety, @red)
+			VALUES (@id, @fid, @et, @mt, @name, @scenario, @version, TRUE, @top, @intro, @safety, @red)
 			ON CONFLICT (id) DO UPDATE SET
+			    facility_id = EXCLUDED.facility_id,
 			    equipment_type_id = EXCLUDED.equipment_type_id,
 			    maintenance_type_id = EXCLUDED.maintenance_type_id,
 			    template_name = EXCLUDED.template_name,
@@ -73,6 +74,7 @@ internal static class PostgresSyncTemplateWriter
 			    red_button_enabled = EXCLUDED.red_button_enabled;
 			""", connection, tx);
 		cmd.Parameters.AddWithValue("id", payload.LocalId);
+		cmd.Parameters.AddWithValue("fid", payload.FacilityId is int fid ? fid : (object)DBNull.Value);
 		cmd.Parameters.AddWithValue("et", payload.EquipmentTypeId);
 		cmd.Parameters.AddWithValue("mt", maintenanceTypeId);
 		cmd.Parameters.AddWithValue("name", payload.TemplateName);

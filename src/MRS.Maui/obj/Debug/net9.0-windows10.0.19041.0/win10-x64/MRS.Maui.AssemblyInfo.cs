@@ -17,7 +17,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MRS.Maui")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+e7825752b7424aba296ba8cd88786d70881bf24e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+b7f2981e32290771ffe7b1b8ddc3abb22cc1467f")]
 [assembly: System.Reflection.AssemblyProductAttribute("MRS.Maui")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MRS.Maui")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
