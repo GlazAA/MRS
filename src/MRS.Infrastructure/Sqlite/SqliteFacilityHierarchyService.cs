@@ -77,6 +77,32 @@ public sealed class SqliteFacilityHierarchyService : IFacilityHierarchyService
 		return await ReadOptionsAsync(cmd, cancellationToken).ConfigureAwait(false);
 	}
 
+	public async Task<IReadOnlyList<string>> GetAllFacilityNamesAsync(CancellationToken cancellationToken = default)
+	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		using var cmd = connection.CreateCommand();
+		cmd.CommandText = """
+			SELECT TRIM(name)
+			FROM facilities
+			WHERE is_active = 1
+			  AND name IS NOT NULL
+			  AND TRIM(name) <> ''
+			ORDER BY name COLLATE NOCASE;
+			""";
+
+		var byKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+		{
+			var name = reader.GetString(0).Trim();
+			if (name.Length == 0)
+				continue;
+			byKey.TryAdd(name, name);
+		}
+
+		return byKey.Values.OrderBy(v => v, StringComparer.CurrentCultureIgnoreCase).ToList();
+	}
+
 	private static async Task<IReadOnlyList<HierarchyOption>> ReadOrganizationOptionsAsync(SqliteCommand cmd, CancellationToken cancellationToken)
 	{
 		var list = new List<HierarchyOption>();

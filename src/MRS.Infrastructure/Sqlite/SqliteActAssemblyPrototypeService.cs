@@ -4,6 +4,9 @@ using System.Text;
 using MRS.Application;
 using MRS.Application.Checklists;
 using MRS.Application.Facilities;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace MRS.Infrastructure.Sqlite;
 
@@ -89,6 +92,362 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 		return new ChecklistDocumentExportFile(fileName, "application/msword", payload);
 	}
 
+	public ChecklistDocumentExportFile RenderDraftPdf(ActDraft draft)
+	{
+		QuestPDF.Settings.License = LicenseType.Community;
+		EnsurePdfFont();
+
+		var stamp = DateTime.Now.ToString("yyyyMMdd_HHmm", CultureInfo.InvariantCulture);
+		var profileToken = draft.Profile switch
+		{
+			ActBlankProfile.Dryer => "dryer",
+			ActBlankProfile.Compressor => "compressor",
+			_ => "installation"
+		};
+		var unitToken = Sanitize(draft.InstallationLabel);
+		var fileName = $"act_{profileToken}_{unitToken}_{stamp}.pdf";
+
+		var subtitle = draft.Profile switch
+		{
+			ActBlankProfile.Dryer => "Технического обслуживания осушителя",
+			ActBlankProfile.Compressor => "Технического обслуживания компрессора",
+			_ => "Технического обслуживания компонентов установки"
+		};
+
+		var hours = string.IsNullOrWhiteSpace(draft.OperatingHours) ? "___________" : draft.OperatingHours!;
+		var objectAddress = string.IsNullOrWhiteSpace(draft.ObjectAddress) ? "___________" : draft.ObjectAddress;
+		var unit = string.IsNullOrWhiteSpace(draft.InstallationLabel) ? "___________" : draft.InstallationLabel;
+		var dates = string.IsNullOrWhiteSpace(draft.WorkDates) ? "___________" : draft.WorkDates;
+		var customer = string.IsNullOrWhiteSpace(draft.Customer) ? "___________" : draft.Customer;
+		var workKind = string.IsNullOrWhiteSpace(draft.WorkKind) ? "___________" : draft.WorkKind;
+		var logoBytes = GetLogoBytes();
+		var brandRed = Color.FromHex(BrandRed);
+
+		var mid = (draft.WorkLines.Count + 1) / 2;
+		var leftWorks = draft.WorkLines.Take(mid).ToList();
+		var rightWorks = draft.WorkLines.Skip(mid).ToList();
+		var workRows = Math.Max(leftWorks.Count, rightWorks.Count);
+
+		var (stateMidLeft, stateMidRight) = draft.Profile switch
+		{
+			ActBlankProfile.Dryer => ("Осушитель в работе", "Осушитель выключен"),
+			ActBlankProfile.Installation => ("Установка под нагрузкой", "Установка выключена"),
+			_ => ("Компрессор под нагрузкой", "Компрессор выключен")
+		};
+
+		var bytes = Document.Create(container =>
+		{
+			container.Page(page =>
+			{
+				page.MarginTop(56);
+				page.MarginRight(56);
+				page.MarginBottom(56);
+				page.MarginLeft(91); // 3.2 см
+				page.DefaultTextStyle(x => x.FontFamily(_pdfFontFamily).FontSize(10));
+				page.Content().Column(col =>
+				{
+					col.Spacing(4);
+
+					// Шапка: логотип слева, контакты прижаты к правому краю, тонкая красная полоса
+					col.Item().Row(row =>
+					{
+						row.ConstantItem(95).Height(95).Element(e =>
+						{
+							if (logoBytes is { Length: > 0 })
+								e.Image(logoBytes).FitArea();
+							else
+								e.Text("Brand Schutz").Bold().FontSize(12).FontColor(brandRed);
+						});
+
+						row.RelativeItem().AlignRight().Element(right =>
+						{
+							right.Width(178).Row(contactRow =>
+							{
+								contactRow.ConstantItem(0.8f).Background(brandRed);
+								contactRow.RelativeItem().PaddingLeft(6).Column(c =>
+								{
+									c.Spacing(1);
+									foreach (var line in new[]
+									         {
+										         "ООО «Бранд Шутц»",
+										         "+7(495) 363-8916",
+										         "117648, г. Москва, вн.тер.г.",
+										         "Муниципальный Округ Чертаново",
+										         "Северное, мкр. Северное Чертаново,",
+										         "д. 4, к. 402, пом. 6/2Т"
+									         })
+									{
+										c.Item().Text(line).FontSize(9).FontColor(brandRed);
+									}
+								});
+							});
+						});
+					});
+
+					col.Item().PaddingTop(10).AlignCenter().Text("АКТ _____ /_____").Bold().FontSize(14);
+					col.Item().AlignCenter().Text(subtitle).Bold().FontSize(12);
+
+					col.Item().PaddingTop(8).Row(r =>
+					{
+						r.RelativeItem().Element(e => MetaField(e, "Заказчик:", customer));
+						r.ConstantItem(12);
+						r.RelativeItem().Element(e => MetaField(e, "Дата проведения работ:", dates));
+					});
+
+					if (draft.Profile == ActBlankProfile.Installation)
+					{
+						col.Item().Element(e => MetaField(e, "Объект:", objectAddress));
+						col.Item().Row(r =>
+						{
+							r.RelativeItem().Element(e => MetaField(e, "Часы эксплуатации:", hours));
+							r.ConstantItem(12);
+							r.RelativeItem().Element(e => MetaField(e, "Номер установки:", unit));
+						});
+					}
+					else
+					{
+						col.Item().Element(e => MetaField(e, "Объект:", objectAddress));
+						col.Item().Row(r =>
+						{
+							r.RelativeItem().Element(e => MetaField(e, "Тип оборудования:", draft.EquipmentTypeName ?? "___________"));
+							r.ConstantItem(12);
+							r.RelativeItem().Element(e => MetaField(e, "Модель:", string.IsNullOrWhiteSpace(draft.ModelName) ? "___________" : draft.ModelName!));
+						});
+						col.Item().Row(r =>
+						{
+							r.RelativeItem().Element(e => MetaField(e, "Серийный номер:", string.IsNullOrWhiteSpace(draft.SerialNumber) ? "___________" : draft.SerialNumber!));
+							r.ConstantItem(12);
+							r.RelativeItem().Element(e => MetaField(e, "Номер установки:", unit));
+						});
+						col.Item().Element(e => MetaField(e, "Часы эксплуатации:", hours));
+					}
+
+					col.Item().Element(e => MetaField(e, "Вид работ:", workKind));
+
+					var state = ParseEquipmentState(draft.EquipmentStateDisplay, draft.Profile);
+
+					// Состояние оборудования — галочки рисуем явно (Unicode ☐/☑ в PDF часто не видно)
+					col.Item().PaddingTop(8).Text("Состояние оборудования:").Bold();
+					col.Item().Border(1).BorderColor(Colors.Black).Padding(6).Row(r =>
+					{
+						r.RelativeItem().Column(c =>
+						{
+							c.Spacing(3);
+							PdfStateLine(c, state.Working, "Рабочее на дату прибытия");
+							PdfStateMidLine(c, state.UnderLoad, stateMidLeft, state.Off, stateMidRight);
+							PdfStateLine(c, state.NotWorking, "Не рабочее на дату прибытия");
+						});
+						r.ConstantItem(8);
+						r.RelativeItem().Column(c =>
+						{
+							c.Spacing(3);
+							PdfStateLine(c, state.Working, "Рабочее на дату убытия");
+							PdfStateMidLine(c, state.UnderLoad, stateMidLeft, state.Off, stateMidRight);
+							PdfStateLine(c, state.NotWorking, "Не рабочее на дату убытия");
+						});
+					});
+
+					col.Item().PaddingTop(8).Text("Перечень выполненных работ:").Bold();
+					col.Item().Table(table =>
+					{
+						table.ColumnsDefinition(c =>
+						{
+							c.RelativeColumn(4);
+							c.ConstantColumn(28);
+							c.RelativeColumn(4);
+							c.ConstantColumn(28);
+						});
+
+						for (var i = 0; i < workRows; i++)
+						{
+							var l = i < leftWorks.Count ? leftWorks[i] : null;
+							var rr = i < rightWorks.Count ? rightWorks[i] : null;
+							table.Cell().Border(0.5f).Padding(3).Text(l?.Label ?? " ");
+							table.Cell().Border(0.5f).AlignCenter().AlignMiddle().Text(l?.Mark ?? " ");
+							table.Cell().Border(0.5f).Padding(3).Text(rr?.Label ?? " ");
+							table.Cell().Border(0.5f).AlignCenter().AlignMiddle().Text(rr?.Mark ?? " ");
+						}
+
+						if (draft.Profile == ActBlankProfile.Compressor)
+						{
+							table.Cell().ColumnSpan(4).Border(0.5f).Padding(3)
+								.Text("К — контроль; Ч — чистка; З — замена; П — параметры; — — не выполн.").FontSize(8);
+						}
+					});
+
+					col.Item().PaddingTop(8).Text("ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ:").Bold();
+					col.Item().Element(e => ContentLinesBlock(e, draft.ExtraWorksText));
+
+					col.Item().PaddingTop(6).Text("ЗАМЕЧАНИЯ И РЕКОМЕНДАЦИИ:").Bold();
+					col.Item().Element(e => ContentLinesBlock(e, draft.RemarksText));
+
+					col.Item().PaddingTop(14).Row(r =>
+					{
+						r.RelativeItem().Column(c =>
+						{
+							c.Item().Text("Представитель").Bold();
+							c.Item().Text("ИСПОЛНИТЕЛЯ").Bold();
+							c.Item().Text("Работу выполнил.");
+							c.Item().PaddingTop(8).Element(e => MetaField(e, "Должность:", " "));
+							c.Item().Element(e => MetaField(e, "ФИО:", " "));
+							c.Item().Element(e => MetaField(e, "Подпись:", " "));
+						});
+						r.ConstantItem(16);
+						r.RelativeItem().Column(c =>
+						{
+							c.Item().Text("Представитель").Bold();
+							c.Item().Text("ЗАКАЗЧИКА:").Bold();
+							c.Item().Text("Выполнение работ подтверждаю.");
+							c.Item().PaddingTop(8).Element(e => MetaField(e, "Должность:", " "));
+							c.Item().Element(e => MetaField(e, "ФИО:", " "));
+							c.Item().Element(e => MetaField(e, "Подпись:", " "));
+						});
+					});
+
+					col.Item().PaddingTop(18).LineHorizontal(1.5f).LineColor(brandRed);
+					col.Item().PaddingTop(6).Row(r =>
+					{
+						r.RelativeItem().Text("www.brandschutz.ru").FontColor(brandRed);
+						r.RelativeItem().AlignRight().Text("ИНН 7726589854").FontColor(brandRed);
+					});
+				});
+			});
+		}).GeneratePdf();
+
+		return new ChecklistDocumentExportFile(fileName, "application/pdf", bytes);
+
+		static void MetaField(IContainer container, string label, string value)
+		{
+			container.Column(c =>
+			{
+				c.Item().Text(label);
+				c.Item().BorderBottom(0.7f).BorderColor(Colors.Black).PaddingBottom(2).Text(string.IsNullOrWhiteSpace(value) ? " " : value);
+			});
+		}
+
+		static void ContentLinesBlock(IContainer container, string? text)
+		{
+			var parts = SplitContentLines(text);
+			if (parts.Count == 0)
+				return;
+
+			container.Column(c =>
+			{
+				foreach (var line in parts)
+					c.Item().PaddingTop(2).BorderBottom(0.5f).BorderColor(Colors.Grey.Medium).PaddingBottom(2).Text(line);
+			});
+		}
+
+		static void PdfStateLine(ColumnDescriptor column, bool on, string label)
+		{
+			column.Item().Row(r =>
+			{
+				r.ConstantItem(11).Element(e => PdfCheckBox(e, on));
+				r.ConstantItem(5);
+				r.RelativeItem().AlignMiddle().Text(label).FontSize(9);
+			});
+		}
+
+		static void PdfStateMidLine(
+			ColumnDescriptor column,
+			bool leftOn,
+			string leftLabel,
+			bool rightOn,
+			string rightLabel)
+		{
+			column.Item().Row(r =>
+			{
+				r.RelativeItem().Row(inner =>
+				{
+					inner.ConstantItem(11).Element(e => PdfCheckBox(e, leftOn));
+					inner.ConstantItem(4);
+					inner.RelativeItem().AlignMiddle().Text(leftLabel).FontSize(8);
+				});
+				r.ConstantItem(4);
+				r.RelativeItem().Row(inner =>
+				{
+					inner.ConstantItem(11).Element(e => PdfCheckBox(e, rightOn));
+					inner.ConstantItem(4);
+					inner.RelativeItem().AlignMiddle().Text(rightLabel).FontSize(8);
+				});
+			});
+		}
+
+		static void PdfCheckBox(IContainer container, bool on)
+		{
+			container
+				.Width(11)
+				.Height(11)
+				.Border(0.8f)
+				.BorderColor(Colors.Black)
+				.AlignCenter()
+				.AlignMiddle()
+				.Text(on ? "V" : " ")
+				.FontSize(7)
+				.Bold();
+		}
+	}
+
+	private static string _pdfFontFamily = "Arial";
+	private static bool _pdfFontReady;
+	private static readonly Lock PdfFontLock = new();
+
+	private static void EnsurePdfFont()
+	{
+		lock (PdfFontLock)
+		{
+			if (_pdfFontReady)
+				return;
+
+			// Системные шрифты с кириллицей; RegisterFontWithCustomName — API QuestPDF 2024+.
+			foreach (var path in PdfFontCandidates())
+			{
+				if (!File.Exists(path))
+					continue;
+				try
+				{
+					using var stream = File.OpenRead(path);
+					QuestPDF.Drawing.FontManager.RegisterFontWithCustomName("MrsActFont", stream);
+					_pdfFontFamily = "MrsActFont";
+					_pdfFontReady = true;
+					return;
+				}
+				catch
+				{
+					// пробуем следующий кандидат
+				}
+			}
+
+			_pdfFontFamily = "Arial";
+			_pdfFontReady = true;
+		}
+	}
+
+	private static IEnumerable<string> PdfFontCandidates()
+	{
+		var windir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+		if (!string.IsNullOrEmpty(windir))
+		{
+			yield return Path.Combine(windir, "Fonts", "arial.ttf");
+			yield return Path.Combine(windir, "Fonts", "segoeui.ttf");
+		}
+
+		yield return "/system/fonts/Roboto-Regular.ttf";
+		yield return "/system/fonts/NotoSans-Regular.ttf";
+		yield return "/System/Library/Fonts/Supplemental/Arial.ttf";
+	}
+
+	private static byte[]? GetLogoBytes()
+	{
+		var assembly = typeof(SqliteActAssemblyPrototypeService).Assembly;
+		using var stream = assembly.GetManifestResourceStream(LogoResourceName);
+		if (stream is null)
+			return null;
+		using var ms = new MemoryStream();
+		stream.CopyTo(ms);
+		return ms.ToArray();
+	}
+
 	public ChecklistDocumentExportFile RenderDraftsZip(IReadOnlyList<ActDraft> drafts)
 	{
 		if (drafts is null || drafts.Count == 0)
@@ -154,8 +513,9 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 			WorkDates = "03/17 — 03/21/25",
 			InstallationLabel = "G301",
 			WorkKind = "техническое обслуживание",
-			ObjectAddress = "Курск\n(Курск, промзона Демо-ТО, 1)",
+			ObjectAddress = "Курск, промзона Демо-ТО, 1",
 			OperatingHours = "36834",
+			EquipmentStateDisplay = "Под нагрузкой",
 			WorkLines = InstallationWorkCatalog
 				.Select(item =>
 				{
@@ -183,11 +543,12 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 			WorkDates = "03/18 — 03/19/25",
 			InstallationLabel = "G301",
 			WorkKind = "ТО-3000",
-			ObjectAddress = "Курск\n(Курск, промзона Демо-ТО, 1)",
+			ObjectAddress = "Курск, промзона Демо-ТО, 1",
 			EquipmentTypeName = "Винтовой компрессор",
 			ModelName = "S 40-3",
 			SerialNumber = "515 15 19",
 			OperatingHours = "32592",
+			EquipmentStateDisplay = "Под нагрузкой",
 			WorkLines =
 			[
 				new ActWorkLine("Общий осмотр", "К"),
@@ -217,11 +578,12 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 			WorkDates = "03/17 — 03/20/25",
 			InstallationLabel = "G301",
 			WorkKind = "ТО-1",
-			ObjectAddress = "Курск\n(Курск, промзона Демо-ТО, 1)",
+			ObjectAddress = "Курск, промзона Демо-ТО, 1",
 			EquipmentTypeName = "Холодильный осушитель",
 			ModelName = "DS 80-2",
 			SerialNumber = "400119780003",
 			OperatingHours = "840",
+			EquipmentStateDisplay = "Осушитель в работе",
 			WorkLines =
 			[
 				new ActWorkLine("Замена датчика давления включения вентилятора", "V"),
@@ -264,6 +626,7 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 		var hours = models
 			.Select(m => FindDisplay(m.Model.Answers, "operating_hours", "hours", "runtime_hours", "fridge_hours"))
 			.FirstOrDefault(h => !string.IsNullOrWhiteSpace(h));
+		var equipmentState = ResolveEquipmentStateDisplay(models);
 
 		return new ActDraft
 		{
@@ -277,6 +640,7 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 			ObjectAddress = FormatObjectAddress(first),
 			OperatingHours = hours,
 			EquipmentTypeName = null,
+			EquipmentStateDisplay = equipmentState,
 			WorkLines = workLines,
 			SourceChecklistIds = rows.Select(r => r.ChecklistId).ToList(),
 			ExtraWorksText = extra,
@@ -313,6 +677,7 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 		var modelName = FindDisplay(model.Answers, "comp_model", "model", "oht_model", "filter_model");
 		var hours = FindDisplay(model.Answers, "operating_hours", "hours", "runtime_hours", "fridge_hours");
 		var serial = FindDisplay(model.Answers, "comp_serial", "serial_number", "compressor_serial", "serial");
+		var equipmentState = FindEquipmentStateDisplay(model.Answers);
 
 		return new ActDraft
 		{
@@ -328,11 +693,53 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 			ModelName = modelName,
 			SerialNumber = serial,
 			OperatingHours = hours,
+			EquipmentStateDisplay = equipmentState,
 			WorkLines = workLines,
 			SourceChecklistIds = [row.ChecklistId],
 			ExtraWorksText = extra ?? string.Empty,
 			RemarksText = remarks ?? string.Empty
 		};
+	}
+
+	/// <summary>
+	/// Для сводного акта: сначала состояние из компрессора, иначе первое непустое среди выбранных КЛ.
+	/// </summary>
+	private static string? ResolveEquipmentStateDisplay(
+		IReadOnlyList<(ChecklistManagementRow Row, ChecklistDocumentExportModel Model)> models)
+	{
+		foreach (var (row, model) in models.OrderByDescending(m =>
+			         DetectProfile(m.Row.EquipmentTypeName) == ActBlankProfile.Compressor))
+		{
+			var value = FindEquipmentStateDisplay(model.Answers);
+			if (!string.IsNullOrWhiteSpace(value))
+				return value;
+		}
+
+		return null;
+	}
+
+	private static string? FindEquipmentStateDisplay(IReadOnlyList<ChecklistDocumentAnswer> answers)
+	{
+		var byCode = FindDisplay(answers, "comp_state", "equipment_state", "state");
+		if (!string.IsNullOrWhiteSpace(byCode))
+			return byCode;
+
+		foreach (var a in answers)
+		{
+			var q = a.QuestionText ?? string.Empty;
+			if (!q.Contains("Состояние", StringComparison.OrdinalIgnoreCase))
+				continue;
+			if (!q.Contains("компресс", StringComparison.OrdinalIgnoreCase)
+			    && !q.Contains("оборудован", StringComparison.OrdinalIgnoreCase)
+			    && !q.Contains("осушит", StringComparison.OrdinalIgnoreCase))
+				continue;
+
+			var value = string.IsNullOrWhiteSpace(a.ValueDisplay) ? a.ValueRaw : a.ValueDisplay;
+			if (!string.IsNullOrWhiteSpace(value))
+				return value.Trim();
+		}
+
+		return null;
 	}
 
 	private static string FormatObjectAddress(ChecklistDocumentHeader header)
@@ -532,61 +939,73 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 		var workKind = string.IsNullOrWhiteSpace(draft.WorkKind) ? "___________" : draft.WorkKind;
 
 		var sb = new StringBuilder();
-		sb.AppendLine("<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w=\"urn:schemas-microsoft-com:office:word\"><head><meta charset=\"utf-8\" />");
+		sb.AppendLine("<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w=\"urn:schemas-microsoft-com:office:word\">");
+		sb.AppendLine("<head><meta charset=\"utf-8\" />");
+		sb.AppendLine("<!--[if gte mso 9]><xml>");
+		sb.AppendLine("<w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom>");
+		sb.AppendLine("<w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->");
 		sb.AppendLine("<style>");
-		sb.AppendLine("body{font-family:Calibri,Arial,sans-serif;font-size:11pt;margin:12pt;}");
-		sb.AppendLine(".header-top{width:100%;border-collapse:collapse;}");
+		// Отступы только через @page: body+@page в Word суммируются и страница «уезжает».
+		sb.AppendLine("@page Section1{size:210mm 297mm;margin:2cm 2cm 2cm 2.5cm;mso-page-orientation:portrait;}");
+		sb.AppendLine("div.Section1{page:Section1;}");
+		sb.AppendLine("html,body{margin:0;padding:0;}");
+		sb.AppendLine("body{font-family:Calibri,Arial,sans-serif;font-size:11pt;}");
+		sb.AppendLine("table{border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;}");
+		sb.AppendLine("td,th{word-wrap:break-word;overflow-wrap:break-word;}");
+		sb.AppendLine(".header-top{width:100%;table-layout:fixed;margin-bottom:6pt;}");
 		sb.AppendLine(".header-top td{border:none !important;padding:0;vertical-align:top;}");
 		sb.AppendLine(".logo-cell{width:3.8cm;}");
-		sb.AppendLine(".logo-cell img{width:3.8cm;height:3.8cm;display:block;object-fit:contain;}");
-		sb.AppendLine(".gap-cell{width:7cm;}");
-		sb.AppendLine(".contact-vbar{width:1.5pt;background-color:").Append(BrandRed).Append(";font-size:1pt;line-height:1pt;}");
-		sb.AppendLine(".contact-text{padding-left:0.5cm;vertical-align:top;}");
-		sb.AppendLine(".contact-line{color:").Append(BrandRed).Append(";font-size:10pt;line-height:1.2;margin:0;padding:0;}");
+		sb.AppendLine(".logo-cell img{width:3.4cm;height:3.4cm;display:block;}");
+		sb.AppendLine(".contact-cell{width:auto;text-align:right;padding-right:0;}");
+		sb.AppendLine(".contact-inner{width:auto;text-align:left;}");
+		sb.AppendLine(".contact-vbar{width:0.6pt;background-color:").Append(BrandRed).Append(";font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;}");
+		sb.AppendLine(".contact-text{padding-left:0.28cm;vertical-align:top;width:6.2cm;}");
+		sb.AppendLine(".contact-line{color:").Append(BrandRed).Append(";font-size:10pt;line-height:1.25;margin:0;padding:0;}");
 		sb.AppendLine(".doc-title{text-align:center;font-weight:bold;font-size:14pt;margin:14pt 0 10pt 0;}");
 		sb.AppendLine(".doc-title-sub{font-size:13pt;margin-top:4pt;}");
-		sb.AppendLine(".meta-grid{width:100%;border-collapse:collapse;}");
+		sb.AppendLine(".meta-grid{width:100%;table-layout:fixed;}");
 		sb.AppendLine(".meta-grid td{border:none !important;padding:4pt 6pt 6pt 0;vertical-align:bottom;width:50%;}");
 		sb.AppendLine(".lbl{font-weight:normal;}");
 		sb.AppendLine(".val-line{border-bottom:1pt solid #000;display:block;min-height:14pt;margin-top:2pt;padding-bottom:1pt;}");
-		sb.AppendLine(".full-row{width:100%;border-collapse:collapse;}");
+		sb.AppendLine(".full-row{width:100%;table-layout:fixed;}");
 		sb.AppendLine(".full-row td{border:none !important;padding:6pt 0;vertical-align:bottom;}");
 		sb.AppendLine(".eq-title{font-weight:bold;margin:14pt 0 6pt 0;}");
-		sb.AppendLine(".eq-table{width:100%;border-collapse:collapse;}");
-		sb.AppendLine(".eq-table td,.eq-table th{border:1px solid #000;padding:4pt 5pt;vertical-align:middle;font-size:11pt;}");
+		sb.AppendLine(".eq-table{width:100%;table-layout:fixed;}");
+		sb.AppendLine(".eq-table td,.eq-table th{border:1px solid #000;padding:4pt 5pt;vertical-align:top;font-size:11pt;width:50%;}");
 		sb.AppendLine(".works-title{font-weight:bold;margin:14pt 0 6pt 0;}");
-		sb.AppendLine(".works-table{width:100%;border-collapse:collapse;}");
+		sb.AppendLine(".works-table{width:100%;table-layout:fixed;}");
 		sb.AppendLine(".works-table td{border:1px solid #000;padding:4pt 5pt;vertical-align:middle;font-size:11pt;}");
-		sb.AppendLine(".works-mark{width:22pt;text-align:center;}");
+		sb.AppendLine(".works-label{width:42%;}");
+		sb.AppendLine(".works-mark{width:8%;text-align:center;}");
 		sb.AppendLine(".bottom-section-title{font-weight:bold;text-transform:uppercase;margin:12pt 0 4pt 0;}");
-		sb.AppendLine(".lined-table{width:100%;border-collapse:collapse;}");
+		sb.AppendLine(".lined-table{width:100%;table-layout:fixed;}");
 		sb.AppendLine(".lined-table td{border-bottom:1px solid #7A7A7A;height:16pt;vertical-align:bottom;padding:0 0 1pt 0;font-size:11pt;}");
-		sb.AppendLine(".signature-grid{width:100%;border-collapse:collapse;margin-top:16pt;}");
+		sb.AppendLine(".signature-grid{width:100%;table-layout:fixed;margin-top:16pt;}");
 		sb.AppendLine(".signature-grid td{vertical-align:top;border:none !important;padding:0;}");
 		sb.AppendLine(".signature-title{font-weight:bold;margin:0 0 12pt 0;line-height:1.2;}");
-		sb.AppendLine(".signature-fields{width:100%;border-collapse:collapse;}");
+		sb.AppendLine(".signature-fields{width:100%;table-layout:fixed;}");
 		sb.AppendLine(".signature-fields td{border:none !important;padding:2pt 0;font-size:11pt;}");
 		sb.AppendLine(".signature-label{width:90pt;white-space:nowrap;padding-right:6pt !important;}");
 		sb.AppendLine(".signature-line{border-bottom:1px solid #7A7A7A;min-height:14pt;display:block;}");
 		sb.AppendLine(".footer-brand{margin-top:26pt;}");
-		sb.AppendLine(".footer-rule{border-top:1.5pt solid ").Append(BrandRed).Append(";font-size:1pt;line-height:1pt;}");
-		sb.AppendLine(".footer-meta{margin-top:8pt;width:100%;border-collapse:collapse;}");
+		sb.AppendLine(".footer-rule{border-top:1.5pt solid ").Append(BrandRed).Append(";font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;}");
+		sb.AppendLine(".footer-meta{margin-top:8pt;width:100%;table-layout:fixed;}");
 		sb.AppendLine(".footer-meta td{border:none !important;color:").Append(BrandRed).Append(";font-size:11pt;}");
 		sb.AppendLine(".footer-meta .right{text-align:right;}");
 		sb.AppendLine("</style></head><body>");
+		sb.AppendLine("<div class=\"Section1\">");
 
-		// Шапка Brand Schutz
+		// Шапка Brand Schutz: логотип слева, контакты справа
 		sb.AppendLine("<table class=\"header-top\" cellspacing=\"0\" cellpadding=\"0\"><tr>");
 		sb.AppendLine("<td class=\"logo-cell\">");
 		if (!string.IsNullOrEmpty(logoUri))
-			sb.Append("<img src=\"").Append(logoUri).Append("\" alt=\"Brand Schutz\" />");
+			sb.Append("<img width=\"128\" height=\"128\" src=\"").Append(logoUri).Append("\" alt=\"Brand Schutz\" />");
 		else
-			sb.Append("&nbsp;");
+			sb.Append("<span style=\"color:").Append(BrandRed).Append(";font-weight:bold;font-size:14pt;\">Brand Schutz</span>");
 		sb.AppendLine("</td>");
-		sb.AppendLine("<td class=\"gap-cell\">&nbsp;</td>");
-		sb.AppendLine("<td>");
-		sb.AppendLine("<table cellspacing=\"0\" cellpadding=\"0\"><tr>");
-		sb.AppendLine("<td class=\"contact-vbar\" style=\"min-height:3cm;\">&nbsp;</td>");
+		sb.AppendLine("<td class=\"contact-cell\">");
+		sb.AppendLine("<table class=\"contact-inner\" cellspacing=\"0\" cellpadding=\"0\" align=\"right\"><tr>");
+		sb.AppendLine("<td class=\"contact-vbar\" style=\"width:1px;\">&nbsp;</td>");
 		sb.AppendLine("<td class=\"contact-text\">");
 		AppendContactLine(sb, "ООО «Бранд Шутц»");
 		AppendContactLine(sb, "+7(495) 363-8916");
@@ -607,7 +1026,7 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 		sb.Append("<td><span class=\"lbl\">Заказчик:</span><span class=\"val-line\">").Append(Html(customer)).AppendLine("</span></td>");
 		sb.Append("<td><span class=\"lbl\">Дата проведения работ:</span><span class=\"val-line\">").Append(Html(dates)).AppendLine("</span></td>");
 		sb.AppendLine("</tr><tr>");
-		sb.Append("<td colspan=\"2\"><span class=\"lbl\">Объект (полный адрес):</span><span class=\"val-line\">").Append(Html(objectAddress)).AppendLine("</span></td>");
+		sb.Append("<td colspan=\"2\"><span class=\"lbl\">Объект:</span><span class=\"val-line\">").Append(Html(objectAddress)).AppendLine("</span></td>");
 		sb.AppendLine("</tr>");
 
 		if (draft.Profile == ActBlankProfile.Installation)
@@ -639,12 +1058,12 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 		sb.Append("<span class=\"lbl\">Вид работ:</span><span class=\"val-line\">").Append(Html(workKind)).AppendLine("</span>");
 		sb.AppendLine("</td></tr></table>");
 
-		// Состояние оборудования (пустые отметки — как на бланке; заполнение позже)
-		AppendEquipmentStatePlaceholder(sb, draft.Profile);
+		AppendEquipmentStateSection(sb, draft.Profile, ParseEquipmentState(draft.EquipmentStateDisplay, draft.Profile));
 
 		// Перечень работ
 		sb.AppendLine("<p class=\"works-title\">Перечень выполненных работ:</p>");
 		sb.AppendLine("<table class=\"works-table\" cellspacing=\"0\" cellpadding=\"0\">");
+		sb.AppendLine("<colgroup><col class=\"works-label\" /><col class=\"works-mark\" /><col class=\"works-label\" /><col class=\"works-mark\" /></colgroup>");
 		var mid = (draft.WorkLines.Count + 1) / 2;
 		var left = draft.WorkLines.Take(mid).ToList();
 		var right = draft.WorkLines.Skip(mid).ToList();
@@ -665,9 +1084,9 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 		sb.AppendLine("</table>");
 
 		sb.AppendLine("<p class=\"bottom-section-title\">ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ:</p>");
-		AppendLinedRows(sb, 4, draft.ExtraWorksText);
+		AppendContentLines(sb, draft.ExtraWorksText);
 		sb.AppendLine("<p class=\"bottom-section-title\">ЗАМЕЧАНИЯ И РЕКОМЕНДАЦИИ:</p>");
-		AppendLinedRows(sb, 4, draft.RemarksText);
+		AppendContentLines(sb, draft.RemarksText);
 
 		sb.AppendLine("<table class=\"signature-grid\" cellspacing=\"0\" cellpadding=\"0\"><tr>");
 		sb.AppendLine("<td style=\"width:48%;padding-right:18pt;\">");
@@ -686,14 +1105,52 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 		sb.AppendLine("</tr></table>");
 		sb.AppendLine("</div>");
 
-		sb.AppendLine("</body></html>");
+		sb.AppendLine("</div></body></html>");
 		return sb.ToString();
 	}
 
 	private static void AppendContactLine(StringBuilder sb, string text) =>
 		sb.Append("<p class=\"contact-line\">").Append(Html(text)).AppendLine("</p>");
 
-	private static void AppendEquipmentStatePlaceholder(StringBuilder sb, ActBlankProfile profile)
+	private sealed record EquipmentStateFlags(bool Working, bool UnderLoad, bool Off, bool NotWorking);
+
+	private static string Box(bool on) => on ? "☑" : "☐";
+
+	private static EquipmentStateFlags ParseEquipmentState(string? display, ActBlankProfile profile)
+	{
+		// В БД одно поле (обычно comp_state) — копируем в прибытие и убытие.
+		var s = string.IsNullOrWhiteSpace(display) ? string.Empty : display.Trim().ToLowerInvariant();
+		if (string.IsNullOrEmpty(s))
+			return new EquipmentStateFlags(false, false, false, false);
+
+		var notWorking = s.Contains("не рабоч", StringComparison.OrdinalIgnoreCase)
+			|| s.Contains("не работ", StringComparison.OrdinalIgnoreCase);
+		if (notWorking)
+			return new EquipmentStateFlags(false, false, false, true);
+
+		var off = s.Contains("выключ", StringComparison.OrdinalIgnoreCase);
+		var underLoad = profile == ActBlankProfile.Dryer
+			? s.Contains("в работе", StringComparison.OrdinalIgnoreCase)
+			  || (s.Contains("работ", StringComparison.OrdinalIgnoreCase) && !off)
+			: s.Contains("нагруз", StringComparison.OrdinalIgnoreCase);
+
+		var hasWorkingKeyword = s.Contains("рабочее", StringComparison.OrdinalIgnoreCase);
+
+		if (hasWorkingKeyword && !underLoad && !off)
+			return new EquipmentStateFlags(true, false, false, false);
+		if (underLoad && !off)
+			return new EquipmentStateFlags(true, true, false, false);
+		if (off && !underLoad)
+			return new EquipmentStateFlags(true, false, true, false);
+		if (underLoad && off)
+			return new EquipmentStateFlags(true, true, true, false);
+		if (hasWorkingKeyword)
+			return new EquipmentStateFlags(true, underLoad, off, false);
+
+		return new EquipmentStateFlags(false, false, false, false);
+	}
+
+	private static void AppendEquipmentStateSection(StringBuilder sb, ActBlankProfile profile, EquipmentStateFlags st)
 	{
 		var (midLeft, midRight) = profile switch
 		{
@@ -711,48 +1168,36 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 		{
 			var d = col == 0 ? "прибытия" : "убытия";
 			sb.AppendLine("<td style=\"vertical-align:top;\">");
-			sb.Append("☐ Рабочее на дату ").Append(d).AppendLine("<br/>");
-			sb.Append("☐ ").Append(Html(midLeft)).Append(" &nbsp; ☐ ").Append(Html(midRight)).AppendLine("<br/>");
-			sb.Append("☐ Не рабочее на дату ").Append(d).AppendLine();
+			sb.Append(Box(st.Working)).Append(" Рабочее на дату ").Append(d).AppendLine("<br/>");
+			sb.Append(Box(st.UnderLoad)).Append(' ').Append(Html(midLeft))
+				.Append(" &nbsp; ").Append(Box(st.Off)).Append(' ').Append(Html(midRight)).AppendLine("<br/>");
+			sb.Append(Box(st.NotWorking)).Append(" Не рабочее на дату ").Append(d).AppendLine();
 			sb.AppendLine("</td>");
 		}
 
 		sb.AppendLine("</tr></table>");
 	}
 
-	private static void AppendLinedRows(StringBuilder sb, int rowCount, string? text)
+	private static void AppendContentLines(StringBuilder sb, string? text)
 	{
-		var lines = SplitTextLines(text, rowCount);
+		var lines = SplitContentLines(text);
+		if (lines.Count == 0)
+			return;
+
 		sb.AppendLine("<table class=\"lined-table\" cellspacing=\"0\" cellpadding=\"0\">");
-		for (var i = 0; i < rowCount; i++)
-			sb.Append("<tr><td>").Append(Html(lines[i])).AppendLine("</td></tr>");
+		foreach (var line in lines)
+			sb.Append("<tr><td>").Append(Html(line)).AppendLine("</td></tr>");
 		sb.AppendLine("</table>");
 	}
 
-	private static List<string> SplitTextLines(string? text, int rowCount)
+	private static List<string> SplitContentLines(string? text)
 	{
-		var result = new List<string>(rowCount);
 		if (string.IsNullOrWhiteSpace(text))
-		{
-			for (var i = 0; i < rowCount; i++)
-				result.Add(string.Empty);
-			return result;
-		}
+			return [];
 
-		var parts = text
+		return text
 			.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
 			.ToList();
-		if (parts.Count <= rowCount)
-		{
-			result.AddRange(parts);
-			while (result.Count < rowCount)
-				result.Add(string.Empty);
-			return result;
-		}
-
-		result.AddRange(parts.Take(rowCount - 1));
-		result.Add(string.Join(" ", parts.Skip(rowCount - 1)));
-		return result;
 	}
 
 	private static void AppendSignatureFields(StringBuilder sb)
@@ -773,11 +1218,11 @@ public sealed class SqliteActAssemblyPrototypeService : IActAssemblyPrototypeSer
 	{
 		if (line is null)
 		{
-			sb.AppendLine("<td>&nbsp;</td><td class=\"works-mark\">&nbsp;</td>");
+			sb.AppendLine("<td class=\"works-label\">&nbsp;</td><td class=\"works-mark\">&nbsp;</td>");
 			return;
 		}
 
-		sb.Append("<td>").Append(Html(line.Label)).AppendLine("</td>");
+		sb.Append("<td class=\"works-label\">").Append(Html(line.Label)).AppendLine("</td>");
 		sb.Append("<td class=\"works-mark\">").Append(Html(line.Mark)).AppendLine("</td>");
 	}
 

@@ -54,5 +54,5 @@ INSERT OR IGNORE INTO equipment_types (id, type_name, code) VALUES
 
 INSERT OR IGNORE INTO user_roles (id, role_name) VALUES
     (1, 'Инженер'),
-    (2, 'Администратор'),
+    (2, 'Менеджер'),
     (3, 'Администратор БД');

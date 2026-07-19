@@ -13,6 +13,3 @@ CREATE TABLE IF NOT EXISTS admin_support_requests (
 
 CREATE INDEX IF NOT EXISTS ix_admin_support_requests_status ON admin_support_requests (status);
 CREATE INDEX IF NOT EXISTS ix_admin_support_requests_created ON admin_support_requests (created_at);
-
-INSERT OR IGNORE INTO users (id, user_role_id, first_name, last_name, login, password_hash, is_active) VALUES
-    (2, 3, 'Демо', 'Администратор БД', 'dbadmin', '$2a$11$OfflinePlaceholderHashNotForAuth', 1);

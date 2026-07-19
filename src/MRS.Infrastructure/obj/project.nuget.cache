@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "d3QJ5qg1+f8=",
+  "dgSpecHash": "LvixHgDVBhg=",
   "success": true,
-  "projectFilePath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
+  "projectFilePath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Glaz0112\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\microsoft.data.sqlite\\10.0.5\\microsoft.data.sqlite.10.0.5.nupkg.sha512",
@@ -14,6 +14,7 @@
     "C:\\Users\\Glaz0112\\.nuget\\packages\\microsoft.identitymodel.logging\\8.9.0\\microsoft.identitymodel.logging.8.9.0.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\microsoft.identitymodel.tokens\\8.9.0\\microsoft.identitymodel.tokens.8.9.0.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\npgsql\\9.0.3\\npgsql.9.0.3.nupkg.sha512",
+    "C:\\Users\\Glaz0112\\.nuget\\packages\\questpdf\\2025.7.0\\questpdf.2025.7.0.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\sqlitepclraw.bundle_e_sqlite3\\2.1.11\\sqlitepclraw.bundle_e_sqlite3.2.1.11.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\sqlitepclraw.core\\2.1.11\\sqlitepclraw.core.2.1.11.nupkg.sha512",
     "C:\\Users\\Glaz0112\\.nuget\\packages\\sqlitepclraw.lib.e_sqlite3\\2.1.11\\sqlitepclraw.lib.e_sqlite3.2.1.11.nupkg.sha512",

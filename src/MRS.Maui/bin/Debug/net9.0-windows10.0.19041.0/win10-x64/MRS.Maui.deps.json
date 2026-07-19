@@ -742,6 +742,31 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "assemblyVersion": "2025.7.0.0",
+            "fileVersion": "2025.7.0.0"
+          }
+        },
+        "native": {
+          "runtimes/win-x64/native/QuestPdfSkia.dll": {
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/libgcc_s_seh-1.dll": {
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/libstdc++-6.dll": {
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/libwinpthread-1.dll": {
+            "fileVersion": "1.0.0.0"
+          },
+          "runtimes/win-x64/native/qpdf.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "dependencies": {
           "SQLitePCLRaw.lib.e_sqlite3": "2.1.11",
@@ -807,6 +832,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "runtime": {
@@ -1144,6 +1170,13 @@
       "sha512": "sha512-tPvY61CxOAWxNsKLEBg+oR646X4Bc8UmyQ/tJszL/7mEmIXQnnBhVJZrZEEUv0Bstu0mEsHZD5At3EO8zQRAYw==",
       "path": "npgsql/9.0.3",
       "hashPath": "npgsql.9.0.3.nupkg.sha512"
+    },
+    "QuestPDF/2025.7.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-yRjdm7p300eEuy4Mi9YdMuecl2cvTU/CV+IHHDzw22Uf43/0C2zeG4c+MthZqkpQNJPg0Agha1iBSmLBxX1vHA==",
+      "path": "questpdf/2025.7.0",
+      "hashPath": "questpdf.2025.7.0.nupkg.sha512"
     },
     "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
       "type": "package",

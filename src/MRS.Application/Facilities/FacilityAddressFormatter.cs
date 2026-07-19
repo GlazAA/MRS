@@ -20,17 +20,9 @@ public static class FacilityAddressFormatter
 		return parts.Count == 0 ? "—" : string.Join(", ", parts);
 	}
 
-	/// <summary>Строка «Объект» для акта: город и полный адрес в скобках.</summary>
+	/// <summary>Строка «Объект» для акта: полный адрес без дублирования города.</summary>
 	public static string FormatActObject(string? city, string street, string building, string? structure, string? block)
-	{
-		var cityPart = (city ?? string.Empty).Trim();
-		var fullAddress = Format(city ?? string.Empty, street, building, structure, block);
-		if (cityPart.Length == 0)
-			return fullAddress;
-		if (fullAddress.Length == 0)
-			return cityPart;
-		return $"{cityPart}\n({fullAddress})";
-	}
+		=> Format(city ?? string.Empty, street, building, structure, block);
 
 	private static string FormatHouse(string building, string? structure, string? block)
 	{

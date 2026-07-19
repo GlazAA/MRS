@@ -13,17 +13,14 @@
 <PageTitle>Создание шаблона ТО</PageTitle>
 
 <div class="mrs-toolbar">
-    <a class="mrs-back" href="/management">←</a>
+    <button type="button" class="mrs-back" @onclick="RequestLeaveToManagement" aria-label="Назад">←</button>
     <h1 class="mrs-title">Создание шаблона ТО</h1>
     <MrsTopMenu />
 </div>
 
 @if (_error is not null)
 {
-    <div class="mrs-alert-toast mrs-alert-toast-error" role="alert">
-        <span>@_error</span>
-        <button type="button" class="mrs-flash-dismiss" @onclick="DismissError" aria-label="Закрыть">×</button>
-    </div>
+    <MrsErrorModal Message="@_error" OnClose="DismissError" />
 }
 
 <div class="mrs-object-form">
@@ -55,10 +52,6 @@
                     </option>
                 }
             </select>
-            <p class="mrs-hint-dashed">
-                Подставятся вопросы, типы и служебные коды. Номер установки не копируется — он выбирается при заполнении КЛ.
-                Дальше отметьте лишние поля и при необходимости добавьте новые.
-            </p>
             <div class="mrs-form-actions">
                 <button type="button" class="mrs-btn-primary" disabled="@(_busy || string.IsNullOrEmpty(_cloneSourceId))" @onclick="ApplyCloneAsync">
                     Подставить поля
@@ -126,15 +119,10 @@
 
     @if (_maintenanceChoice == "new")
     {
-        <div class="mrs-field">
+        <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(_newMaintenanceName))">
             <label class="mrs-label">Название нового вида ТО *</label>
             <input class="mrs-select" type="text" @bind="_newMaintenanceName" @bind:event="oninput" />
             <p class="mrs-hint-dashed">@TemplateFieldTypeHints.NewMaintenanceNameHint</p>
-        </div>
-        <div class="mrs-field">
-            <label class="mrs-label">Код вида ТО</label>
-            <input class="mrs-select" type="text" placeholder="Оставьте пустым — подставится автоматически" @bind="_newMaintenanceCode" @bind:event="oninput" />
-            <p class="mrs-hint-dashed">@TemplateFieldTypeHints.MaintenanceTypeCodeHint</p>
         </div>
         <div class="mrs-field">
             <label class="mrs-label">Описание вида ТО</label>
@@ -158,11 +146,6 @@
         else
         {
             <div class="mrs-field mrs-mt">
-                <label class="mrs-label">Сценарный код</label>
-                <input class="mrs-select" type="text" placeholder="Оставьте пустым — подставится автоматически" @bind="_scenarioCode" @bind:event="oninput" />
-                <p class="mrs-hint-dashed">@TemplateFieldTypeHints.ScenarioCodeHint</p>
-            </div>
-            <div class="mrs-field">
                 <label class="mrs-label">Верхняя плашка</label>
                 <p class="mrs-hint-dashed">@TemplateFieldTypeHints.TopPlateHint</p>
                 @if (_textSourceChoice == TextSourceMode.Custom)
@@ -262,12 +245,7 @@
             {
                 <p class="mrs-template-field-summary">
                     <strong>@field.QuestionText</strong>
-                    <span class="mrs-info-note"> · @TemplateFieldTypeHints.GetFieldTypeLabel(field.FieldTypeName)
-                        @if (!string.IsNullOrWhiteSpace(field.FieldCode))
-                        {
-                            <text> · @field.FieldCode</text>
-                        }
-                    </span>
+                    <span class="mrs-info-note"> · @TemplateFieldTypeHints.GetFieldTypeLabel(field.FieldTypeName)</span>
                 </p>
             }
             else
@@ -275,25 +253,6 @@
             <div class="mrs-field">
                 <label class="mrs-label">Текст вопроса *</label>
                 <input class="mrs-select" type="text" @bind="field.QuestionText" @bind:event="oninput" @bind:after="() => OnQuestionTextChanged(index)" />
-            </div>
-            <div class="mrs-field">
-                <label class="mrs-label">Служебный код поля</label>
-                @if (field.FieldCodeManual)
-                {
-                    <input class="mrs-select" type="text" @bind="field.FieldCode" @bind:event="oninput" />
-                    <button type="button" class="mrs-btn-secondary mrs-mt" @onclick="() => ResetFieldCodeToAuto(index)">Вернуть автоподбор</button>
-                    <p class="mrs-hint-dashed">@TemplateFieldTypeHints.FieldCodeManualHint</p>
-                }
-                else
-                {
-                    <input class="mrs-select mrs-readonly" type="text" readonly value="@field.FieldCode" />
-                    <button type="button" class="mrs-btn-secondary mrs-mt" @onclick="() => EnableManualFieldCode(index)">Задать код вручную</button>
-                    <p class="mrs-hint-dashed">@TemplateFieldTypeHints.FieldCodeAutoHint</p>
-                }
-                @if (TemplateFieldTypeHints.GetForFieldCode(field.FieldCode) is { } codeHint)
-                {
-                    <p class="mrs-hint-dashed">@codeHint</p>
-                }
             </div>
             <div class="mrs-field">
                 <label class="mrs-label">Подсказка для инженера</label>
@@ -338,6 +297,20 @@
     </div>
 </div>
 
+@if (_showLeaveConfirm)
+{
+    <div class="mrs-modal-backdrop" @onclick="CancelLeave">
+        <div class="mrs-modal" @onclick:stopPropagation="true" style="max-width: 420px">
+            <h3 class="mrs-modal-title">Выйти без сохранения?</h3>
+            <p class="mrs-modal-body">Данные шаблона ещё не сохранены и будут потеряны.</p>
+            <div class="mrs-form-actions" style="margin-top: 0">
+                <button type="button" class="mrs-btn-secondary" @onclick="CancelLeave">Остаться</button>
+                <button type="button" class="mrs-btn-primary" @onclick="ConfirmLeave">Выйти</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private readonly List<HierarchyOption> _organizations = [];
     private readonly List<HierarchyOption> _facilities = [];
@@ -351,6 +324,10 @@
     private CreateMode _createMode = CreateMode.Blank;
     private string _cloneSourceId = string.Empty;
     private string? _cloneNotice;
+    private bool _showLeaveConfirm;
+    private bool _allowLeave;
+    private string? _pendingNavigateUri;
+    private IDisposable? _locationChangingRegistration;
 
     private string _organizationChoice = string.Empty;
     private string _facilityChoice = string.Empty;
@@ -390,6 +367,70 @@
         _highlightMissing = true;
     }
 
+    protected override void OnInitialized()
+    {
+        _locationChangingRegistration = Nav.RegisterLocationChangingHandler(OnLocationChangingAsync);
+    }
+
+    private ValueTask OnLocationChangingAsync(LocationChangingContext context)
+    {
+        if (_allowLeave || !HasUnsavedDraft())
+            return ValueTask.CompletedTask;
+
+        // Тот же URI — не блокируем.
+        if (IsSamePageNavigation(context.TargetLocation))
+            return ValueTask.CompletedTask;
+
+        context.PreventNavigation();
+        _pendingNavigateUri = context.TargetLocation;
+        _showLeaveConfirm = true;
+        _ = InvokeAsync(StateHasChanged);
+        return ValueTask.CompletedTask;
+    }
+
+    private bool IsSamePageNavigation(string targetLocation)
+    {
+        var current = Nav.ToBaseRelativePath(Nav.Uri);
+        var target = Nav.ToBaseRelativePath(targetLocation);
+        return string.Equals(current, target, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Есть ли черновик, который жалко потерять при уходе.</summary>
+    private bool HasUnsavedDraft()
+    {
+        if (!string.IsNullOrWhiteSpace(_templateName))
+            return true;
+        if (!string.IsNullOrEmpty(_organizationChoice) || !string.IsNullOrEmpty(_facilityChoice))
+            return true;
+        if (!string.IsNullOrEmpty(_equipmentTypeChoice) || !string.IsNullOrEmpty(_maintenanceChoice))
+            return true;
+        if (_createMode == CreateMode.Analogy && (!string.IsNullOrEmpty(_cloneSourceId) || _fields.Count > 0))
+            return true;
+        if (_fields.Any(f => f.Keep && (!string.IsNullOrWhiteSpace(f.QuestionText) || !string.IsNullOrWhiteSpace(f.HintText))))
+            return true;
+        if (_textSourceChoice is not null || _redButtonEnabled)
+            return true;
+        if (!string.IsNullOrWhiteSpace(_topPlateText) || !string.IsNullOrWhiteSpace(_safetyModalText) || !string.IsNullOrWhiteSpace(_scenarioCode))
+            return true;
+        return false;
+    }
+
+    private void RequestLeaveToManagement() => Nav.NavigateTo("/management");
+
+    private void CancelLeave()
+    {
+        _showLeaveConfirm = false;
+        _pendingNavigateUri = null;
+    }
+
+    private void ConfirmLeave()
+    {
+        var target = _pendingNavigateUri ?? "/management";
+        _showLeaveConfirm = false;
+        _pendingNavigateUri = null;
+        _allowLeave = true;
+        Nav.NavigateTo(target);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -554,16 +595,7 @@
         SyncAllFieldCodes();
     }
 
-    private void OnQuestionTextChanged(int index) => SyncFieldCode(index);
-
-    private void EnableManualFieldCode(int index)
-    {
-        if (index < 0 || index >= _fields.Count)
-            return;
-        _fields[index].FieldCodeManual = true;
-    }
-
-    private void ResetFieldCodeToAuto(int index)
+    private void OnQuestionTextChanged(int index)
     {
         if (index < 0 || index >= _fields.Count)
             return;
@@ -577,9 +609,6 @@
             return;
 
         var field = _fields[index];
-        if (field.FieldCodeManual)
-            return;
-
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < _fields.Count; i++)
         {
@@ -590,6 +619,7 @@
         }
 
         field.FieldCode = TemplateFieldCodeGenerator.SuggestFromQuestion(field.QuestionText, used);
+        field.FieldCodeManual = false;
     }
 
     private void SyncAllFieldCodes()
@@ -597,14 +627,17 @@
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var field in _fields)
         {
-            if (field.FieldCodeManual)
+            if (!field.Keep)
+                continue;
+
+            if (field.FieldCodeManual && !string.IsNullOrWhiteSpace(field.FieldCode))
             {
-                if (!string.IsNullOrWhiteSpace(field.FieldCode))
-                    used.Add(field.FieldCode);
+                used.Add(field.FieldCode);
                 continue;
             }
 
             field.FieldCode = TemplateFieldCodeGenerator.SuggestFromQuestion(field.QuestionText, used);
+            field.FieldCodeManual = false;
             if (!string.IsNullOrWhiteSpace(field.FieldCode))
                 used.Add(field.FieldCode);
         }
@@ -612,7 +645,7 @@
 
     private void EnsureMaintenanceAndScenarioCodes(int equipmentTypeId)
     {
-        if (_maintenanceChoice == "new" && string.IsNullOrWhiteSpace(_newMaintenanceCode))
+        if (_maintenanceChoice == "new")
             _newMaintenanceCode = TemplateFieldCodeGenerator.SuggestMaintenanceTypeCode(_newMaintenanceName);
 
         if (string.IsNullOrWhiteSpace(_scenarioCode))
@@ -791,6 +824,7 @@
             Flash.Set(
                 $"Шаблон «{title}» сохранён для «{facilityName}» (ID: {newTemplateId}). " +
                 $"В контрольных листах: этот объект → {equipmentName} → нужный вид ТО (подпись «для этого объекта»).");
+            _allowLeave = true;
             Nav.NavigateTo("/management");
         }
         catch (Exception ex)
@@ -816,6 +850,7 @@
 
     public void Dispose()
     {
+        _locationChangingRegistration?.Dispose();
         _longPressTimer?.Dispose();
     }
 

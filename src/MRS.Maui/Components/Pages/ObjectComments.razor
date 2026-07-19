@@ -23,7 +23,7 @@
 
 @if (_error is not null)
 {
-    <p class="text-danger">@_error</p>
+    <MrsErrorModal Message="@_error" OnClose="DismissError" />
 }
 
 @if (_flash is not null)
@@ -115,7 +115,7 @@ else
                     <label class="mrs-label">Заголовок</label>
                     <input class="mrs-select" @bind="_editTitle" />
                 </div>
-                <div class="mrs-field">
+                <div class="mrs-field @(_highlightMissing && string.IsNullOrWhiteSpace(_editBody) ? "mrs-field-invalid" : null)">
                     <label class="mrs-label">Текст *</label>
                     <textarea class="mrs-select" rows="5" @bind="_editBody"></textarea>
                 </div>
@@ -216,6 +216,7 @@ else
     private bool _saving;
     private string? _error;
     private string? _flash;
+    private bool _highlightMissing;
     private CancellationTokenSource? _hideCts;
     private List<EngineerNoteListItem> _notes = [];
 
@@ -308,11 +309,16 @@ else
                 FacilityId: fid,
                 ScheduledVisitId: vid,
                 ChecklistId: null,
-                DeadlineOnOrBefore: null,
-                DeadlineOnDay: _filterDeadlineDay))).ToList();
+                DeadlineOnOrBefore: _filterDeadlineDay,
+                DeadlineOnDay: null))).ToList();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
+    }
+
+    private void DismissError()
+    {
+        _error = null;
     }
 
     private void OpenCreate()
@@ -324,6 +330,8 @@ else
         _editFacilityId = _filterFacilityId;
         _editVisitId = _filterVisitId;
         _editChecklistId = string.Empty;
+        _highlightMissing = false;
+        _error = null;
         _showEditor = true;
     }
 
@@ -331,9 +339,16 @@ else
 
     private async Task SaveNoteAsync()
     {
-        if (string.IsNullOrWhiteSpace(_editBody)) { _error = "Введите текст заметки."; return; }
+        if (string.IsNullOrWhiteSpace(_editBody))
+        {
+            _highlightMissing = true;
+            _error = "Введите текст заметки.";
+            return;
+        }
+
         _saving = true;
         _error = null;
+        _highlightMissing = false;
         try
         {
             var user = Session.Current;

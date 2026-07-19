@@ -19,6 +19,9 @@ public interface IActAssemblyPrototypeService
 	/// <summary>Рендерит простой .doc (HTML) из отредактированного черновика.</summary>
 	ChecklistDocumentExportFile RenderDraftDoc(ActDraft draft);
 
+	/// <summary>Рендерит PDF из отредактированного черновика.</summary>
+	ChecklistDocumentExportFile RenderDraftPdf(ActDraft draft);
+
 	/// <summary>Упаковывает несколько актов в один ZIP.</summary>
 	ChecklistDocumentExportFile RenderDraftsZip(IReadOnlyList<ActDraft> drafts);
 }

@@ -2,7 +2,9 @@
 @using System.Globalization
 @using MRS.Application
 @using MRS.Application.Checklists
+@using MRS.Application.Facilities
 @inject IChecklistManagementService ChecklistManagement
+@inject IObjectOnboardingService Onboarding
 @inject NavigationManager Nav
 
 <PageTitle>Работа с контрольными листами</PageTitle>
@@ -99,8 +101,17 @@ else
         try
         {
             _rows = (await ChecklistManagement.GetAllAsync().ConfigureAwait(false)).ToList();
+            var allEquipmentTypes = await Onboarding.GetAllEquipmentTypesAsync().ConfigureAwait(false);
+
             _objectOptions = _rows.Select(r => r.FacilityName).Distinct().OrderBy(x => x).ToList();
-            _equipmentOptions = _rows.Select(r => r.EquipmentTypeName).Distinct().OrderBy(x => x).ToList();
+            // Полный справочник типов, плюс имена из уже созданных КЛ (кастомные типы).
+            _equipmentOptions = allEquipmentTypes
+                .Select(t => t.Name)
+                .Concat(_rows.Select(r => r.EquipmentTypeName))
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
             _installationOptions = _rows.Select(r => r.InstallationLabel).Distinct().OrderBy(x => x).ToList();
             ApplyFilters();
         }
@@ -123,7 +134,7 @@ else
         if (_objectFilter != "all")
             q = q.Where(r => r.FacilityName == _objectFilter);
         if (_equipmentFilter != "all")
-            q = q.Where(r => r.EquipmentTypeName == _equipmentFilter);
+            q = q.Where(r => string.Equals(r.EquipmentTypeName, _equipmentFilter, StringComparison.OrdinalIgnoreCase));
         if (_installationFilter != "all")
             q = q.Where(r => r.InstallationLabel == _installationFilter);
 

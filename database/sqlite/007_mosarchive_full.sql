@@ -35,12 +35,6 @@ UPDATE checklist_templates SET intro_modal_text = 'При наличии оши�
 UPDATE checklist_templates SET intro_modal_text = NULL, safety_modal_text = 'При наличии ошибок и неисправностей следует соблюдать инструкции и рекомендации, указанные в руководстве по эксплуатации компрессора.', red_button_enabled = 1, top_plate_text = 'Винтовой компрессор — ежемесячное ТО' WHERE id = 2;
 UPDATE checklist_templates SET intro_modal_text = 'При наличии ошибок и неисправностей следует соблюдать инструкции и рекомендации, указанные в руководстве по эксплуатации компрессора.', safety_modal_text = 'При наличии ошибок и неисправностей следует соблюдать инструкции и рекомендации, указанные в руководстве по эксплуатации компрессора.', red_button_enabled = 1, top_plate_text = 'ТО-1500 компрессора' WHERE id = 5;
 
-INSERT OR IGNORE INTO users (id, user_role_id, first_name, last_name, login, password_hash, is_active) VALUES
-    (2, 1, 'Пётр', 'Петров', 'petrov', '$2a$11$OfflinePlaceholderHashNotForAuth', 1),
-    (3, 1, 'Сергей', 'Сидоров', 'sidorov', '$2a$11$OfflinePlaceholderHashNotForAuth', 1),
-    (4, 1, 'Анна', 'Козлова', 'kozlova', '$2a$11$OfflinePlaceholderHashNotForAuth', 1),
-    (5, 1, 'Иван', 'Иванов', 'ivanov', '$2a$11$OfflinePlaceholderHashNotForAuth', 1);
-
 INSERT INTO checklist_template_items (id, checklist_template_id, sort_order, field_code, question_text, hint_text, field_type_id, is_required, validation_rule_code) VALUES (5001, 1, 1, 'start_date', 'Дата начала', 'Строго дд.мм.гггг (поле календаря)', 3, 1, NULL);
 INSERT INTO checklist_template_items (id, checklist_template_id, sort_order, field_code, question_text, hint_text, field_type_id, is_required, validation_rule_code) VALUES (5002, 1, 2, 'start_time', 'Время начала', 'Строго чч:мм', 4, 1, NULL);
 INSERT INTO checklist_template_items (id, checklist_template_id, sort_order, field_code, question_text, hint_text, field_type_id, is_required, validation_rule_code) VALUES (5003, 1, 3, 'workers', 'Лица, производившие работы', 'Можно выбрать несколько', 11, 1, NULL);

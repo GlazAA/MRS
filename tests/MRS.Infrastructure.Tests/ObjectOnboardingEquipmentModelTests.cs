@@ -15,6 +15,7 @@ public class ObjectOnboardingEquipmentModelTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var catalog = new SqliteEquipmentModelCatalogService(paths, bootstrapper);
 			var onboarding = new SqliteObjectOnboardingService(paths, bootstrapper, catalog, new NoOpSyncOutboxService());
@@ -52,6 +53,58 @@ public class ObjectOnboardingEquipmentModelTests
 			Assert.Equal("Atlas Copco", model!.Manufacturer);
 			Assert.Equal("GA-37", model.ModelName);
 			Assert.NotNull(model.EquipmentModelId);
+
+			// Новый тип / другой контекст всё равно видит производителя в общем справочнике.
+			var manufacturers = await catalog.GetManufacturersAsync(99);
+			Assert.Contains(manufacturers, m => string.Equals(m, "Atlas Copco", StringComparison.OrdinalIgnoreCase));
+		}
+		finally
+		{
+			Cleanup(path);
+		}
+	}
+
+	[Fact]
+	public async Task UpsertHierarchyAsync_saves_manufacturer_without_model_into_catalog()
+	{
+		var path = CreateTempDbPath();
+		try
+		{
+			var bootstrapper = new SqliteDatabaseBootstrapper();
+			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
+			var paths = new FixedDbPath(path);
+			var catalog = new SqliteEquipmentModelCatalogService(paths, bootstrapper);
+			var onboarding = new SqliteObjectOnboardingService(paths, bootstrapper, catalog, new NoOpSyncOutboxService());
+
+			await onboarding.UpsertHierarchyAsync(new ObjectOnboardingRequest(
+				ExistingOrganizationId: 1,
+				NewOrganizationLegalFormCode: null,
+				NewOrganizationCompanyName: null,
+				ExistingFacilityId: 1,
+				NewFacilityName: null,
+				ContractAddress: null,
+				AddressCity: null,
+				AddressStreet: null,
+				AddressBuilding: null,
+				AddressStructure: null,
+				AddressBlock: null,
+				AddressZipCode: null,
+				SystemDescription: null,
+				Installations:
+				[
+					new ObjectOnboardingInstallationDraft(
+						ExistingEquipmentTypeId: 1,
+						NewEquipmentTypeName: null,
+						InstallationLabel: "ПН-002",
+						InstallationManufacturer: "Kaeser",
+						InstallationModel: null,
+						InstallationSerialNumber: null)
+				],
+				Contacts: []));
+
+			var manufacturers = await catalog.GetManufacturersAsync(1);
+			Assert.Contains(manufacturers, m => string.Equals(m, "Kaeser", StringComparison.OrdinalIgnoreCase));
 		}
 		finally
 		{

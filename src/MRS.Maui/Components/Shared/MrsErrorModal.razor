@@ -1,0 +1,24 @@
+@* Центрированное окно ошибки сохранения с крестиком. *@
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="mrs-modal-backdrop" @onclick="CloseAsync">
+        <div class="mrs-modal" @onclick:stopPropagation="true" style="max-width: 420px">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CloseAsync">×</button>
+            <h3 class="mrs-modal-title">@Title</h3>
+            <p class="mrs-modal-body">@Message</p>
+            <div class="mrs-form-actions" style="margin-top: 0">
+                <button type="button" class="mrs-btn-primary" @onclick="CloseAsync">Понятно</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public string Title { get; set; } = "Не удалось сохранить";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private Task CloseAsync() => OnClose.HasDelegate
+        ? OnClose.InvokeAsync()
+        : Task.CompletedTask;
+}

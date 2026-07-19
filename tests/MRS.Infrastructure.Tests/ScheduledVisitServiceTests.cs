@@ -14,6 +14,7 @@ public class ScheduledVisitServiceTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var visits = new SqliteScheduledVisitService(paths, bootstrapper, new NoOpSyncOutboxService());
 
@@ -40,6 +41,7 @@ public class ScheduledVisitServiceTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var contacts = new SqliteOrganizationEmployeeQueryService(paths, bootstrapper);
 

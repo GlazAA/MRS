@@ -15,6 +15,7 @@ public class TemplateCloneAuthoringTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var authoring = new SqliteChecklistTemplateAuthoringService(paths, bootstrapper, new NoOpSyncOutboxService());
 
@@ -96,7 +97,8 @@ public class TemplateCloneAuthoringTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
-			Assert.Equal(19, (await bootstrapper.EnsureReadyAsync(path)).SchemaVersion);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
+			Assert.Equal(SqliteDatabaseBootstrapper.CurrentSchemaVersion, (await bootstrapper.EnsureReadyAsync(path)).SchemaVersion);
 			var paths = new FixedDbPath(path);
 			var authoring = new SqliteChecklistTemplateAuthoringService(paths, bootstrapper, new NoOpSyncOutboxService());
 			var flow = new SqliteChecklistFlowService(paths, bootstrapper);

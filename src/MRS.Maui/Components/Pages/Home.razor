@@ -2,21 +2,25 @@
 @using MRS.Application.Admin
 @using MRS.Application.Security
 @using MRS.Application.Storage
+@using MRS.Application.Users
 @implements IDisposable
 @inject ILocalDatabasePath DatabasePath
 @inject ILocalDatabaseBootstrapper DatabaseBootstrapper
 @inject ICurrentUserSession Session
 @inject IAdminSupportRequestService SupportRequests
+@inject IEngineerDirectoryService Engineers
 
 <PageTitle>Главная</PageTitle>
 
 <div class="mrs-home">
     <div class="mrs-home-panel">
-        <a class="mrs-home-btn" href="checklists">Заполнить контрольный лист</a>
-        <a class="mrs-home-btn" href="management">Управление листами</a>
-        <a class="mrs-home-btn" href="objects">Объекты и выезды</a>
+        <a class="mrs-home-btn" href="checklists">Заполнить КЛ</a>
+        <a class="mrs-home-btn" href="checklists/acts">Собрать акт</a>
+        <a class="mrs-home-btn" href="management">Управление КЛ</a>
+        <a class="mrs-home-btn" href="objects">Организации и планирование</a>
         @if (Session.IsDbAdministrator)
         {
+            <a class="mrs-home-btn" href="admin/colleagues">Коллеги</a>
             <a class="mrs-home-btn" href="sql">
                 SQL-окно
                 @if (_openSupportCount > 0)
@@ -30,14 +34,23 @@
     @if (Session.IsEngineer)
     {
         <div class="mrs-home-engineer">
-            <label class="mrs-label" for="engineer-name">Ваше ФИО (для обращений администратору)</label>
+            <label class="mrs-label mrs-home-engineer-label" for="engineer-name">Кто вы (для обращений администратору)</label>
             <div class="mrs-home-engineer-row">
-                <input id="engineer-name" class="mrs-select" type="text" @bind="_engineerName" @bind:event="oninput" />
-                <button type="button" class="mrs-home-role-switch" @onclick="SaveEngineerNameAsync">Сохранить</button>
+                <select id="engineer-name" class="mrs-select" @bind="_selectedEngineerId" @bind:after="OnEngineerPickedAsync" disabled="@_busy">
+                    <option value="0">— выберите из справочника —</option>
+                    @foreach (var e in _engineers)
+                    {
+                        <option value="@e.UserId">@e.DisplayName</option>
+                    }
+                </select>
             </div>
-            @if (_engineerNameSaved)
+            @if (_engineers.Count == 0)
             {
-                <p class="mrs-save-msg mrs-home-note">ФИО сохранено — будет подставляться в обращения автоматически.</p>
+                <p class="mrs-home-note">Справочник пуст. Администратор может добавить коллег через «Коллеги».</p>
+            }
+            else if (_engineerNameSaved)
+            {
+                <p class="mrs-save-msg mrs-home-note">Выбрано: будет подставляться в обращения автоматически.</p>
             }
         </div>
     }
@@ -57,8 +70,10 @@
 
 @code {
     private LocalDatabaseStatus? _status;
-    private string _engineerName = string.Empty;
+    private readonly List<EngineerDirectoryEntry> _engineers = [];
+    private int _selectedEngineerId;
     private bool _engineerNameSaved;
+    private bool _busy;
     private int _openSupportCount;
 
     protected override async Task OnInitializedAsync()
@@ -71,18 +86,42 @@
 
     private async Task RefreshSessionUiAsync()
     {
-        _engineerName = Session.Current.DisplayName;
-        _engineerNameSaved = false;
-        _openSupportCount = Session.IsDbAdministrator
-            ? await SupportRequests.CountOpenAsync().ConfigureAwait(false)
-            : 0;
-    }
-
-    private async Task SaveEngineerNameAsync()
-    {
+        _busy = true;
         try
         {
-            await Session.SetEngineerDisplayNameAsync(_engineerName).ConfigureAwait(false);
+            _engineerNameSaved = false;
+            _engineers.Clear();
+            if (Session.IsEngineer)
+            {
+                var list = await Engineers.ListActiveAsync().ConfigureAwait(false);
+                _engineers.AddRange(list);
+                var match = _engineers.FirstOrDefault(e =>
+                    string.Equals(e.DisplayName, Session.Current.DisplayName, StringComparison.OrdinalIgnoreCase));
+                _selectedEngineerId = match?.UserId ?? 0;
+            }
+
+            _openSupportCount = Session.IsDbAdministrator
+                ? await SupportRequests.CountOpenAsync().ConfigureAwait(false)
+                : 0;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OnEngineerPickedAsync()
+    {
+        if (_selectedEngineerId <= 0)
+            return;
+
+        var entry = _engineers.FirstOrDefault(e => e.UserId == _selectedEngineerId);
+        if (entry is null)
+            return;
+
+        try
+        {
+            await Session.SetEngineerDisplayNameAsync(entry.DisplayName).ConfigureAwait(false);
             _engineerNameSaved = true;
         }
         catch (Exception ex)

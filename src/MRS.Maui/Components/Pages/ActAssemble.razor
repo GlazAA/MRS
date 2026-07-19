@@ -2,15 +2,19 @@
 @using System.Globalization
 @using MRS.Application
 @using MRS.Application.Checklists
+@using MRS.Application.Facilities
 @using MRS.Maui.Services
+@using Microsoft.Maui.Devices
 @inject IChecklistManagementService ChecklistManagement
+@inject IFacilityHierarchyService FacilityHierarchy
+@inject IInstallationQueryService InstallationQuery
 @inject IActAssemblyPrototypeService ActAssembly
 @inject IAppFileSaveService FileSave
 
 <PageTitle>Сборка акта</PageTitle>
 
 <div class="mrs-toolbar">
-    <a class="mrs-back" href="/management">←</a>
+    <a class="mrs-back" href="/">←</a>
     <h1 class="mrs-title">Сборка акта</h1>
     <MrsTopMenu />
 </div>
@@ -19,14 +23,13 @@
 {
     <p>Загрузка…</p>
 }
-else if (_error is not null)
-{
-    <p class="text-danger">@_error</p>
-}
 
+<MrsErrorModal Message="@_error" OnClose="DismissError" />
+
+@if (!_busy)
+{
 <section class="mrs-act-step">
     <h2 class="mrs-info-title">1. Выберите контрольные листы</h2>
-    <p class="mrs-info-note">Тестовые данные: объект «Площадка G301», установка G301.</p>
     <div class="mrs-filter-row">
         <div class="mrs-field mrs-field-inline">
             <label class="mrs-label">Объект</label>
@@ -50,9 +53,19 @@ else if (_error is not null)
         </div>
     </div>
 
-    <div class="mrs-form-actions mrs-mb">
-        <button type="button" class="mrs-btn-secondary" @onclick="SelectAllFiltered" disabled="@(_filteredRows.Count == 0)">Отметить все в фильтре</button>
-        <button type="button" class="mrs-btn-secondary" @onclick="ClearSelection" disabled="@(_selectedIds.Count == 0)">Снять отметки</button>
+    <div class="mrs-act-select-bar">
+        <button type="button"
+                class="mrs-btn-secondary mrs-act-select-btn"
+                @onclick="SelectAllFiltered"
+                disabled="@(_filteredRows.Count == 0)">
+            Выделить все
+        </button>
+        <button type="button"
+                class="mrs-btn-secondary mrs-act-select-btn"
+                @onclick="ClearSelection"
+                disabled="@(_selectedIds.Count == 0)">
+            Снять все
+        </button>
     </div>
 
     <section class="mrs-list-window">
@@ -74,7 +87,7 @@ else if (_error is not null)
             <p class="mrs-info-note">Нет контрольных листов по фильтру. Перезапустите приложение, если только что обновляли БД.</p>
         }
     </section>
-    <p class="mrs-info-note">Выбрано: @_selectedIds.Count</p>
+    <p class="mrs-info-note">Выбрано: @_selectedIds.Count из @_filteredRows.Count</p>
 </section>
 
 <section class="mrs-act-step">
@@ -112,6 +125,14 @@ else if (_error is not null)
                     @_installationDraft.Customer · @_installationDraft.WorkDates · уст. @_installationDraft.InstallationLabel · @_installationDraft.WorkKind
                 </p>
                 <p class="mrs-info-note">Объект: @_installationDraft.ObjectAddress</p>
+                @if (!string.IsNullOrWhiteSpace(_installationDraft.EquipmentStateDisplay))
+                {
+                    <p class="mrs-info-note">Состояние оборудования: @_installationDraft.EquipmentStateDisplay</p>
+                }
+                else
+                {
+                    <p class="mrs-info-note">Состояние оборудования: не найдено в выбранных КЛ (нужен ответ «comp_state», обычно в КЛ компрессора).</p>
+                }
                 <p class="mrs-label">Перечень работ</p>
                 <ul class="mrs-act-works">
                     @foreach (var line in _installationDraft.WorkLines)
@@ -127,7 +148,7 @@ else if (_error is not null)
                     <label class="mrs-label">Замечания и рекомендации</label>
                     <textarea class="mrs-select" rows="4" @bind="_installationDraft.RemarksText" @bind:event="oninput"></textarea>
                 </div>
-                <button type="button" class="mrs-btn-secondary" disabled="@_exporting" @onclick="() => DownloadDraftAsync(_installationDraft)">
+                    <button type="button" class="mrs-btn-secondary" disabled="@_exporting" @onclick="() => AskDownloadFormat(_installationDraft)">
                     Скачать этот акт
                 </button>
             </div>
@@ -147,6 +168,10 @@ else if (_error is not null)
                         }
                     </p>
                     <p class="mrs-info-note">Объект: @draft.ObjectAddress</p>
+                    @if (!string.IsNullOrWhiteSpace(draft.EquipmentStateDisplay))
+                    {
+                        <p class="mrs-info-note">Состояние: @draft.EquipmentStateDisplay</p>
+                    }
                     <p class="mrs-label">Перечень работ</p>
                     <ul class="mrs-act-works">
                         @foreach (var line in draft.WorkLines.Take(8))
@@ -166,7 +191,7 @@ else if (_error is not null)
                         <label class="mrs-label">Замечания и рекомендации</label>
                         <textarea class="mrs-select" rows="3" @bind="draft.RemarksText" @bind:event="oninput"></textarea>
                     </div>
-                    <button type="button" class="mrs-btn-secondary" disabled="@_exporting" @onclick="() => DownloadDraftAsync(draft)">
+                    <button type="button" class="mrs-btn-secondary" disabled="@_exporting" @onclick="() => AskDownloadFormat(draft)">
                         Скачать этот акт
                     </button>
                 </div>
@@ -179,11 +204,32 @@ else if (_error is not null)
         }
     </section>
 }
+}
+
+@if (_formatDraft is not null)
+{
+    <div class="mrs-modal-backdrop" @onclick="CancelFormatPicker">
+        <div class="mrs-modal" @onclick:stopPropagation="true" style="max-width: 420px">
+            <button type="button" class="mrs-modal-close" aria-label="Закрыть" @onclick="CancelFormatPicker">×</button>
+            <h3 class="mrs-modal-title">Как скачать акт?</h3>
+            <p class="mrs-modal-body">Выберите формат файла.</p>
+            <div class="mrs-form-actions" style="margin-top: 0; flex-direction: column; align-items: stretch;">
+                <button type="button" class="mrs-btn-primary" disabled="@_exporting" @onclick="() => DownloadDraftAsync(_formatDraft, ActExportFormat.Doc)">
+                    Word (.doc)
+                </button>
+                <button type="button" class="mrs-btn-secondary" disabled="@_exporting" @onclick="() => DownloadDraftAsync(_formatDraft, ActExportFormat.Pdf)">
+                    PDF (.pdf)
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<ChecklistManagementRow> _rows = [];
     private List<ChecklistManagementRow> _filteredRows = [];
     private readonly HashSet<int> _selectedIds = [];
+    private IReadOnlyList<InstallationFilterItem> _installationCatalog = [];
     private List<string> _objectOptions = [];
     private List<string> _installationOptions = [];
     private string _objectFilter = "all";
@@ -197,6 +243,11 @@ else if (_error is not null)
     private bool _exporting;
     private string? _error;
     private string? _downloadNote;
+    private ActDraft? _formatDraft;
+
+    private void DismissError() => _error = null;
+
+    private enum ActExportFormat { Doc, Pdf }
 
     private ActAssemblyPreview? _preview;
     private ActDraft? _installationDraft;
@@ -209,12 +260,13 @@ else if (_error is not null)
         try
         {
             _rows = (await ChecklistManagement.GetAllAsync().ConfigureAwait(false)).ToList();
-            _objectOptions = _rows.Select(r => r.FacilityName).Distinct().OrderBy(x => x).ToList();
-            _installationOptions = _rows.Select(r => r.InstallationLabel).Distinct().OrderBy(x => x).ToList();
-            if (_objectOptions.Contains("Площадка G301"))
-                _objectFilter = "Площадка G301";
-            if (_installationOptions.Contains("G301"))
-                _installationFilter = "G301";
+            var facilityNames = await FacilityHierarchy.GetAllFacilityNamesAsync().ConfigureAwait(false);
+            _installationCatalog = await InstallationQuery.ListActiveForFiltersAsync().ConfigureAwait(false);
+
+            _objectOptions = MergeDistinctNames(
+                facilityNames,
+                _rows.Select(r => r.FacilityName));
+            RebuildInstallationOptions(preserveSelection: false);
             ApplyFilters();
         }
         catch (Exception ex)
@@ -231,9 +283,9 @@ else if (_error is not null)
     {
         IEnumerable<ChecklistManagementRow> q = _rows;
         if (_objectFilter != "all")
-            q = q.Where(r => r.FacilityName == _objectFilter);
+            q = q.Where(r => string.Equals(r.FacilityName, _objectFilter, StringComparison.OrdinalIgnoreCase));
         if (_installationFilter != "all")
-            q = q.Where(r => r.InstallationLabel == _installationFilter);
+            q = q.Where(r => string.Equals(r.InstallationLabel, _installationFilter, StringComparison.OrdinalIgnoreCase));
         _filteredRows = q
             .OrderByDescending(r => r.StartedAt)
             .ThenBy(r => r.EquipmentTypeName)
@@ -243,6 +295,7 @@ else if (_error is not null)
     private void OnObjectFilterChanged(ChangeEventArgs e)
     {
         _objectFilter = e.Value?.ToString() ?? "all";
+        RebuildInstallationOptions(preserveSelection: true);
         ApplyFilters();
     }
 
@@ -250,6 +303,44 @@ else if (_error is not null)
     {
         _installationFilter = e.Value?.ToString() ?? "all";
         ApplyFilters();
+    }
+
+    private void RebuildInstallationOptions(bool preserveSelection)
+    {
+        IEnumerable<string> fromCatalog = _objectFilter == "all"
+            ? _installationCatalog.Select(i => i.Label)
+            : _installationCatalog
+                .Where(i => string.Equals(i.FacilityName, _objectFilter, StringComparison.OrdinalIgnoreCase))
+                .Select(i => i.Label);
+
+        IEnumerable<string> fromRows = _objectFilter == "all"
+            ? _rows.Select(r => r.InstallationLabel)
+            : _rows
+                .Where(r => string.Equals(r.FacilityName, _objectFilter, StringComparison.OrdinalIgnoreCase))
+                .Select(r => r.InstallationLabel);
+
+        _installationOptions = MergeDistinctNames(fromCatalog, fromRows);
+
+        if (!preserveSelection
+            || (_installationFilter != "all"
+                && !_installationOptions.Contains(_installationFilter, StringComparer.OrdinalIgnoreCase)))
+        {
+            _installationFilter = "all";
+        }
+    }
+
+    private static List<string> MergeDistinctNames(IEnumerable<string> primary, IEnumerable<string> extra)
+    {
+        var byKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in primary.Concat(extra))
+        {
+            var name = (raw ?? string.Empty).Trim();
+            if (name.Length == 0)
+                continue;
+            byKey.TryAdd(name, name);
+        }
+
+        return byKey.Values.OrderBy(v => v, StringComparer.CurrentCultureIgnoreCase).ToList();
     }
 
     private void ToggleSelected(int checklistId, ChangeEventArgs e)
@@ -267,9 +358,14 @@ else if (_error is not null)
     {
         foreach (var row in _filteredRows)
             _selectedIds.Add(row.ChecklistId);
+        StateHasChanged();
     }
 
-    private void ClearSelection() => _selectedIds.Clear();
+    private void ClearSelection()
+    {
+        _selectedIds.Clear();
+        StateHasChanged();
+    }
 
     private async Task BuildDraftsAsync()
     {
@@ -311,18 +407,28 @@ else if (_error is not null)
         }
     }
 
-    private async Task DownloadDraftAsync(ActDraft draft)
+    private void AskDownloadFormat(ActDraft draft) => _formatDraft = draft;
+
+    private void CancelFormatPicker() => _formatDraft = null;
+
+    private async Task DownloadDraftAsync(ActDraft draft, ActExportFormat format)
     {
         _exporting = true;
         _error = null;
         _downloadNote = null;
         try
         {
-            var file = ActAssembly.RenderDraftDoc(draft);
+            var file = format == ActExportFormat.Pdf
+                ? ActAssembly.RenderDraftPdf(draft)
+                : ActAssembly.RenderDraftDoc(draft);
             var path = await FileSave.SaveAsync(file.FileName, file.Content);
+            _formatDraft = null;
+            var isWindows = DeviceInfo.Current.Platform == DevicePlatform.WinUI;
             _downloadNote = path is null
                 ? "Сохранение отменено."
-                : $"Сохранено в «Загрузки»: {path}";
+                : isWindows
+                    ? $"Сохранено в «Загрузки»: {Path.GetFileName(path)}"
+                    : "Открыто меню «Поделиться» — сохраните файл в Загрузки / Диск / Telegram.";
         }
         catch (Exception ex)
         {

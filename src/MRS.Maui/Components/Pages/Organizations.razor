@@ -126,6 +126,13 @@
                                             </button>
                                         </div>
                                     }
+                                    @if (!string.IsNullOrWhiteSpace(f.SystemDescription))
+                                    {
+                                        <div class="mrs-org-system-note">
+                                            <div class="mrs-field-hint">Описание системы (внутреннее)</div>
+                                            <div class="mrs-org-system-text mrs-pre-wrap">@f.SystemDescription</div>
+                                        </div>
+                                    }
                                 </li>
                             }
                         </ul>

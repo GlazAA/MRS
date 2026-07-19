@@ -29,19 +29,3 @@ CREATE INDEX IF NOT EXISTS ix_engineer_notes_visit ON engineer_notes (scheduled_
 CREATE INDEX IF NOT EXISTS ix_engineer_notes_checklist ON engineer_notes (checklist_id);
 CREATE INDEX IF NOT EXISTS ix_scheduled_visits_facility ON scheduled_visits (facility_id);
 CREATE INDEX IF NOT EXISTS ix_scheduled_visits_start ON scheduled_visits (planned_start);
-
--- Контактные лица для демо-организаций
-INSERT OR IGNORE INTO organization_employees (id, organization_id, first_name, last_name, middle_name, position, work_phone, work_email, is_active) VALUES
-    (1, 1, 'Алексей', 'Петров', 'Иванович', 'Главный инженер', '+7 (495) 111-22-33', 'petrov@mosarchive.demo', 1),
-    (2, 1, 'Мария', 'Сидорова', NULL, 'Диспетчер', '4951112234', 'sidorova@mosarchive.demo', 1),
-    (3, 2, 'Дмитрий', 'Козлов', 'Сергеевич', 'Начальник участка', '+7-4712-55-66-77', 'kozlov@miratorg.demo', 1),
-    (4, 3, 'Елена', 'Волкова', 'Андреевна', 'Ответственная за эксплуатацию', '8 495 999 88 77', 'volkova@sber.demo', 1);
-
-UPDATE facilities SET responsible_employee_id = 1 WHERE id = 1;
-UPDATE facilities SET responsible_employee_id = 3 WHERE id = 2;
-UPDATE facilities SET responsible_employee_id = 4 WHERE id = 3;
-
--- Дополнительные инженеры (для будущего мультивыбора)
-INSERT OR IGNORE INTO users (id, user_role_id, first_name, last_name, middle_name, login, password_hash, is_active) VALUES
-    (3, 1, 'Сергей', 'Николаев', 'Павлович', 'engineer2', '$2a$11$OfflinePlaceholderHashNotForAuth', 1),
-    (4, 1, 'Ольга', 'Морозова', 'Викторовна', 'engineer3', '$2a$11$OfflinePlaceholderHashNotForAuth', 1);

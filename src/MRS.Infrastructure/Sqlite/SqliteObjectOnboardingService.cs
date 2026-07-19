@@ -40,6 +40,32 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
         return list;
     }
 
+    public async Task<IReadOnlyList<string>> GetDistinctContactPositionsAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            SELECT TRIM(position)
+            FROM organization_employees
+            WHERE is_active = 1
+              AND position IS NOT NULL
+              AND TRIM(position) <> ''
+            ORDER BY id;
+            """;
+
+        var byKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            var name = reader.GetString(0).Trim();
+            if (name.Length == 0)
+                continue;
+            byKey.TryAdd(name, name);
+        }
+
+        return byKey.Values.OrderBy(v => v, StringComparer.CurrentCultureIgnoreCase).ToList();
+    }
+
     public async Task<ObjectOnboardingResult> UpsertHierarchyAsync(
         ObjectOnboardingRequest request,
         CancellationToken cancellationToken = default)
@@ -217,7 +243,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
 
         var facilityName = (request.NewFacilityName ?? string.Empty).Trim();
         if (facilityName.Length == 0)
-            throw new InvalidOperationException("Укажите название объекта для акта.");
+            throw new InvalidOperationException("Укажите краткое название объекта.");
 
         using (var find = connection.CreateCommand())
         {
@@ -371,7 +397,7 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
             find.CommandText = """
                 SELECT id
                 FROM equipment_types
-                WHERE TRIM(type_name) = $name
+                WHERE lower(TRIM(type_name)) = lower($name)
                 LIMIT 1;
                 """;
             find.Parameters.AddWithValue("$name", typeName);
@@ -489,6 +515,12 @@ public sealed class SqliteObjectOnboardingService : IObjectOnboardingService
 		{
 			equipmentModelId = await SqliteEquipmentModelCatalogService.EnsureModelInTransactionAsync(
 				connection, tx, equipmentTypeId, mfg, model, cancellationToken).ConfigureAwait(false);
+		}
+		else if (mfg.Length > 0)
+		{
+			// Производитель без модели тоже попадает в общий справочник подсказок.
+			await SqliteEquipmentModelCatalogService.EnsureManufacturerInTransactionAsync(
+				connection, tx, equipmentTypeId, mfg, cancellationToken).ConfigureAwait(false);
 		}
 
         using var cmd = connection.CreateCommand();

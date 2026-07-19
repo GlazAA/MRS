@@ -5,7 +5,8 @@ namespace MRS.Infrastructure.Sqlite;
 
 public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 {
-	public const int CurrentSchemaVersion = 19;
+	public const int CurrentSchemaVersion = 22;
+
 
 	private const string SchemaResourceName = "MRS.Infrastructure.Sqlite.Schema.sql";
 	private const string SeedResourceName = "MRS.Infrastructure.Sqlite.Seed.sql";
@@ -27,6 +28,9 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 	private const string ActAssemblyDemoResourceName = "MRS.Infrastructure.Sqlite.ActAssemblyDemo.sql";
 	private const string FixHypoxicSpellingResourceName = "MRS.Infrastructure.Sqlite.FixHypoxicSpelling.sql";
 	private const string TemplateFacilityResourceName = "MRS.Infrastructure.Sqlite.TemplateFacility.sql";
+	private const string RenameAdminToManagerResourceName = "MRS.Infrastructure.Sqlite.RenameAdminToManager.sql";
+	private const string ClearOperationalDataResourceName = "MRS.Infrastructure.Sqlite.ClearOperationalData.sql";
+	private const string ClearUsersResourceName = "MRS.Infrastructure.Sqlite.ClearUsers.sql";
 
 	public async Task<LocalDatabaseStatus> EnsureReadyAsync(string databaseFilePath, CancellationToken cancellationToken = default)
 	{
@@ -200,6 +204,30 @@ public sealed class SqliteDatabaseBootstrapper : ILocalDatabaseBootstrapper
 				await SqliteScriptRunner.ExecuteScriptAsync(connection, templateFacility, cancellationToken).ConfigureAwait(false);
 				await WriteUserVersionAsync(connection, 19, cancellationToken).ConfigureAwait(false);
 				version = 19;
+			}
+
+			if (version < 20)
+			{
+				var renameManager = await ReadEmbeddedResourceAsync(RenameAdminToManagerResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, renameManager, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 20, cancellationToken).ConfigureAwait(false);
+				version = 20;
+			}
+
+			if (version < 21)
+			{
+				var clearOperational = await ReadEmbeddedResourceAsync(ClearOperationalDataResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, clearOperational, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 21, cancellationToken).ConfigureAwait(false);
+				version = 21;
+			}
+
+			if (version < 22)
+			{
+				var clearUsers = await ReadEmbeddedResourceAsync(ClearUsersResourceName, cancellationToken).ConfigureAwait(false);
+				await SqliteScriptRunner.ExecuteScriptAsync(connection, clearUsers, cancellationToken).ConfigureAwait(false);
+				await WriteUserVersionAsync(connection, 22, cancellationToken).ConfigureAwait(false);
+				version = 22;
 			}
 
 			var fieldTypes = await ScalarIntAsync(connection, "SELECT COUNT(*) FROM field_types;", cancellationToken).ConfigureAwait(false);

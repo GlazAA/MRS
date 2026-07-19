@@ -450,12 +450,18 @@ else
             var modelField = _model.Fields.FirstOrDefault(f =>
                 string.Equals(f.FieldCode, modelCode, StringComparison.OrdinalIgnoreCase));
             var model = modelField is null ? string.Empty : (GetValue(modelField.TemplateItemId)?.Trim() ?? string.Empty);
-            if (mfg.Length == 0 || model.Length == 0)
+            if (mfg.Length == 0)
                 continue;
 
             var etId = EquipmentModelFieldCodes.ResolveCatalogEquipmentTypeId(mfgField.FieldCode, fallbackEtId);
             try
             {
+                if (model.Length == 0)
+                {
+                    await ModelCatalog.EnsureManufacturerAsync(etId, mfg).ConfigureAwait(false);
+                    continue;
+                }
+
                 var entry = await ModelCatalog.EnsureModelEntryAsync(etId, mfg, model).ConfigureAwait(false);
                 SetValue(mfgField.TemplateItemId, entry.Manufacturer);
                 if (modelField is not null)
@@ -491,6 +497,7 @@ else
         {
             _model = await ChecklistEdit.GetForEditAsync(id);
             _values = _model.Fields.ToDictionary(f => f.TemplateItemId, f => f.ValueRaw);
+            SyncEquipmentPickAnswerFromInfo();
             _originalValues = new Dictionary<int, string>(_values);
             _loadedChecklistId = id;
             await LoadCatalogsForTemplateAsync().ConfigureAwait(false);
@@ -506,6 +513,40 @@ else
         {
             _loading = false;
         }
+    }
+
+    /// <summary>Скрытое поле equipment_pick — подставляем тип из карточки КЛ, если пусто.</summary>
+    private void SyncEquipmentPickAnswerFromInfo()
+    {
+        if (_model is null)
+            return;
+
+        var field = _model.Fields.FirstOrDefault(f => ChecklistFieldCodes.IsEquipmentPick(f.FieldCode));
+        if (field is null)
+            return;
+
+        if (_values.TryGetValue(field.TemplateItemId, out var existing) && !string.IsNullOrWhiteSpace(existing))
+            return;
+
+        var name = _model.Info.EquipmentTypeName;
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        if (field.Options.Count > 0)
+        {
+            var match = field.Options.FirstOrDefault(o =>
+                            string.Equals(o.Label, name, StringComparison.OrdinalIgnoreCase))
+                        ?? field.Options.FirstOrDefault(o =>
+                            o.Label.Contains(name, StringComparison.OrdinalIgnoreCase)
+                            || name.Contains(o.Label, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                _values[field.TemplateItemId] = match.OptionId.ToString(CultureInfo.InvariantCulture);
+                return;
+            }
+        }
+
+        _values[field.TemplateItemId] = name;
     }
 
     protected override async Task OnInitializedAsync()

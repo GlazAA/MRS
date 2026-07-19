@@ -8,6 +8,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
     <PackageReference Include="Npgsql" Version="9.0.3" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="QuestPDF" Version="2025.7.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.9.0" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.9.0" />
   </ItemGroup>
@@ -90,6 +91,15 @@
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\database\sqlite\020_template_facility.sql">
       <LogicalName>MRS.Infrastructure.Sqlite.TemplateFacility.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\021_rename_admin_to_manager.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.RenameAdminToManager.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\022_clear_operational_data.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.ClearOperationalData.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\sqlite\023_clear_users.sql">
+      <LogicalName>MRS.Infrastructure.Sqlite.ClearUsers.sql</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\database\postgres\020_template_facility.sql">
       <LogicalName>MRS.Infrastructure.Postgres.TemplateFacility.sql</LogicalName>

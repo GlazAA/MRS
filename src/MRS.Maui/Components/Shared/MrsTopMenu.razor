@@ -3,6 +3,7 @@
 @using MRS.Application.Sync
 @using MRS.Maui.Services
 @using Microsoft.Maui.Storage
+@using Microsoft.Maui.Devices
 @inject NavigationManager Nav
 @inject ICurrentUserSession Session
 @inject IServerSyncService ServerSync
@@ -37,11 +38,13 @@
         @if (Session.IsDbAdministrator)
         {
             <button type="button" class="mrs-menu-item mrs-menu-item-util" @onclick="GoToSql">SQL-окно</button>
+            <button type="button" class="mrs-menu-item mrs-menu-item-util" @onclick="GoToColleagues">Коллеги</button>
         }
         <div class="mrs-menu-divider" aria-hidden="true"></div>
         <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToVisits">Календарь</button>
+        <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToActs">Собрать акт</button>
         <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToNotes">Заметки</button>
-        <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToManagement">Управление листами</button>
+        <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToManagement">Управление КЛ</button>
         <button type="button" class="mrs-menu-item mrs-menu-item-nav" @onclick="GoToRegister">Внести объект / данные</button>
     </div>
 }
@@ -129,12 +132,22 @@
         _backupBusy = true;
         try
         {
-            var file = await DatabaseBackup.CreateBackupAsync();
+            var isMobile = DeviceInfo.Current.Platform == DevicePlatform.Android
+                           || DeviceInfo.Current.Platform == DevicePlatform.iOS;
+            var format = isMobile ? LocalBackupFormat.JsonEnvelope : LocalBackupFormat.SqliteDb;
+            var file = await DatabaseBackup.CreateBackupAsync(format);
             var savedPath = await FileSave.SaveAsync(file.FileName, file.Content);
             if (savedPath is null)
             {
                 _backupTitle = "Отменено";
                 _backupMessage = "Сохранение резервной копии отменено.";
+            }
+            else if (isMobile)
+            {
+                _backupTitle = "Копия готова";
+                _backupMessage =
+                    "Открыто меню «Поделиться». Сохраните JSON-файл в Загрузки, Диск или отправьте себе. " +
+                    "Позже его можно импортировать через «Импорт копии БД».";
             }
             else
             {
@@ -163,7 +176,7 @@
         {
             var pick = await FilePicker.Default.PickAsync(new PickOptions
             {
-                PickerTitle = "Выберите файл копии БД (.db)"
+                PickerTitle = "Выберите файл копии БД (.db или .json)"
             }).ConfigureAwait(false);
             if (pick is null)
                 return;
@@ -194,6 +207,12 @@
         Nav.NavigateTo("/objects/visits");
     }
 
+    private void GoToActs()
+    {
+        _showMenu = false;
+        Nav.NavigateTo("/checklists/acts");
+    }
+
     private void GoToNotes()
     {
         _showMenu = false;
@@ -216,6 +235,12 @@
     {
         _showMenu = false;
         Nav.NavigateTo("/sql");
+    }
+
+    private void GoToColleagues()
+    {
+        _showMenu = false;
+        Nav.NavigateTo("/admin/colleagues");
     }
 
     public void Dispose() => ServerSync.Changed -= OnSyncChanged;

@@ -18,6 +18,7 @@ public class AppPersistenceSmokeTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var onboarding = new SqliteObjectOnboardingService(
 				paths, bootstrapper,
@@ -82,6 +83,7 @@ public class AppPersistenceSmokeTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var edit = TestSyncServices.CreateEditService(paths, bootstrapper);
 			var export = new SqliteChecklistDocumentExportService(paths, bootstrapper);
@@ -137,6 +139,7 @@ public class AppPersistenceSmokeTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var edit = TestSyncServices.CreateEditService(paths, bootstrapper);
 			var ensure = new SqliteInstallationEnsureService(paths, bootstrapper);
@@ -174,6 +177,7 @@ public class AppPersistenceSmokeTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var notes = new SqliteEngineerNoteService(paths, bootstrapper, new NoOpSyncOutboxService());
 			var visits = new SqliteScheduledVisitService(paths, bootstrapper, new NoOpSyncOutboxService());
@@ -221,6 +225,7 @@ public class AppPersistenceSmokeTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var notes = new SqliteEngineerNoteService(paths, bootstrapper, new NoOpSyncOutboxService());
 			await notes.CreateAsync(new CreateEngineerNoteRequest(
@@ -236,6 +241,7 @@ public class AppPersistenceSmokeTests
 			Assert.Equal((byte)'i', file.Content[3]);
 
 			Assert.True((await bootstrapper.EnsureReadyAsync(restorePath)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(restorePath, bootstrapper);
 			var restorePaths = new FixedDbPath(restorePath);
 			var restoreBackup = new SqliteLocalDatabaseBackupService(restorePaths, bootstrapper);
 			await restoreBackup.RestoreFromBackupAsync(file.Content);

@@ -28,7 +28,7 @@ public class ObjectOnboardingOrganizationTests
 			Assert.True(result.OrganizationCreated);
 			var orgs = await hierarchy.GetOrganizationsAsync();
 			var created = Assert.Single(orgs, o => o.Id == result.OrganizationId);
-			Assert.Equal("ООО Рога и копыта", created.Name);
+			Assert.Equal("Рога и копыта", created.Name);
 		}
 		finally
 		{
@@ -145,6 +145,7 @@ public class ObjectOnboardingOrganizationTests
 	{
 		var bootstrapper = new SqliteDatabaseBootstrapper();
 		Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+		await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 		return new SqliteObjectOnboardingService(
 			new FixedDbPath(path),
 			bootstrapper,

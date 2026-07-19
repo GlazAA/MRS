@@ -864,6 +864,144 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        },
+        "runtimeTargets": {
+          "runtimes/linux-arm64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-musl-x64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-x64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/osx-arm64/native/libQuestPdfSkia.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libcrypto.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libjpeg.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libqpdf.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-x64/native/libQuestPdfSkia.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libcrypto.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libjpeg.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libqpdf.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/win-x64/native/QuestPdfSkia.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libgcc_s_seh-1.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libstdc++-6.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libwinpthread-1.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/qpdf.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x86/native/QuestPdfSkia.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libgcc_s_dw2-1.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libstdc++-6.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libwinpthread-1.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/qpdf.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          }
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -2854,6 +2992,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -3727,6 +3866,28 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/linux-arm64/native/libQuestPdfSkia.so": {},
+          "runtimes/linux-arm64/native/libcrypto.so": {},
+          "runtimes/linux-arm64/native/libjpeg.so.8": {},
+          "runtimes/linux-arm64/native/libqpdf.so": {}
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -5717,6 +5878,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -6590,6 +6752,28 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/linux-x64/native/libQuestPdfSkia.so": {},
+          "runtimes/linux-x64/native/libcrypto.so": {},
+          "runtimes/linux-x64/native/libjpeg.so.8": {},
+          "runtimes/linux-x64/native/libqpdf.so": {}
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -8580,6 +8764,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -9453,6 +9638,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -11443,6 +11644,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -12316,6 +12518,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -14306,6 +14524,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -15179,6 +15398,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -17169,6 +17404,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -18015,6 +18251,144 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        },
+        "runtimeTargets": {
+          "runtimes/linux-arm64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-musl-x64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-x64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/osx-arm64/native/libQuestPdfSkia.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libcrypto.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libjpeg.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libqpdf.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-x64/native/libQuestPdfSkia.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libcrypto.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libjpeg.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libqpdf.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/win-x64/native/QuestPdfSkia.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libgcc_s_seh-1.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libstdc++-6.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libwinpthread-1.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/qpdf.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x86/native/QuestPdfSkia.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libgcc_s_dw2-1.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libstdc++-6.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libwinpthread-1.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/qpdf.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          }
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -18121,6 +18495,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -18967,6 +19342,28 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/linux-arm64/native/libQuestPdfSkia.so": {},
+          "runtimes/linux-arm64/native/libcrypto.so": {},
+          "runtimes/linux-arm64/native/libjpeg.so.8": {},
+          "runtimes/linux-arm64/native/libqpdf.so": {}
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -19073,6 +19470,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -19919,6 +20317,28 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/linux-x64/native/libQuestPdfSkia.so": {},
+          "runtimes/linux-x64/native/libcrypto.so": {},
+          "runtimes/linux-x64/native/libjpeg.so.8": {},
+          "runtimes/linux-x64/native/libqpdf.so": {}
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -20025,6 +20445,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -20871,6 +21292,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -20977,6 +21414,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -21823,6 +22261,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -21929,6 +22383,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -22775,6 +23230,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -22881,6 +23352,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -23727,6 +24199,144 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        },
+        "runtimeTargets": {
+          "runtimes/linux-arm64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-musl-x64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-x64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/osx-arm64/native/libQuestPdfSkia.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libcrypto.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libjpeg.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libqpdf.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-x64/native/libQuestPdfSkia.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libcrypto.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libjpeg.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libqpdf.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/win-x64/native/QuestPdfSkia.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libgcc_s_seh-1.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libstdc++-6.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libwinpthread-1.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/qpdf.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x86/native/QuestPdfSkia.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libgcc_s_dw2-1.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libstdc++-6.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libwinpthread-1.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/qpdf.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          }
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -23915,6 +24525,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -24761,6 +25372,28 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/linux-arm64/native/libQuestPdfSkia.so": {},
+          "runtimes/linux-arm64/native/libcrypto.so": {},
+          "runtimes/linux-arm64/native/libjpeg.so.8": {},
+          "runtimes/linux-arm64/native/libqpdf.so": {}
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -24858,6 +25491,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -25704,6 +26338,28 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/linux-x64/native/libQuestPdfSkia.so": {},
+          "runtimes/linux-x64/native/libcrypto.so": {},
+          "runtimes/linux-x64/native/libjpeg.so.8": {},
+          "runtimes/linux-x64/native/libqpdf.so": {}
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -25801,6 +26457,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -26647,6 +27304,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -26741,6 +27414,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -27587,6 +28261,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -27684,6 +28374,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -28530,6 +29221,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -28624,6 +29331,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -29721,6 +30429,144 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        },
+        "runtimeTargets": {
+          "runtimes/linux-arm64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-arm64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-arm64"
+          },
+          "runtimes/linux-musl-x64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-musl-x64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-musl-x64"
+          },
+          "runtimes/linux-x64/native/libQuestPdfSkia.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libcrypto.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libjpeg.so.8": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/linux-x64/native/libqpdf.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/osx-arm64/native/libQuestPdfSkia.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libcrypto.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libjpeg.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-arm64/native/libqpdf.dylib": {
+            "assetType": "native",
+            "rid": "osx-arm64"
+          },
+          "runtimes/osx-x64/native/libQuestPdfSkia.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libcrypto.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libjpeg.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/osx-x64/native/libqpdf.dylib": {
+            "assetType": "native",
+            "rid": "osx-x64"
+          },
+          "runtimes/win-x64/native/QuestPdfSkia.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libgcc_s_seh-1.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libstdc++-6.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/libwinpthread-1.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/qpdf.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x86/native/QuestPdfSkia.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libgcc_s_dw2-1.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libstdc++-6.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/libwinpthread-1.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/qpdf.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          }
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -29909,6 +30755,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -30944,6 +31791,28 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/linux-arm64/native/libQuestPdfSkia.so": {},
+          "runtimes/linux-arm64/native/libcrypto.so": {},
+          "runtimes/linux-arm64/native/libjpeg.so.8": {},
+          "runtimes/linux-arm64/native/libqpdf.so": {}
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -31041,6 +31910,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -32076,6 +32946,28 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/linux-x64/native/libQuestPdfSkia.so": {},
+          "runtimes/linux-x64/native/libcrypto.so": {},
+          "runtimes/linux-x64/native/libjpeg.so.8": {},
+          "runtimes/linux-x64/native/libqpdf.so": {}
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -32173,6 +33065,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -33208,6 +34101,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -33302,6 +34211,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -34337,6 +35247,22 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -34434,6 +35360,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -35479,6 +36406,29 @@
           }
         }
       },
+      "QuestPDF/2025.7.0": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/QuestPDF.dll": {
+            "related": ".xml"
+          }
+        },
+        "native": {
+          "runtimes/win-x64/native/QuestPdfSkia.dll": {},
+          "runtimes/win-x64/native/libgcc_s_seh-1.dll": {},
+          "runtimes/win-x64/native/libstdc++-6.dll": {},
+          "runtimes/win-x64/native/libwinpthread-1.dll": {},
+          "runtimes/win-x64/native/qpdf.dll": {}
+        },
+        "build": {
+          "buildTransitive/QuestPDF.targets": {}
+        }
+      },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
         "type": "package",
         "dependencies": {
@@ -35576,6 +36526,7 @@
           "Microsoft.Data.Sqlite": "10.0.5",
           "Microsoft.IdentityModel.Tokens": "8.9.0",
           "Npgsql": "9.0.3",
+          "QuestPDF": "2025.7.0",
           "System.IdentityModel.Tokens.Jwt": "8.9.0"
         },
         "compile": {
@@ -38216,6 +39167,96 @@
         "postgresql.png"
       ]
     },
+    "QuestPDF/2025.7.0": {
+      "sha512": "yRjdm7p300eEuy4Mi9YdMuecl2cvTU/CV+IHHDzw22Uf43/0C2zeG4c+MthZqkpQNJPg0Agha1iBSmLBxX1vHA==",
+      "type": "package",
+      "path": "questpdf/2025.7.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Contributors.md",
+        "Description.md",
+        "Documentation.xml",
+        "ExternalDependencyLicenses/emsdk.txt",
+        "ExternalDependencyLicenses/expat.txt",
+        "ExternalDependencyLicenses/harfbuzz.txt",
+        "ExternalDependencyLicenses/icu.txt",
+        "ExternalDependencyLicenses/libjpeg-turbo.txt",
+        "ExternalDependencyLicenses/libpng.txt",
+        "ExternalDependencyLicenses/libwebp.txt",
+        "ExternalDependencyLicenses/ninja-build.txt",
+        "ExternalDependencyLicenses/qpdf.txt",
+        "ExternalDependencyLicenses/readme.txt",
+        "ExternalDependencyLicenses/skia.txt",
+        "ExternalDependencyLicenses/wuffs.txt",
+        "ExternalDependencyLicenses/zlib.txt",
+        "LatoFont/Lato-Black.ttf",
+        "LatoFont/Lato-BlackItalic.ttf",
+        "LatoFont/Lato-Bold.ttf",
+        "LatoFont/Lato-BoldItalic.ttf",
+        "LatoFont/Lato-ExtraBold.ttf",
+        "LatoFont/Lato-ExtraBoldItalic.ttf",
+        "LatoFont/Lato-ExtraLight.ttf",
+        "LatoFont/Lato-ExtraLightItalic.ttf",
+        "LatoFont/Lato-Italic.ttf",
+        "LatoFont/Lato-Light.ttf",
+        "LatoFont/Lato-LightItalic.ttf",
+        "LatoFont/Lato-Medium.ttf",
+        "LatoFont/Lato-MediumItalic.ttf",
+        "LatoFont/Lato-Regular.ttf",
+        "LatoFont/Lato-SemiBold.ttf",
+        "LatoFont/Lato-SemiBoldItalic.ttf",
+        "LatoFont/Lato-Thin.ttf",
+        "LatoFont/Lato-ThinItalic.ttf",
+        "LatoFont/OFL.txt",
+        "Logo.png",
+        "PackageLicense.md",
+        "README.md",
+        "ReleaseNotes.txt",
+        "build/QuestPDF.targets",
+        "build/net4/QuestPDF.targets",
+        "buildTransitive/QuestPDF.targets",
+        "buildTransitive/net4/QuestPDF.targets",
+        "lib/net6.0/QuestPDF.dll",
+        "lib/net6.0/QuestPDF.xml",
+        "lib/net8.0/QuestPDF.dll",
+        "lib/net8.0/QuestPDF.xml",
+        "lib/netstandard2.0/QuestPDF.dll",
+        "lib/netstandard2.0/QuestPDF.xml",
+        "questpdf.2025.7.0.nupkg.sha512",
+        "questpdf.nuspec",
+        "runtimes/linux-arm64/native/libQuestPdfSkia.so",
+        "runtimes/linux-arm64/native/libcrypto.so",
+        "runtimes/linux-arm64/native/libjpeg.so.8",
+        "runtimes/linux-arm64/native/libqpdf.so",
+        "runtimes/linux-musl-x64/native/libQuestPdfSkia.so",
+        "runtimes/linux-musl-x64/native/libcrypto.so",
+        "runtimes/linux-musl-x64/native/libjpeg.so.8",
+        "runtimes/linux-musl-x64/native/libqpdf.so",
+        "runtimes/linux-x64/native/libQuestPdfSkia.so",
+        "runtimes/linux-x64/native/libcrypto.so",
+        "runtimes/linux-x64/native/libjpeg.so.8",
+        "runtimes/linux-x64/native/libqpdf.so",
+        "runtimes/osx-arm64/native/libQuestPdfSkia.dylib",
+        "runtimes/osx-arm64/native/libcrypto.dylib",
+        "runtimes/osx-arm64/native/libjpeg.dylib",
+        "runtimes/osx-arm64/native/libqpdf.dylib",
+        "runtimes/osx-x64/native/libQuestPdfSkia.dylib",
+        "runtimes/osx-x64/native/libcrypto.dylib",
+        "runtimes/osx-x64/native/libjpeg.dylib",
+        "runtimes/osx-x64/native/libqpdf.dylib",
+        "runtimes/win-x64/native/QuestPdfSkia.dll",
+        "runtimes/win-x64/native/libgcc_s_seh-1.dll",
+        "runtimes/win-x64/native/libstdc++-6.dll",
+        "runtimes/win-x64/native/libwinpthread-1.dll",
+        "runtimes/win-x64/native/qpdf.dll",
+        "runtimes/win-x86/native/QuestPdfSkia.dll",
+        "runtimes/win-x86/native/libgcc_s_dw2-1.dll",
+        "runtimes/win-x86/native/libstdc++-6.dll",
+        "runtimes/win-x86/native/libwinpthread-1.dll",
+        "runtimes/win-x86/native/qpdf.dll"
+      ]
+    },
     "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
       "sha512": "DC4nA7yWnf4UZdgJDF+9Mus4/cb0Y3Sfgi3gDnAoKNAIBwzkskNAbNbyu+u4atT0ruVlZNJfwZmwiEwE5oz9LQ==",
       "type": "package",
@@ -40409,8 +41450,8 @@
             "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
               "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
             },
-            "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-              "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+            "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+              "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
             }
           }
         },
@@ -40421,8 +41462,8 @@
             "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
               "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
             },
-            "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-              "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+            "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+              "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
             }
           }
         },
@@ -40433,8 +41474,8 @@
             "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
               "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
             },
-            "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-              "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+            "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+              "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
             }
           }
         },
@@ -40445,8 +41486,8 @@
             "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj": {
               "projectPath": "C:\\Development\\MRS\\src\\MRS.Application\\MRS.Application.csproj"
             },
-            "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
-              "projectPath": "c:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
+            "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj": {
+              "projectPath": "C:\\Development\\MRS\\src\\MRS.Infrastructure\\MRS.Infrastructure.csproj"
             }
           }
         }

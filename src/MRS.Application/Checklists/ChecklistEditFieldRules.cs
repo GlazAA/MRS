@@ -22,7 +22,7 @@ public static class ChecklistEditFieldRules
 			return "Управляется учётом времени работы";
 
 		if (fieldCode.Equals("equipment_pick", StringComparison.OrdinalIgnoreCase))
-			return "Определяет разветвление шаблона";
+			return "Тип оборудования задан при выборе шаблона и подставляется автоматически";
 
 		return "Системное поле";
 	}

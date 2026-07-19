@@ -1,0 +1,240 @@
+@page "/admin/colleagues"
+@using MRS.Application.Security
+@using MRS.Application.Users
+@inject IEngineerDirectoryService Engineers
+@inject ICurrentUserSession Session
+
+<PageTitle>Коллеги</PageTitle>
+
+<div class="mrs-toolbar">
+    <a class="mrs-back" href="/">←</a>
+    <h1 class="mrs-title">Коллеги</h1>
+    <MrsTopMenu />
+</div>
+
+@if (!Session.IsDbAdministrator)
+{
+    <p class="text-danger">Справочник коллег доступен администратору БД.</p>
+}
+else if (_busy && _items.Count == 0)
+{
+    <p>Загрузка…</p>
+}
+else
+{
+    @if (_error is not null)
+    {
+        <p class="text-danger">@_error</p>
+    }
+    @if (_saved is not null)
+    {
+        <div class="mrs-flash-banner" role="status">@_saved</div>
+    }
+
+    <div class="mrs-form-actions mrs-colleague-create">
+        <button type="button" class="mrs-btn-primary" @onclick="OpenCreate" disabled="@_busy">+ Создать коллегу</button>
+    </div>
+
+    <section class="mrs-list-window mrs-colleague-list">
+        @if (_items.Count == 0)
+        {
+            <p class="mrs-info-note">Пока нет сотрудников в справочнике.</p>
+        }
+        else
+        {
+            @foreach (var item in _items)
+            {
+                <div class="mrs-worklist-item mrs-colleague-row @(item.IsActive ? null : "mrs-colleague-inactive")">
+                    <div class="mrs-colleague-info">
+                        <div class="mrs-worklist-title">@item.DisplayName</div>
+                        <div class="mrs-info-note">
+                            @item.RoleName · @(item.IsActive ? "активен" : "скрыт")
+                        </div>
+                    </div>
+                    <div class="mrs-colleague-actions">
+                        <button type="button" class="mrs-btn-secondary mrs-btn-compact" disabled="@_busy" @onclick="() => OpenEdit(item)">Изменить</button>
+                        @if (item.IsActive)
+                        {
+                            <button type="button" class="mrs-btn-secondary mrs-btn-compact" disabled="@_busy" @onclick="() => SetActiveAsync(item, false)">Скрыть</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="mrs-btn-primary mrs-btn-compact" disabled="@_busy" @onclick="() => SetActiveAsync(item, true)">Восстановить</button>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </section>
+}
+
+@if (_showEditor)
+{
+    <div class="mrs-modal-backdrop mrs-modal-backdrop-top" @onclick="CloseEditor">
+        <div class="mrs-modal" @onclick:stopPropagation="true">
+            <button type="button" class="mrs-modal-close" @onclick="CloseEditor">×</button>
+            <h3 class="mrs-modal-title">@(_editUserId is null ? "Новый коллега" : "Изменить коллегу")</h3>
+            <div class="mrs-modal-body">
+                @if (_editorError is not null)
+                {
+                    <p class="text-danger">@_editorError</p>
+                }
+                <div class="mrs-field">
+                    <label class="mrs-label">Фамилия *</label>
+                    <input class="mrs-select" @bind="_lastName" @bind:event="oninput" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Имя *</label>
+                    <input class="mrs-select" @bind="_firstName" @bind:event="oninput" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Отчество</label>
+                    <input class="mrs-select" @bind="_middleName" @bind:event="oninput" />
+                </div>
+                <div class="mrs-field">
+                    <label class="mrs-label">Роль *</label>
+                    <select class="mrs-select" @bind="_roleName">
+                        @foreach (var role in UserRoleNames.AssignableRoles)
+                        {
+                            <option value="@role">@role</option>
+                        }
+                    </select>
+                    <p class="mrs-field-hint">
+                        Инженер — полевые работы и выбор в КЛ/выездах.
+                        Менеджер — офисная роль (права ограничат позже).
+                        Администратор БД — SQL-окно и справочники.
+                    </p>
+                </div>
+            </div>
+            <div class="mrs-form-actions mrs-colleague-editor-actions">
+                <button type="button" class="mrs-btn-secondary mrs-btn-compact" @onclick="CloseEditor">Отменить</button>
+                <button type="button" class="mrs-btn-primary mrs-btn-compact" disabled="@_busy" @onclick="SaveEditorAsync">Сохранить</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly List<EngineerAdminEntry> _items = [];
+    private bool _busy;
+    private string? _error;
+    private string? _saved;
+    private string? _editorError;
+
+    private bool _showEditor;
+    private int? _editUserId;
+    private string _lastName = "";
+    private string _firstName = "";
+    private string _middleName = "";
+    private string _roleName = UserRoleNames.Engineer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsDbAdministrator)
+            return;
+        await ReloadAsync().ConfigureAwait(false);
+    }
+
+    private async Task ReloadAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var list = await Engineers.ListAllForAdminAsync().ConfigureAwait(false);
+            _items.Clear();
+            _items.AddRange(list);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void OpenCreate()
+    {
+        _editUserId = null;
+        _lastName = "";
+        _firstName = "";
+        _middleName = "";
+        _roleName = UserRoleNames.Engineer;
+        _editorError = null;
+        _showEditor = true;
+    }
+
+    private void OpenEdit(EngineerAdminEntry item)
+    {
+        _editUserId = item.UserId;
+        _lastName = item.LastName;
+        _firstName = item.FirstName;
+        _middleName = item.MiddleName ?? "";
+        _roleName = UserRoleNames.NormalizeOrDefault(item.RoleName);
+        _editorError = null;
+        _showEditor = true;
+    }
+
+    private void CloseEditor()
+    {
+        _showEditor = false;
+        _editorError = null;
+    }
+
+    private async Task SaveEditorAsync()
+    {
+        _busy = true;
+        _editorError = null;
+        _saved = null;
+        try
+        {
+            var request = new CreateEngineerRequest(_lastName, _firstName, _middleName, _roleName);
+            if (_editUserId is int id)
+            {
+                await Engineers.UpdateAsync(id, request).ConfigureAwait(false);
+                _saved = "Данные коллеги обновлены.";
+            }
+            else
+            {
+                await Engineers.CreateAsync(request).ConfigureAwait(false);
+                _saved = "Коллега добавлен в справочник.";
+            }
+
+            _showEditor = false;
+            await ReloadAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _editorError = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task SetActiveAsync(EngineerAdminEntry item, bool active)
+    {
+        _busy = true;
+        _error = null;
+        _saved = null;
+        try
+        {
+            await Engineers.SetActiveAsync(item.UserId, active).ConfigureAwait(false);
+            _saved = active
+                ? $"{item.DisplayName} снова активен."
+                : $"{item.DisplayName} скрыт.";
+            await ReloadAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

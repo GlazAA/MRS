@@ -187,7 +187,15 @@ public sealed class SqliteOrganizationDirectoryService : IOrganizationDirectoryS
 		{
 			fCmd.CommandText = """
 				SELECT f.id, f.name,
-				       TRIM(COALESCE(a.city, '') || ', ' || COALESCE(a.street, '') || ', д. ' || COALESCE(a.building, ''))
+				       TRIM(COALESCE(a.city, '') || ', ' || COALESCE(a.street, '') || ', д. ' || COALESCE(a.building, '')),
+				       (
+				           SELECT GROUP_CONCAT(TRIM(fs.description), char(10))
+				           FROM facility_systems fs
+				           WHERE fs.facility_id = f.id
+				             AND fs.is_active = 1
+				             AND fs.description IS NOT NULL
+				             AND TRIM(fs.description) <> ''
+				       )
 				FROM facilities f
 				LEFT JOIN organization_addresses a ON a.id = f.address_id
 				WHERE f.organization_id = $org AND f.is_active = 1
@@ -198,10 +206,12 @@ public sealed class SqliteOrganizationDirectoryService : IOrganizationDirectoryS
 			while (await fReader.ReadAsync(cancellationToken).ConfigureAwait(false))
 			{
 				var address = fReader.IsDBNull(2) ? null : fReader.GetString(2).Trim().Trim(',', ' ');
+				var systemDescription = fReader.IsDBNull(3) ? null : fReader.GetString(3).Trim();
 				facilities.Add(new OrganizationFacilityBrief(
 					fReader.GetInt32(0),
 					fReader.GetString(1),
-					string.IsNullOrWhiteSpace(address) ? null : address));
+					string.IsNullOrWhiteSpace(address) ? null : address,
+					string.IsNullOrWhiteSpace(systemDescription) ? null : systemDescription));
 			}
 		}
 
@@ -339,13 +349,8 @@ public sealed class SqliteOrganizationDirectoryService : IOrganizationDirectoryS
 		return null;
 	}
 
-	private static string FormatOrgName(string? legalFormCode, string companyName)
-	{
-		var label = LegalFormLabel(legalFormCode);
-		if (string.IsNullOrWhiteSpace(label))
-			return companyName;
-		return $"{label} {companyName}";
-	}
+	private static string FormatOrgName(string? legalFormCode, string companyName) =>
+		OrganizationLegalForm.FormatListName(legalFormCode, companyName, null);
 
 	private static string? LegalFormLabel(string? code)
 	{

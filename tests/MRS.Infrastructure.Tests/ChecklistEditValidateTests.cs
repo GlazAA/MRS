@@ -191,6 +191,7 @@ public class ChecklistEditValidateTests
 	{
 		var bootstrapper = new SqliteDatabaseBootstrapper();
 		Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 		return TestSyncServices.CreateEditService(new FixedDbPath(path), bootstrapper);
 	}
 

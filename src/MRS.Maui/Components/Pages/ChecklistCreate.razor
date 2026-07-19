@@ -2,6 +2,7 @@
 @using System.Globalization
 @using MRS.Application.Checklists
 @using MRS.Application.Facilities
+@using Microsoft.Maui.Storage
 @implements IAsyncDisposable
 @inject IEquipmentTypeCatalogService EquipmentCatalog
 @inject IChecklistFlowService Flow
@@ -196,6 +197,7 @@ else
 	private List<TemplateFieldDefinition> _fields = [];
 	private List<InstallationListItem> _installations = [];
 	private ChecklistTemplateMeta? _meta;
+	private string? _equipmentTypeName;
 	private int? _templateId;
 	private int? _existingChecklistId;
 	private bool _installationLocked;
@@ -227,6 +229,9 @@ else
 	private string BuildContextKey() =>
 		$"{OrganizationId}|{FacilityId}|{SystemId}|{EquipmentTypeId}|{MaintenanceTypeId}|{ChecklistId}";
 
+	private string DraftPrefKey =>
+		$"mrs.kl.draft.{OrganizationId}.{FacilityId}.{SystemId}.{EquipmentTypeId}.{MaintenanceTypeId}";
+
 	protected override void OnInitialized()
 	{
 		_locationChangingRegistration = Nav.RegisterLocationChangingHandler(OnLocationChangingAsync);
@@ -249,8 +254,35 @@ else
 		if (contextKey == _loadedContextKey && _templateId is not null)
 			return;
 
+		// URL только получил checklistId после старта сессии — не перезагружаем форму (ответы ещё только в памяти).
+		if (_existingChecklistId is int owned
+		    && ChecklistId == owned
+		    && _templateId is not null
+		    && IsSameFillContext(_loadedContextKey, contextKey))
+		{
+			_loadedContextKey = contextKey;
+			return;
+		}
+
 		_loadedContextKey = contextKey;
 		await LoadPageAsync().ConfigureAwait(false);
+	}
+
+	private static bool IsSameFillContext(string? previousKey, string newKey)
+	{
+		if (string.IsNullOrEmpty(previousKey))
+			return false;
+		var prev = previousKey.Split('|');
+		var next = newKey.Split('|');
+		if (prev.Length < 5 || next.Length < 5)
+			return false;
+		for (var i = 0; i < 5; i++)
+		{
+			if (!string.Equals(prev[i], next[i], StringComparison.Ordinal))
+				return false;
+		}
+
+		return true;
 	}
 
 	private async Task LoadPageAsync()
@@ -286,6 +318,8 @@ else
 				return;
 			}
 
+			_equipmentTypeName = types.FirstOrDefault(t => t.Id == etid)?.Name;
+
 			_installations = (await InstallationQuery.GetForSystemAndEquipmentAsync(sid, etid).ConfigureAwait(false)).ToList();
 
 			_templateId = await Flow.ResolveTemplateIdAsync(etid, mtid, FacilityId).ConfigureAwait(false);
@@ -298,35 +332,28 @@ else
 			foreach (var f in _fields)
 				_values.TryAdd(f.TemplateItemId, string.Empty);
 
+			SyncEquipmentPickAnswerFromContext();
+
 			if (ChecklistId is int resumeId)
 			{
-				var editModel = await ChecklistEdit.GetForEditAsync(resumeId).ConfigureAwait(false);
-				if (editModel.Info.StatusCode != "in_progress")
+				await OpenExistingInProgressAsync(resumeId).ConfigureAwait(false);
+			}
+			else if (TryReadDraftChecklistId() is int draftId)
+			{
+				try
 				{
-					_error = "Этот контрольный лист завершён и доступен только для просмотра.";
-					return;
+					await OpenExistingInProgressAsync(draftId).ConfigureAwait(false);
+					AttachChecklistIdToUrl(draftId);
 				}
-
-				if (editModel.Info.EndedAt is not null)
-					await ChecklistEdit.ResumeWorkAsync(resumeId).ConfigureAwait(false);
-
-				editModel = await ChecklistEdit.GetForEditAsync(resumeId).ConfigureAwait(false);
-
-				_existingChecklistId = resumeId;
-				_installationLocked = true;
-				_pageWorkStartedAt = editModel.Info.StartedAt ?? DateTimeOffset.Now;
-				_sessionStartedAt = editModel.Info.StartedAt;
-				_installationChoice = editModel.Info.InstallationId.ToString(CultureInfo.InvariantCulture);
-				foreach (var field in editModel.Fields)
-					_values[field.TemplateItemId] = field.ValueRaw;
-
-				await PrefetchModelOptionsAsync().ConfigureAwait(false);
-				StartElapsedTimer();
+				catch
+				{
+					ClearDraftPreferences();
+					StartNewWorkClock();
+				}
 			}
 			else
 			{
-				_pageWorkStartedAt = DateTimeOffset.Now;
-				StartElapsedTimer();
+				StartNewWorkClock();
 			}
 		}
 		catch (Exception ex)
@@ -337,6 +364,57 @@ else
 		{
 			_busy = false;
 		}
+	}
+
+	private async Task OpenExistingInProgressAsync(int resumeId)
+	{
+		var editModel = await ChecklistEdit.GetForEditAsync(resumeId).ConfigureAwait(false);
+		if (editModel.Info.StatusCode != "in_progress")
+		{
+			ClearDraftPreferences();
+			_error = "Этот контрольный лист завершён и доступен только для просмотра.";
+			return;
+		}
+
+		if (EquipmentTypeId is int etid && editModel.Info.EquipmentTypeId != etid)
+		{
+			ClearDraftPreferences();
+			StartNewWorkClock();
+			return;
+		}
+
+		if (_templateId is int tid && editModel.Info.ChecklistTemplateId != tid)
+		{
+			ClearDraftPreferences();
+			StartNewWorkClock();
+			return;
+		}
+
+		if (editModel.Info.EndedAt is not null)
+			await ChecklistEdit.ResumeWorkAsync(resumeId).ConfigureAwait(false);
+
+		editModel = await ChecklistEdit.GetForEditAsync(resumeId).ConfigureAwait(false);
+
+		_existingChecklistId = resumeId;
+		_installationLocked = true;
+		_pageWorkStartedAt = editModel.Info.StartedAt ?? DateTimeOffset.Now;
+		_sessionStartedAt = editModel.Info.StartedAt;
+		_installationChoice = editModel.Info.InstallationId.ToString(CultureInfo.InvariantCulture);
+		foreach (var field in editModel.Fields)
+			_values[field.TemplateItemId] = field.ValueRaw;
+
+		RememberDraftPreferences(resumeId, _sessionStartedAt ?? _pageWorkStartedAt ?? DateTimeOffset.Now);
+		SyncEquipmentPickAnswerFromContext();
+		await PrefetchModelOptionsAsync().ConfigureAwait(false);
+		StartElapsedTimer();
+	}
+
+	private void StartNewWorkClock()
+	{
+		_pageWorkStartedAt = TryReadDraftWorkStartedAt() ?? DateTimeOffset.Now;
+		_sessionStartedAt = null;
+		RememberDraftPreferences(null, _pageWorkStartedAt.Value);
+		StartElapsedTimer();
 	}
 
 	private async Task OnInstallationSelectAsync(ChangeEventArgs e)
@@ -375,6 +453,7 @@ else
 			return;
 
 		SyncUnitNumberAnswerFromInstallation();
+		SyncEquipmentPickAnswerFromContext();
 
 		if (_existingChecklistId is int cid)
 		{
@@ -399,6 +478,33 @@ else
 			return;
 
 		SetValue(field.TemplateItemId, label);
+	}
+
+	/// <summary>
+	/// Поле equipment_pick из Mosarchive дублирует тип, уже выбранный до открытия КЛ — скрыто и заполняется само.
+	/// </summary>
+	private void SyncEquipmentPickAnswerFromContext()
+	{
+		var field = _fields.FirstOrDefault(f => ChecklistFieldCodes.IsEquipmentPick(f.FieldCode));
+		if (field is null || string.IsNullOrWhiteSpace(_equipmentTypeName))
+			return;
+
+		if (field.Options.Count > 0)
+		{
+			var name = _equipmentTypeName;
+			var match = field.Options.FirstOrDefault(o =>
+				                string.Equals(o.Label, name, StringComparison.OrdinalIgnoreCase))
+			            ?? field.Options.FirstOrDefault(o =>
+				                o.Label.Contains(name, StringComparison.OrdinalIgnoreCase)
+				                || name.Contains(o.Label, StringComparison.OrdinalIgnoreCase));
+			if (match is not null)
+			{
+				SetValue(field.TemplateItemId, match.OptionId.ToString(CultureInfo.InvariantCulture));
+				return;
+			}
+		}
+
+		SetValue(field.TemplateItemId, _equipmentTypeName);
 	}
 
 	private string? ResolveSelectedInstallationLabel()
@@ -460,13 +566,21 @@ else
 
 		if (_existingChecklistId is int existingId)
 		{
+			// Если сессия уже на паузе (фоновый уход), снова открываем и фиксируем конец «сейчас» —
+			// иначе в БД останется ранний end_at, а на экране счётчик шёл дальше.
+			await ChecklistEdit.ResumeWorkAsync(existingId).ConfigureAwait(false);
 			await ChecklistEdit.PauseWorkAsync(existingId).ConfigureAwait(false);
+			RememberDraftPreferences(existingId, _sessionStartedAt ?? _pageWorkStartedAt ?? DateTimeOffset.Now);
 			return;
 		}
 
 		var installationId = await ResolveInstallationIdAsync().ConfigureAwait(false);
 		if (installationId is null || _templateId is not int tid || MaintenanceTypeId is not int mtId)
+		{
+			if (_pageWorkStartedAt is { } started)
+				RememberDraftPreferences(null, started);
 			return;
+		}
 
 		var startedAt = _pageWorkStartedAt ?? DateTimeOffset.Now;
 		var checklistId = await ChecklistEdit.BeginInProgressAsync(new BeginInProgressChecklistRequest(
@@ -476,7 +590,9 @@ else
 			1,
 			startedAt)).ConfigureAwait(false);
 		_existingChecklistId = checklistId;
+		_sessionStartedAt = startedAt;
 		await ChecklistEdit.PauseWorkAsync(checklistId).ConfigureAwait(false);
+		RememberDraftPreferences(checklistId, startedAt);
 	}
 
 	private async Task NavigateBackAsync()
@@ -506,6 +622,8 @@ else
 		var editModel = await ChecklistEdit.GetForEditAsync(checklistId).ConfigureAwait(false);
 		_existingChecklistId = checklistId;
 		_sessionStartedAt = editModel.Info.StartedAt ?? startedAt;
+		RememberDraftPreferences(checklistId, _sessionStartedAt.Value);
+		AttachChecklistIdToUrl(checklistId);
 		RecalcElapsedDisplay();
 	}
 
@@ -571,6 +689,7 @@ else
 		}
 
 		SyncUnitNumberAnswerFromInstallation();
+		SyncEquipmentPickAnswerFromContext();
 
 		if (_existingChecklistId is int existingId)
 		{
@@ -590,6 +709,8 @@ else
 					startedAt)).ConfigureAwait(false);
 				_existingChecklistId = checklistId;
 				_sessionStartedAt = startedAt;
+				RememberDraftPreferences(checklistId, startedAt);
+				AttachChecklistIdToUrl(checklistId);
 			}
 			catch (Exception ex)
 			{
@@ -620,10 +741,19 @@ else
 				return;
 			}
 
+			// Снимаем возможную раннюю паузу (уход в фон / смена URL), затем фиксируем конец «сейчас».
+			await ChecklistEdit.ResumeWorkAsync(checklistId).ConfigureAwait(false);
+
 			if (mode == ChecklistPersistenceMode.UploadQueue)
+			{
 				await ChecklistEdit.CompleteWorkAsync(checklistId).ConfigureAwait(false);
+				ClearDraftPreferences();
+			}
 			else
+			{
 				await ChecklistEdit.PauseWorkAsync(checklistId).ConfigureAwait(false);
+				RememberDraftPreferences(checklistId, _sessionStartedAt ?? _pageWorkStartedAt ?? DateTimeOffset.Now);
+			}
 
 			_skipPauseOnDispose = true;
 			Nav.NavigateTo($"/checklists?organizationId={orgId}&facilityId={facId}&systemId={sysId}", forceLoad: true);
@@ -754,12 +884,26 @@ else
 				string.Equals(f.FieldCode, modelCode, StringComparison.OrdinalIgnoreCase));
 			var model = modelField is null ? string.Empty : (GetValue(modelField.TemplateItemId)?.Trim() ?? string.Empty);
 
-			if (mfg.Length == 0 || model.Length == 0)
+			if (mfg.Length == 0)
 				continue;
 
 			var etId = EquipmentModelFieldCodes.ResolveCatalogEquipmentTypeId(mfgField.FieldCode, fallbackEtId);
 			try
 			{
+				if (model.Length == 0)
+				{
+					await ModelCatalog.EnsureManufacturerAsync(etId, mfg).ConfigureAwait(false);
+					if (!_manufacturersByEquipmentType.TryGetValue(etId, out var onlyMfgs))
+					{
+						onlyMfgs = [];
+						_manufacturersByEquipmentType[etId] = onlyMfgs;
+					}
+
+					if (!onlyMfgs.Any(x => string.Equals(x, mfg, StringComparison.OrdinalIgnoreCase)))
+						onlyMfgs.Add(mfg);
+					continue;
+				}
+
 				var entry = await ModelCatalog.EnsureModelEntryAsync(etId, mfg, model).ConfigureAwait(false);
 				SetValue(mfgField.TemplateItemId, entry.Manufacturer);
 				if (modelField is not null)
@@ -813,6 +957,59 @@ else
 			if (modelField is not null && !string.IsNullOrWhiteSpace(info.ModelName))
 				SetValue(modelField.TemplateItemId, info.ModelName);
 		}
+	}
+
+	private void AttachChecklistIdToUrl(int checklistId)
+	{
+		if (ChecklistId == checklistId)
+			return;
+		if (OrganizationId is not int o || FacilityId is not int f || SystemId is not int s
+		    || EquipmentTypeId is not int e || MaintenanceTypeId is not int m)
+			return;
+
+		var url =
+			$"/checklists/create?organizationId={o}&facilityId={f}&systemId={s}" +
+			$"&equipmentTypeId={e}&maintenanceTypeId={m}&checklistId={checklistId}";
+		_loadedContextKey = $"{o}|{f}|{s}|{e}|{m}|{checklistId}";
+		Nav.NavigateTo(url, forceLoad: false, replace: true);
+	}
+
+	private void RememberDraftPreferences(int? checklistId, DateTimeOffset startedAt)
+	{
+		Preferences.Default.Set(DraftPrefKey + ".start", startedAt.ToString("O", CultureInfo.InvariantCulture));
+		if (checklistId is int id)
+			Preferences.Default.Set(DraftPrefKey + ".id", id);
+		else
+			Preferences.Default.Remove(DraftPrefKey + ".id");
+	}
+
+	private void ClearDraftPreferences()
+	{
+		Preferences.Default.Remove(DraftPrefKey + ".start");
+		Preferences.Default.Remove(DraftPrefKey + ".id");
+	}
+
+	private int? TryReadDraftChecklistId()
+	{
+		var id = Preferences.Default.Get(DraftPrefKey + ".id", 0);
+		return id > 0 ? id : null;
+	}
+
+	private DateTimeOffset? TryReadDraftWorkStartedAt()
+	{
+		var raw = Preferences.Default.Get(DraftPrefKey + ".start", string.Empty);
+		if (string.IsNullOrWhiteSpace(raw))
+			return null;
+		if (!DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var started))
+			return null;
+		// Черновик старше суток не восстанавливаем — это уже не текущая сессия заполнения.
+		if (DateTimeOffset.Now - started > TimeSpan.FromHours(24) || started > DateTimeOffset.Now.AddMinutes(5))
+		{
+			ClearDraftPreferences();
+			return null;
+		}
+
+		return started;
 	}
 
 	public async ValueTask DisposeAsync()

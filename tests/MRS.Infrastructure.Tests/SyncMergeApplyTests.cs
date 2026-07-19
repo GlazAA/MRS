@@ -15,6 +15,7 @@ public class SyncMergeApplyTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var outbox = new SqliteSyncOutboxService(paths, bootstrapper);
 			var apply = new SqliteSyncApplyService(paths, bootstrapper);
@@ -62,6 +63,7 @@ public class SyncMergeApplyTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var apply = new SqliteSyncApplyService(new FixedDbPath(path), bootstrapper);
 			var uuid = Guid.NewGuid().ToString();
 
@@ -99,6 +101,7 @@ public class SyncMergeApplyTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var apply = new SqliteSyncApplyService(new FixedDbPath(path), bootstrapper);
 
 			await using (var connection = new SqliteConnection($"Data Source={path}"))

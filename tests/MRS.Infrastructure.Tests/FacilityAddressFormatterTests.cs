@@ -14,7 +14,7 @@ public class FacilityAddressFormatterTests
 			FacilityAddressFormatter.Format("Москва", "Ленина", "1", "2", "А"));
 
 	[Fact]
-	public void FormatActObject_shows_city_and_full_address_in_parentheses() =>
-		Assert.Equal("Курск\n(Курск, ул. Демо, 2)",
+	public void FormatActObject_returns_full_address_without_city_duplication() =>
+		Assert.Equal("Курск, ул. Демо, 2",
 			FacilityAddressFormatter.FormatActObject("Курск", "ул. Демо", "2", null, null));
 }

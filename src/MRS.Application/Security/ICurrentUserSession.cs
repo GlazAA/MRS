@@ -8,10 +8,13 @@ public interface ICurrentUserSession
     /// <summary>Роль «Администратор БД»: все полевые сценарии + SQL-окно и обработка обращений.</summary>
     bool IsDbAdministrator { get; }
 
+    /// <summary>Роль «Менеджер» (в перспективе — ограниченные админ-функции без SQL).</summary>
+    bool IsManager { get; }
+
     /// <summary>Роль «Инженер»: полевые сценарии без SQL-окна.</summary>
     bool IsEngineer { get; }
 
-    /// <summary>Доступ к контрольным листам, объектам и управлению листами (обе роли).</summary>
+    /// <summary>Доступ к контрольным листам, объектам и управлению листами.</summary>
     bool CanUseFieldFeatures { get; }
 
     Task SetRoleAsync(string roleName, CancellationToken cancellationToken = default);

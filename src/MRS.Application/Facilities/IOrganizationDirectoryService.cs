@@ -13,7 +13,8 @@ public sealed record OrganizationOverviewItem(
 public sealed record OrganizationFacilityBrief(
 	int Id,
 	string Name,
-	string? AddressLabel);
+	string? AddressLabel,
+	string? SystemDescription);
 
 public sealed record OrganizationContactBrief(
 	int Id,

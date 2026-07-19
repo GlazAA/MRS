@@ -1,10 +1,11 @@
 using System.Diagnostics;
+using Microsoft.Maui.ApplicationModel.DataTransfer;
+using Microsoft.Maui.Storage;
 
 namespace MRS.Maui.Services;
 
 /// <summary>
-/// Сохранение файла в папку «Загрузки» пользователя и показ в проводнике.
-/// Обходит ограничения BlazorWebView (download) и нестабильный FileSavePicker в unpackaged MAUI.
+/// Сохранение файла: на Windows — в «Загрузки», на телефоне — через системное «Поделиться».
 /// </summary>
 public sealed class MauiAppFileSaveService : IAppFileSaveService
 {
@@ -16,9 +17,18 @@ public sealed class MauiAppFileSaveService : IAppFileSaveService
 
 		fileName = Path.GetFileName(fileName.Trim());
 
+#if WINDOWS
+		return await SaveWindowsAsync(fileName, content, cancellationToken).ConfigureAwait(true);
+#else
+		return await ShareMobileAsync(fileName, content, cancellationToken).ConfigureAwait(true);
+#endif
+	}
+
+#if WINDOWS
+	private static async Task<string?> SaveWindowsAsync(string fileName, byte[] content, CancellationToken cancellationToken)
+	{
 		var folder = GetDownloadsFolder();
 		Directory.CreateDirectory(folder);
-
 		var path = MakeUniquePath(folder, fileName);
 		await File.WriteAllBytesAsync(path, content, cancellationToken).ConfigureAwait(true);
 
@@ -33,7 +43,7 @@ public sealed class MauiAppFileSaveService : IAppFileSaveService
 		}
 		catch
 		{
-			// Файл уже сохранён — открытие проводника не критично.
+			// Файл уже сохранён.
 		}
 
 		return path;
@@ -48,6 +58,38 @@ public sealed class MauiAppFileSaveService : IAppFileSaveService
 
 		return FileSystem.AppDataDirectory;
 	}
+#else
+	private static async Task<string?> ShareMobileAsync(string fileName, byte[] content, CancellationToken cancellationToken)
+	{
+		var folder = FileSystem.CacheDirectory;
+		Directory.CreateDirectory(folder);
+		var path = MakeUniquePath(folder, fileName);
+		await File.WriteAllBytesAsync(path, content, cancellationToken).ConfigureAwait(true);
+
+		await Share.Default.RequestAsync(new ShareFileRequest
+		{
+			Title = fileName,
+			File = new ShareFile(path, GuessContentType(fileName))
+		}).ConfigureAwait(true);
+
+		return path;
+	}
+
+	private static string GuessContentType(string fileName)
+	{
+		if (fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+			return "application/json";
+		if (fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+			return "application/pdf";
+		if (fileName.EndsWith(".doc", StringComparison.OrdinalIgnoreCase)
+		    || fileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+			return "application/msword";
+		if (fileName.EndsWith(".db", StringComparison.OrdinalIgnoreCase)
+		    || fileName.EndsWith(".sqlite", StringComparison.OrdinalIgnoreCase))
+			return "application/octet-stream";
+		return "application/octet-stream";
+	}
+#endif
 
 	private static string MakeUniquePath(string folder, string fileName)
 	{

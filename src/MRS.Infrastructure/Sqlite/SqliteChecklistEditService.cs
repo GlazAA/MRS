@@ -277,6 +277,7 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 	public async Task<int> BeginInProgressAsync(BeginInProgressChecklistRequest request, CancellationToken cancellationToken = default)
 	{
 		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		await EnsureEngineerUserExistsAsync(connection, request.EngineerUserId, cancellationToken).ConfigureAwait(false);
 		using var cmd = connection.CreateCommand();
 		cmd.CommandText = """
 			INSERT INTO checklists (
@@ -294,6 +295,31 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		cmd.Parameters.AddWithValue("$start", request.WorkStartedAt.ToString("O", CultureInfo.InvariantCulture));
 		var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 		return scalar is long l ? (int)l : Convert.ToInt32(scalar ?? throw new InvalidOperationException("Не удалось создать контрольный лист."));
+	}
+
+	private static async Task EnsureEngineerUserExistsAsync(
+		SqliteConnection connection,
+		int engineerUserId,
+		CancellationToken cancellationToken)
+	{
+		if (engineerUserId <= 0)
+			throw new InvalidOperationException("Не указан инженер для контрольного листа.");
+
+		using var check = connection.CreateCommand();
+		check.CommandText = "SELECT COUNT(1) FROM users WHERE id = $id;";
+		check.Parameters.AddWithValue("$id", engineerUserId);
+		var exists = Convert.ToInt32(await check.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) ?? 0) > 0;
+		if (exists)
+			return;
+
+		using var insert = connection.CreateCommand();
+		insert.CommandText = """
+			INSERT INTO users (id, user_role_id, first_name, last_name, login, password_hash, is_active)
+			VALUES ($id, 1, 'Инженер', $login, $login, '$2a$11$OfflinePlaceholderHashNotForAuth', 1);
+			""";
+		insert.Parameters.AddWithValue("$id", engineerUserId);
+		insert.Parameters.AddWithValue("$login", "engineer" + engineerUserId.ToString(CultureInfo.InvariantCulture));
+		await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 	}
 
 	public async Task SetInstallationAsync(int checklistId, int installationId, CancellationToken cancellationToken = default)
@@ -368,18 +394,38 @@ public sealed class SqliteChecklistEditService : IChecklistEditService
 		if (timing is not { } work)
 			throw new InvalidOperationException("Контрольный лист не найден (или неактивен).");
 
-		var endAt = work.EndedAt ?? DateTimeOffset.Now;
+		var now = DateTimeOffset.Now;
+		DateTimeOffset startAt;
+		DateTimeOffset endAt;
+
+		if (work.StartedAt is { } started && work.EndedAt is { } ended && work.StatusCode == "in_progress")
+		{
+			// Была пауза: сохраняем накопленное время и закрываем интервал сейчас
+			// (на случай Complete без предварительного Resume на UI).
+			var elapsed = ended - started;
+			if (elapsed < TimeSpan.Zero)
+				elapsed = TimeSpan.Zero;
+			startAt = now - elapsed;
+			endAt = now;
+		}
+		else
+		{
+			startAt = work.StartedAt ?? now;
+			endAt = now;
+		}
+
 		using var cmd = connection.CreateCommand();
 		cmd.CommandText = """
 			UPDATE checklists
 			SET status = 'completed',
 			    sync_state = 'pending_upload',
 			    end_at = $end,
-			    start_at = COALESCE(start_at, $end),
+			    start_at = $start,
 			    local_updated_at = datetime('now')
 			WHERE id = $id AND is_active = 1;
 			""";
 		cmd.Parameters.AddWithValue("$id", checklistId);
+		cmd.Parameters.AddWithValue("$start", startAt.ToString("O", CultureInfo.InvariantCulture));
 		cmd.Parameters.AddWithValue("$end", endAt.ToString("O", CultureInfo.InvariantCulture));
 		await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 

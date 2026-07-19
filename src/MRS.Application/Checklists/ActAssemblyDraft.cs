@@ -22,13 +22,20 @@ public sealed class ActDraft
 	public required string InstallationLabel { get; init; }
 	public required string WorkKind { get; init; }
 
-	/// <summary>Полный адрес объекта для шапки акта.</summary>
+	/// <summary>Адрес объекта для шапки акта.</summary>
 	public required string ObjectAddress { get; init; }
 
 	public string? EquipmentTypeName { get; init; }
 	public string? ModelName { get; init; }
 	public string? SerialNumber { get; init; }
 	public string? OperatingHours { get; init; }
+
+	/// <summary>
+	/// Отображаемое значение поля состояния (обычно <c>comp_state</c>).
+	/// Одно значение копируется в колонки прибытия и убытия, пока нет отдельных полей.
+	/// </summary>
+	public string? EquipmentStateDisplay { get; init; }
+
 	public IReadOnlyList<ActWorkLine> WorkLines { get; init; } = [];
 	public IReadOnlyList<int> SourceChecklistIds { get; init; } = [];
 

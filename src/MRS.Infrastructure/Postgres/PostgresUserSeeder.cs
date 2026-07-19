@@ -7,7 +7,7 @@ internal static class PostgresUserSeeder
 	internal static async Task EnsureDemoUsersAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
 	{
 		await EnsureRoleAsync(connection, 1, "Инженер", cancellationToken).ConfigureAwait(false);
-		await EnsureRoleAsync(connection, 2, "Администратор", cancellationToken).ConfigureAwait(false);
+		await EnsureRoleAsync(connection, 2, "Менеджер", cancellationToken).ConfigureAwait(false);
 		await EnsureRoleAsync(connection, 3, "Администратор БД", cancellationToken).ConfigureAwait(false);
 
 		await UpsertUserAsync(connection, 1, 1, "Демо", "Инженер", null, "demo", "demo123", cancellationToken).ConfigureAwait(false);

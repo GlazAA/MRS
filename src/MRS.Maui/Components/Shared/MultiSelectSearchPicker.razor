@@ -23,11 +23,11 @@
                 }
                 @if (_suggestions.Count == 0 && !string.IsNullOrWhiteSpace(_search))
                 {
-                    <li class="mrs-combobox-empty">Совпадений нет</li>
-                }
-                @if (AllowCreateEngineer)
-                {
-                    <li class="mrs-combobox-item mrs-combobox-item-new" @onclick="OpenCreateEngineer">+ Создать инженера</li>
+                    <li class="mrs-combobox-empty">
+                        @(IncludeEngineerDirectory
+                            ? "Совпадений нет. Новых коллег добавляет администратор в «Коллеги»."
+                            : "Совпадений нет")
+                    </li>
                 }
             </ul>
         }
@@ -50,59 +50,24 @@
     }
 </div>
 
-@if (_showCreateEngineer)
-{
-    <div class="mrs-modal-backdrop mrs-modal-backdrop-top" @onclick="CloseCreateEngineer">
-        <div class="mrs-modal" @onclick:stopPropagation="true">
-            <button type="button" class="mrs-modal-close" @onclick="CloseCreateEngineer">×</button>
-            <h3 class="mrs-modal-title">Новый инженер</h3>
-            <div class="mrs-modal-body">
-                @if (_createError is not null)
-                {
-                    <p class="text-danger">@_createError</p>
-                }
-                <div class="mrs-field">
-                    <label class="mrs-label">Фамилия *</label>
-                    <input class="mrs-select" @bind="_newLast" @bind:event="oninput" />
-                </div>
-                <div class="mrs-field">
-                    <label class="mrs-label">Имя *</label>
-                    <input class="mrs-select" @bind="_newFirst" @bind:event="oninput" />
-                </div>
-                <div class="mrs-field">
-                    <label class="mrs-label">Отчество</label>
-                    <input class="mrs-select" @bind="_newMiddle" @bind:event="oninput" />
-                </div>
-            </div>
-            <div class="mrs-form-actions">
-                <button type="button" class="mrs-btn-secondary" @onclick="CloseCreateEngineer">Отменить</button>
-                <button type="button" class="mrs-btn-primary" disabled="@_busy" @onclick="SaveNewEngineerAsync">Сохранить</button>
-            </div>
-        </div>
-    </div>
-}
-
 @code {
     [Parameter] public int TemplateItemId { get; set; }
     [Parameter] public IReadOnlyList<TemplateFieldOption> Options { get; set; } = [];
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    /// <summary>Подмешивать активных инженеров из справочника (без создания на лету).</summary>
     [Parameter] public bool AllowCreateEngineer { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public string? Placeholder { get; set; } = "Поиск…";
     [Parameter] public EventCallback<TemplateFieldOption> OptionEnsured { get; set; }
+
+    private bool IncludeEngineerDirectory => AllowCreateEngineer;
 
     private readonly List<TemplateFieldOption> _localOptions = [];
     private readonly List<TemplateFieldOption> _selected = [];
     private List<Suggestion> _suggestions = [];
     private string _search = string.Empty;
     private bool _dropdown;
-    private bool _showCreateEngineer;
-    private bool _busy;
-    private string? _createError;
-    private string _newLast = string.Empty;
-    private string _newFirst = string.Empty;
-    private string _newMiddle = string.Empty;
     private string? _lastValue;
     private bool _optionsSeeded;
 
@@ -178,7 +143,7 @@
         var q = _search.Trim();
         var list = new List<Suggestion>();
 
-        if (AllowCreateEngineer)
+        if (IncludeEngineerDirectory)
         {
             var engineers = await Engineers.SearchAsync(q);
             foreach (var eng in engineers)
@@ -236,50 +201,6 @@
     {
         _selected.RemoveAll(x => x.OptionId == optionId);
         await EmitValueAsync();
-    }
-
-    private void OpenCreateEngineer()
-    {
-        _dropdown = false;
-        _createError = null;
-        _newLast = _search.Trim();
-        _newFirst = string.Empty;
-        _newMiddle = string.Empty;
-        _showCreateEngineer = true;
-    }
-
-    private void CloseCreateEngineer() => _showCreateEngineer = false;
-
-    private async Task SaveNewEngineerAsync()
-    {
-        _busy = true;
-        _createError = null;
-        try
-        {
-            var created = await Engineers.CreateAsync(new CreateEngineerRequest(
-                _newLast, _newFirst,
-                string.IsNullOrWhiteSpace(_newMiddle) ? null : _newMiddle));
-
-            var option = await TemplateOptions.EnsureOptionAsync(TemplateItemId, created.DisplayName);
-            if (_localOptions.All(x => x.OptionId != option.OptionId))
-                _localOptions.Add(option);
-            await OptionEnsured.InvokeAsync(option);
-
-            if (_selected.All(x => x.OptionId != option.OptionId))
-                _selected.Add(option);
-
-            _showCreateEngineer = false;
-            _search = string.Empty;
-            await EmitValueAsync();
-        }
-        catch (Exception ex)
-        {
-            _createError = ex.Message;
-        }
-        finally
-        {
-            _busy = false;
-        }
     }
 
     private async Task EmitValueAsync()

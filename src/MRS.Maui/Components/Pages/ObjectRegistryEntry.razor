@@ -14,18 +14,15 @@
     <MrsTopMenu />
 </div>
 
-@if (_error is not null)
-{
-    <p class="text-danger">@_error</p>
-}
-
 @if (_saved is not null)
 {
     <div class="mrs-flash-banner" role="status">@_saved</div>
 }
 
+<MrsErrorModal Message="@_error" OnClose="DismissError" />
+
 <div class="mrs-object-form">
-    <div class="mrs-field">
+    <div class="mrs-field @FieldClass(IsOrgMissing)">
         <label class="mrs-label">Организация *</label>
         <div class="mrs-combobox">
             <input class="mrs-select"
@@ -52,11 +49,22 @@
                 </ul>
             }
         </div>
+        @if (_orgChoice == "new")
+        {
+            <p class="mrs-field-hint">
+                Название без юр. статуса и кавычек (например «Пилот»).
+                В списках КЛ — просто «Пилот»; в акте Word/PDF — полное: «Закрытое акционерное общество Пилот».
+            </p>
+        }
+        else if (string.IsNullOrWhiteSpace(_orgChoice))
+        {
+            <p class="mrs-field-hint">Выберите существующую или «+ Новая организация».</p>
+        }
     </div>
 
     @if (_orgChoice == "new")
     {
-        <div class="mrs-field">
+        <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(_newOrgLegalForm))">
             <label class="mrs-label">Юридический статус *</label>
             <select class="mrs-select" @bind="_newOrgLegalForm" disabled="@_busy">
                 <option value="">— выберите —</option>
@@ -65,15 +73,11 @@
                     <option value="@form.Code">@form.ShortLabel</option>
                 }
             </select>
-        </div>
-        <div class="mrs-field">
-            <label class="mrs-label">Название компании *</label>
-            <input class="mrs-select" type="text" @bind="_newOrgCompanyName" @bind:event="oninput" disabled="@_busy" />
-            <p class="mrs-field-hint">Указывается полное название без юридического статуса и кавычек.</p>
+            <p class="mrs-field-hint">Нужен для акта. В приложении к названию не приписывается.</p>
         </div>
     }
 
-    <div class="mrs-field">
+    <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(_facilityChoice))">
         <label class="mrs-label">Объект *</label>
         <select class="mrs-select" value="@_facilityChoice" @onchange="OnFacilityChoiceChanged" disabled="@(_busy || !IsOrgChosen)">
             <option value="">— выберите —</option>
@@ -87,9 +91,16 @@
 
     @if (_facilityChoice == "new")
     {
-        <div class="mrs-field">
-            <label class="mrs-label">Название объекта для акта *</label>
-            <input class="mrs-select" type="text" @bind="_newFacilityName" @bind:event="oninput" disabled="@_busy" />
+        <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(_newFacilityName))">
+            <label class="mrs-label">Краткое название объекта *</label>
+            <input class="mrs-select" type="text" @bind="_newFacilityName" @bind:event="oninput" disabled="@_busy"
+                   placeholder="Например: Склад №3, ТРЦ «Авиапарк», Цех 2" />
+            <p class="mrs-field-hint">
+                Как объект будет называться в списках приложения (контрольные листы, сборка акта, организации).
+                Не путать с адресом ниже: в самом акте Word/PDF в строке «Объект» обычно печатается адрес
+                (город, улица, дом). Это название — короткий ярлык площадки внутри компании.
+                Примеры: «Склад №3», «Производство, корп. Б», «ТРЦ Авиапарк». Без кавычек и без юр. формы.
+            </p>
         </div>
 
         <div class="mrs-field">
@@ -97,12 +108,12 @@
             <input class="mrs-select" type="text" @bind="_contractAddress" @bind:event="oninput" disabled="@_busy" />
         </div>
 
-        <div class="mrs-field">
+        <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(_city))">
             <label class="mrs-label">Город *</label>
             <input class="mrs-select" type="text" @bind="_city" @bind:event="oninput" disabled="@_busy" />
         </div>
 
-        <div class="mrs-field">
+        <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(_street))">
             <label class="mrs-label">Улица *</label>
             <input class="mrs-select" type="text" @bind="_street" @bind:event="oninput" disabled="@_busy" />
         </div>
@@ -113,7 +124,7 @@
                 <label class="mrs-label">Индекс</label>
                 <input class="mrs-select" type="text" @bind="_zip" @bind:event="oninput" disabled="@_busy" />
             </div>
-            <div class="mrs-field">
+            <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(_building))">
                 <label class="mrs-label">Дом *</label>
                 <input class="mrs-select" type="text" @bind="_building" @bind:event="oninput" disabled="@_busy" />
             </div>
@@ -153,7 +164,7 @@
                     }
                 </div>
 
-                <div class="mrs-field">
+                <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(item.EquipmentChoice))">
                     <label class="mrs-label">Тип оборудования *</label>
                     <select class="mrs-select" value="@item.EquipmentChoice" @onchange="e => OnEquipmentChoiceChanged(index, e)" disabled="@_busy">
                         <option value="">— выберите —</option>
@@ -167,9 +178,13 @@
 
                 @if (item.EquipmentChoice == "new")
                 {
-                    <div class="mrs-field">
+                    <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(item.NewEquipmentTypeName))">
                         <label class="mrs-label">Название типа оборудования *</label>
-                        <input class="mrs-select" type="text" @bind="item.NewEquipmentTypeName" @bind:event="oninput" disabled="@_busy" />
+                        <input class="mrs-select" type="text"
+                               @bind="item.NewEquipmentTypeName"
+                               @bind:event="oninput"
+                               @bind:after="() => LoadEquipmentCatalogAsync(index)"
+                               disabled="@_busy" />
                     </div>
                 }
 
@@ -200,7 +215,7 @@
                     </div>
                 </details>
 
-                <div class="mrs-field">
+                <div class="mrs-field @FieldClass(string.IsNullOrWhiteSpace(item.Label))">
                     <label class="mrs-label">Установка (проектный номер) *</label>
                     <input class="mrs-select" type="text" @bind="item.Label" @bind:event="oninput" disabled="@_busy" />
                 </div>
@@ -218,16 +233,17 @@
         {
             var index = i;
             var contact = _contacts[index];
+            var contactStarted = ContactHasAnyValue(contact);
             <div class="mrs-template-field-card">
                 <div class="mrs-template-field-header">
                     <span>Контакт @(index + 1)</span>
                     <button type="button" class="mrs-btn-small-danger" @onclick="() => RemoveContact(index)" disabled="@_busy">Удалить</button>
                 </div>
-                <div class="mrs-field">
+                <div class="mrs-field @FieldClass(contactStarted && string.IsNullOrWhiteSpace(contact.LastName))">
                     <label class="mrs-label">Фамилия *</label>
                     <input class="mrs-select" type="text" @bind="contact.LastName" @bind:event="oninput" disabled="@_busy" />
                 </div>
-                <div class="mrs-field">
+                <div class="mrs-field @FieldClass(contactStarted && string.IsNullOrWhiteSpace(contact.FirstName))">
                     <label class="mrs-label">Имя *</label>
                     <input class="mrs-select" type="text" @bind="contact.FirstName" @bind:event="oninput" disabled="@_busy" />
                 </div>
@@ -237,15 +253,50 @@
                 </div>
                 <div class="mrs-field">
                     <label class="mrs-label">Должность</label>
-                    <input class="mrs-select" type="text" @bind="contact.Position" @bind:event="oninput" disabled="@_busy" />
+                    <p class="mrs-field-hint">Начните вводить — выберите из уже внесённых или новое значение.</p>
+                    <EquipmentCatalogCombobox Value="@contact.Position"
+                                              ValueChanged="@(v => contact.Position = v)"
+                                              Options="@_positionOptions"
+                                              Disabled="@_busy"
+                                              Placeholder="Должность…" />
                 </div>
-                <div class="mrs-field">
+                <div class="mrs-field @(ContactPhoneInvalid(contact) ? "mrs-field-invalid" : null)">
                     <label class="mrs-label">Телефон</label>
-                    <input class="mrs-select" type="text" @bind="contact.Phone" @bind:event="oninput" disabled="@_busy" />
+                    <input class="mrs-select"
+                           type="tel"
+                           inputmode="tel"
+                           autocomplete="tel"
+                           placeholder="+7 (999) 123-45-67"
+                           value="@contact.Phone"
+                           disabled="@_busy"
+                           @oninput="e => OnContactPhoneInput(index, e)" />
+                    @if (ContactInputRules.PhoneValidationHint(contact.Phone) is { } phoneHint)
+                    {
+                        <p class="mrs-field-hint">@phoneHint</p>
+                    }
+                    else
+                    {
+                        <p class="mrs-field-hint">11 цифр, формат +7 (XXX) XXX-XX-XX. Можно начать с 8 — подставится +7.</p>
+                    }
                 </div>
-                <div class="mrs-field">
+                <div class="mrs-field @(ContactEmailInvalid(contact) ? "mrs-field-invalid" : null)">
                     <label class="mrs-label">Email</label>
-                    <input class="mrs-select" type="email" @bind="contact.Email" @bind:event="oninput" disabled="@_busy" />
+                    <input class="mrs-select"
+                           type="email"
+                           inputmode="email"
+                           autocomplete="email"
+                           placeholder="name@yandex.ru"
+                           value="@contact.Email"
+                           disabled="@_busy"
+                           @oninput="e => OnContactEmailInput(index, e)" />
+                    @if (ContactInputRules.EmailValidationHint(contact.Email) is { } emailHint)
+                    {
+                        <p class="mrs-field-hint">@emailHint</p>
+                    }
+                    else
+                    {
+                        <p class="mrs-field-hint">Любой почтовый сервис (Яндекс, Mail.ru, Gmail и др.).</p>
+                    }
                 </div>
             </div>
         }
@@ -256,13 +307,14 @@
     }
 
     <div class="mrs-form-actions">
-        <button type="button" class="mrs-btn-secondary" @onclick="PrepareAnotherFacility" disabled="@(_busy || !IsOrgChosen)">+ Добавить ещё объект</button>
+        <button type="button" class="mrs-btn-secondary" @onclick="SaveAndAddAnotherFacilityAsync" disabled="@(_busy || !IsOrgChosen)">+ Добавить ещё объект</button>
         <button type="button" class="mrs-btn-secondary" @onclick="ResetForm" disabled="@_busy">Очистить</button>
         <button type="button" class="mrs-btn-primary" @onclick="SaveAsync" disabled="@_busy">Сохранить в БД</button>
     </div>
 
     <p class="mrs-info-note">
-        После сохранения остаётесь на странице — можно сразу добавить ещё объект, установку или контакт. Данные уже доступны при создании контрольного листа.
+        «Добавить ещё объект» сначала сохраняет текущий объект (с установками и контактами) в БД, затем открывает форму для следующего.
+        Организация остаётся выбранной. Все сохранённые объекты доступны при создании контрольного листа.
     </p>
 </div>
 
@@ -272,10 +324,12 @@
     private readonly List<HierarchyOption> _equipmentTypes = [];
     private readonly List<InstallationDraft> _installations = [];
     private readonly List<ContactDraft> _contacts = [];
+    private readonly List<string> _positionOptions = [];
 
     private bool _busy;
     private string? _error;
     private string? _saved;
+    private bool _highlightMissing;
 
     private string _orgChoice = "";
     private string _orgSearchText = "";
@@ -283,7 +337,6 @@
     private string _facilityChoice = "";
 
     private string _newOrgLegalForm = "";
-    private string _newOrgCompanyName = "";
     private string _newFacilityName = "";
     private string _contractAddress = "";
     private string _city = "";
@@ -296,6 +349,34 @@
 
     private bool IsOrgChosen => !string.IsNullOrWhiteSpace(_orgChoice);
     private bool IsFacilityChosen => !string.IsNullOrWhiteSpace(_facilityChoice);
+    private bool IsOrgMissing =>
+        string.IsNullOrWhiteSpace(_orgChoice)
+        || (_orgChoice == "new" && string.IsNullOrWhiteSpace(_orgSearchText));
+
+    private string ResolvedNewCompanyName => (_orgSearchText ?? string.Empty).Trim();
+
+    private string? FieldClass(bool isEmpty) =>
+        _highlightMissing && isEmpty ? "mrs-field-invalid" : null;
+
+    private void DismissError()
+    {
+        _error = null;
+    }
+
+    private void ShowError(string message)
+    {
+        _error = message;
+        _highlightMissing = true;
+        _saved = null;
+    }
+
+    private static bool ContactHasAnyValue(ContactDraft c) =>
+        !string.IsNullOrWhiteSpace(c.LastName)
+        || !string.IsNullOrWhiteSpace(c.FirstName)
+        || !string.IsNullOrWhiteSpace(c.MiddleName)
+        || !string.IsNullOrWhiteSpace(c.Position)
+        || !string.IsNullOrWhiteSpace(c.Phone)
+        || !string.IsNullOrWhiteSpace(c.Email);
 
     private IEnumerable<HierarchyOption> FilteredOrganizations
     {
@@ -318,6 +399,9 @@
         {
             _organizations.AddRange(await Hierarchy.GetOrganizationsAsync().ConfigureAwait(false));
             _equipmentTypes.AddRange(await Onboarding.GetAllEquipmentTypesAsync().ConfigureAwait(false));
+            _positionOptions.Clear();
+            _positionOptions.AddRange(await Onboarding.GetDistinctContactPositionsAsync().ConfigureAwait(false));
+            await LoadEquipmentCatalogAsync(0).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -347,7 +431,7 @@
         if (_orgChoice != "new")
         {
             _orgChoice = string.Empty;
-            ClearFacilitySection(keepOrg: false);
+            await ClearFacilitySectionAsync(keepOrg: false).ConfigureAwait(false);
         }
     }
 
@@ -366,8 +450,7 @@
         _orgSearchText = organization.Name;
         _orgDropdownOpen = false;
         _newOrgLegalForm = "";
-        _newOrgCompanyName = "";
-        ClearFacilitySection(keepOrg: true);
+        await ClearFacilitySectionAsync(keepOrg: true).ConfigureAwait(false);
         _saved = null;
         _error = null;
 
@@ -386,15 +469,13 @@
         }
     }
 
-    private void SelectNewOrganization()
+    private async Task SelectNewOrganization()
     {
         _orgChoice = "new";
         _orgDropdownOpen = false;
-        if (string.IsNullOrWhiteSpace(_newOrgCompanyName))
-            _newOrgCompanyName = _orgSearchText.Trim();
         if (string.IsNullOrWhiteSpace(_newOrgLegalForm))
             _newOrgLegalForm = "OOO";
-        ClearFacilitySection(keepOrg: true);
+        await ClearFacilitySectionAsync(keepOrg: true).ConfigureAwait(false);
         _saved = null;
         _error = null;
     }
@@ -422,14 +503,20 @@
 
     private async Task LoadEquipmentCatalogAsync(int index)
     {
-        var item = _installations[index];
-        var equipmentTypeId = ParseExisting(item.EquipmentChoice);
-        if (equipmentTypeId is not int etId)
+        if (index < 0 || index >= _installations.Count)
             return;
+
+        var item = _installations[index];
+        // Справочник общий: грузим даже для «нового типа» / до выбора типа.
+        var etId = ParseExisting(item.EquipmentChoice) ?? 0;
 
         try
         {
             item.Manufacturers = (await ModelCatalog.GetManufacturersAsync(etId).ConfigureAwait(false)).ToList();
+            if (!string.IsNullOrWhiteSpace(item.Manufacturer))
+            {
+                item.Models = (await ModelCatalog.GetModelsAsync(etId, item.Manufacturer).ConfigureAwait(false)).ToList();
+            }
         }
         catch (Exception ex)
         {
@@ -446,10 +533,7 @@
         if (string.IsNullOrWhiteSpace(value))
             return;
 
-        var equipmentTypeId = ParseExisting(item.EquipmentChoice);
-        if (equipmentTypeId is not int etId)
-            return;
-
+        var etId = ParseExisting(item.EquipmentChoice) ?? 0;
         item.Models = (await ModelCatalog.GetModelsAsync(etId, value).ConfigureAwait(false)).ToList();
     }
 
@@ -458,14 +542,18 @@
         var item = _installations[index];
         item.Model = "";
         item.Models = [];
-        var equipmentTypeId = ParseExisting(item.EquipmentChoice);
-        if (equipmentTypeId is not int etId || string.IsNullOrWhiteSpace(item.Manufacturer))
+        if (string.IsNullOrWhiteSpace(item.Manufacturer))
             return;
 
+        var etId = ParseExisting(item.EquipmentChoice) ?? 0;
         item.Models = (await ModelCatalog.GetModelsAsync(etId, item.Manufacturer).ConfigureAwait(false)).ToList();
     }
 
-    private void AddInstallation() => _installations.Add(new InstallationDraft());
+    private async Task AddInstallation()
+    {
+        _installations.Add(new InstallationDraft());
+        await LoadEquipmentCatalogAsync(_installations.Count - 1).ConfigureAwait(false);
+    }
 
     private void RemoveInstallation(int index)
     {
@@ -478,10 +566,44 @@
 
     private void RemoveContact(int index) => _contacts.RemoveAt(index);
 
-    private async Task SaveAsync()
+    private static bool ContactPhoneInvalid(ContactDraft c) =>
+        !string.IsNullOrWhiteSpace(c.Phone) && !ContactInputRules.IsPhoneValidOrEmpty(c.Phone);
+
+    private static bool ContactEmailInvalid(ContactDraft c) =>
+        !string.IsNullOrWhiteSpace(c.Email) && !ContactInputRules.IsEmailValidOrEmpty(c.Email);
+
+    private void OnContactPhoneInput(int index, ChangeEventArgs e)
+    {
+        if (index < 0 || index >= _contacts.Count)
+            return;
+        _contacts[index].Phone = ContactInputRules.FormatPhoneInput(e.Value?.ToString());
+    }
+
+    private void OnContactEmailInput(int index, ChangeEventArgs e)
+    {
+        if (index < 0 || index >= _contacts.Count)
+            return;
+        _contacts[index].Email = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private async Task SaveAsync() => await SaveAndPrepareNextAsync().ConfigureAwait(false);
+
+    /// <summary>
+    /// Сохраняет текущий объект в БД и готовит форму для следующего под той же организацией.
+    /// Раньше кнопка только очищала поля и показывала ложное «сохранено».
+    /// </summary>
+    private async Task SaveAndAddAnotherFacilityAsync() => await SaveAndPrepareNextAsync().ConfigureAwait(false);
+
+    private async Task SaveAndPrepareNextAsync()
     {
         _error = null;
         _saved = null;
+        if (!TryValidateForSave(out var validationError))
+        {
+            ShowError(validationError);
+            return;
+        }
+
         _busy = true;
         try
         {
@@ -494,16 +616,20 @@
                 InstallationSerialNumber: i.Serial)).ToList();
 
             var contacts = _contacts
-                .Where(c => !string.IsNullOrWhiteSpace(c.LastName) || !string.IsNullOrWhiteSpace(c.FirstName)
-                            || !string.IsNullOrWhiteSpace(c.Phone) || !string.IsNullOrWhiteSpace(c.Email))
+                .Where(ContactHasAnyValue)
                 .Select(c => new ObjectOnboardingContactDraft(
-                    c.LastName, c.FirstName, c.MiddleName, c.Position, c.Phone, c.Email))
+                    c.LastName,
+                    c.FirstName,
+                    c.MiddleName,
+                    string.IsNullOrWhiteSpace(c.Position) ? null : c.Position.Trim(),
+                    string.IsNullOrWhiteSpace(c.Phone) ? null : ContactInputRules.FormatPhoneInput(c.Phone),
+                    string.IsNullOrWhiteSpace(c.Email) ? null : c.Email.Trim()))
                 .ToList();
 
             var request = new ObjectOnboardingRequest(
                 ExistingOrganizationId: ParseExisting(_orgChoice),
                 NewOrganizationLegalFormCode: _orgChoice == "new" ? _newOrgLegalForm : null,
-                NewOrganizationCompanyName: _orgChoice == "new" ? _newOrgCompanyName : null,
+                NewOrganizationCompanyName: _orgChoice == "new" ? ResolvedNewCompanyName : null,
                 ExistingFacilityId: ParseExisting(_facilityChoice),
                 NewFacilityName: _facilityChoice == "new" ? _newFacilityName : null,
                 ContractAddress: _facilityChoice == "new" ? _contractAddress : null,
@@ -518,20 +644,118 @@
                 Contacts: contacts);
 
             var result = await Onboarding.UpsertHierarchyAsync(request).ConfigureAwait(false);
+            _highlightMissing = false;
             _saved = BuildSavedMessage(result);
 
-            // После сохранения остаёмся на странице и подтягиваем справочники для продолжения ввода.
             await RefreshLookupsAfterSaveAsync(result).ConfigureAwait(false);
-            PrepareForAnotherEntryKeepOrganization();
+            await PrepareForAnotherEntryKeepOrganizationAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            ShowError(ex.Message);
         }
         finally
         {
             _busy = false;
         }
+    }
+
+    private bool TryValidateForSave(out string error)
+    {
+        if (string.IsNullOrWhiteSpace(_orgChoice))
+        {
+            error = "Выберите или создайте организацию.";
+            return false;
+        }
+
+        if (_orgChoice == "new")
+        {
+            if (string.IsNullOrWhiteSpace(_newOrgLegalForm))
+            {
+                error = "Укажите юридический статус.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(ResolvedNewCompanyName))
+            {
+                error = "Укажите название организации.";
+                return false;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(_facilityChoice))
+        {
+            error = "Выберите или создайте объект перед сохранением.";
+            return false;
+        }
+
+        if (_facilityChoice == "new")
+        {
+            if (string.IsNullOrWhiteSpace(_newFacilityName))
+            {
+                error = "Укажите краткое название объекта.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(_city) || string.IsNullOrWhiteSpace(_street) || string.IsNullOrWhiteSpace(_building))
+            {
+                error = "Для нового объекта заполните реальный адрес: город, улица и дом.";
+                return false;
+            }
+        }
+
+        if (_installations.Count == 0)
+        {
+            error = "Добавьте хотя бы одну установку (оборудование).";
+            return false;
+        }
+
+        foreach (var inst in _installations)
+        {
+            if (string.IsNullOrWhiteSpace(inst.EquipmentChoice))
+            {
+                error = "Выберите тип оборудования для каждой установки.";
+                return false;
+            }
+
+            if (inst.EquipmentChoice == "new" && string.IsNullOrWhiteSpace(inst.NewEquipmentTypeName))
+            {
+                error = "Укажите название нового типа оборудования.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(inst.Label))
+            {
+                error = "Укажите проектный номер установки.";
+                return false;
+            }
+        }
+
+        foreach (var contact in _contacts.Where(ContactHasAnyValue))
+        {
+            if (string.IsNullOrWhiteSpace(contact.LastName) || string.IsNullOrWhiteSpace(contact.FirstName))
+            {
+                error = "Для контакта укажите фамилию и имя отдельными полями.";
+                return false;
+            }
+
+            if (!ContactInputRules.IsPhoneValidOrEmpty(contact.Phone))
+            {
+                error = ContactInputRules.PhoneValidationHint(contact.Phone)
+                        ?? "Проверьте телефон контакта.";
+                return false;
+            }
+
+            if (!ContactInputRules.IsEmailValidOrEmpty(contact.Email))
+            {
+                error = ContactInputRules.EmailValidationHint(contact.Email)
+                        ?? "Проверьте email контакта.";
+                return false;
+            }
+        }
+
+        error = string.Empty;
+        return true;
     }
 
     private async Task RefreshLookupsAfterSaveAsync(ObjectOnboardingResult result)
@@ -540,31 +764,27 @@
         _organizations.AddRange(await Hierarchy.GetOrganizationsAsync().ConfigureAwait(false));
         _equipmentTypes.Clear();
         _equipmentTypes.AddRange(await Onboarding.GetAllEquipmentTypesAsync().ConfigureAwait(false));
+        _positionOptions.Clear();
+        _positionOptions.AddRange(await Onboarding.GetDistinctContactPositionsAsync().ConfigureAwait(false));
 
         _orgChoice = result.OrganizationId.ToString(CultureInfo.InvariantCulture);
         var org = _organizations.FirstOrDefault(o => o.Id == result.OrganizationId);
         if (org is not null)
             _orgSearchText = org.Name;
         _newOrgLegalForm = "";
-        _newOrgCompanyName = "";
 
         _facilities.Clear();
         _facilities.AddRange(await Hierarchy.GetFacilitiesAsync(result.OrganizationId).ConfigureAwait(false));
     }
 
-    private void PrepareForAnotherEntryKeepOrganization()
+    private async Task PrepareForAnotherEntryKeepOrganizationAsync()
     {
-        ClearFacilitySection(keepOrg: true);
+        await ClearFacilitySectionAsync(keepOrg: true).ConfigureAwait(false);
+        // Сразу форма нового объекта — организация уже в БД и выбрана.
+        _facilityChoice = "new";
     }
 
-    private void PrepareAnotherFacility()
-    {
-        _saved = "Можно вносить следующий объект — предыдущие данные сохранены.";
-        _error = null;
-        ClearFacilitySection(keepOrg: true);
-    }
-
-    private void ClearFacilitySection(bool keepOrg)
+    private async Task ClearFacilitySectionAsync(bool keepOrg)
     {
         if (!keepOrg)
             _facilities.Clear();
@@ -582,20 +802,19 @@
         _installations.Clear();
         _installations.Add(new InstallationDraft());
         _contacts.Clear();
-        if (!keepOrg)
-            _facilities.Clear();
+        await LoadEquipmentCatalogAsync(0).ConfigureAwait(false);
     }
 
-    private void ResetForm()
+    private async Task ResetForm()
     {
         _error = null;
         _saved = null;
+        _highlightMissing = false;
         _orgChoice = "";
         _orgSearchText = "";
         _orgDropdownOpen = false;
         _newOrgLegalForm = "";
-        _newOrgCompanyName = "";
-        ClearFacilitySection(keepOrg: false);
+        await ClearFacilitySectionAsync(keepOrg: false).ConfigureAwait(false);
     }
 
     private static int? ParseExisting(string choice) =>

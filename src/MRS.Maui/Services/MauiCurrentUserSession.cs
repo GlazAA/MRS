@@ -28,9 +28,11 @@ public sealed class MauiCurrentUserSession : ICurrentUserSession
 
     public bool IsDbAdministrator => _current.RoleName == UserRoleNames.DbAdministrator;
 
+    public bool IsManager => _current.RoleName == UserRoleNames.Manager;
+
     public bool IsEngineer => _current.RoleName == UserRoleNames.Engineer;
 
-    public bool CanUseFieldFeatures => IsEngineer || IsDbAdministrator;
+    public bool CanUseFieldFeatures => IsEngineer || IsManager || IsDbAdministrator;
 
     public event Action? Changed;
 
@@ -98,10 +100,10 @@ public sealed class MauiCurrentUserSession : ICurrentUserSession
 
     private static CurrentUserInfo EngineerUser()
     {
-        var name = Preferences.Default.Get(PrefEngineerName, "Демо Инженер");
+        var name = Preferences.Default.Get(PrefEngineerName, "Инженер");
         return new(1, UserRoleNames.Engineer, name);
     }
 
     private static CurrentUserInfo DbAdminUser() =>
-        new(2, UserRoleNames.DbAdministrator, "Демо Администратор БД");
+        new(2, UserRoleNames.DbAdministrator, "Администратор БД");
 }

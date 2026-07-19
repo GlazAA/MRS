@@ -123,19 +123,27 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         var stateFlags = ParseEquipmentState(compStateDisplay, profile);
 
         var sb = new StringBuilder();
-        sb.AppendLine("<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w=\"urn:schemas-microsoft-com:office:word\"><head><meta charset=\"utf-8\" />");
+        sb.AppendLine("<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w=\"urn:schemas-microsoft-com:office:word\">");
+        sb.AppendLine("<head><meta charset=\"utf-8\" />");
+        sb.AppendLine("<!--[if gte mso 9]><xml>");
+        sb.AppendLine("<w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom>");
+        sb.AppendLine("<w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->");
         sb.AppendLine("<style>");
-        sb.AppendLine("body{font-family:Calibri,Arial,sans-serif;font-size:11pt;margin:12pt;}");
-        sb.AppendLine(".header-top{width:100%;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;}");
+        sb.AppendLine("@page Section1{size:210mm 297mm;margin:2cm 2cm 2cm 2.5cm;mso-page-orientation:portrait;}");
+        sb.AppendLine("div.Section1{page:Section1;}");
+        sb.AppendLine("html,body{margin:0;padding:0;}");
+        sb.AppendLine("body{font-family:Calibri,Arial,sans-serif;font-size:11pt;}");
+        sb.AppendLine("table{border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;}");
+        sb.AppendLine("td,th{word-wrap:break-word;overflow-wrap:break-word;}");
+        sb.AppendLine(".header-top{width:100%;table-layout:fixed;mso-table-lspace:0;mso-table-rspace:0;}");
         sb.AppendLine(".header-top td{border:none !important;padding:0;vertical-align:top;}");
         sb.AppendLine(".logo-cell{width:3.8cm;}");
-        sb.AppendLine(".logo-cell img{width:3.8cm;height:3.8cm;display:block;object-fit:contain;}");
-        sb.AppendLine(".gap-cell{width:7cm;}");
-        sb.AppendLine(".contact-cell{padding:0;}");
-        sb.AppendLine(".contact-wrap{width:100%;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;}");
+        sb.AppendLine(".logo-cell img{width:3.4cm;height:3.4cm;display:block;}");
+        sb.AppendLine(".contact-cell{padding:0;width:auto;}");
+        sb.AppendLine(".contact-wrap{width:auto;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;}");
         sb.AppendLine(".contact-wrap td{border:none !important;padding:0;vertical-align:top;}");
-        sb.AppendLine(".contact-vbar{width:1.5pt;background-color:").Append(BrandRed).Append(";font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;}");
-        sb.AppendLine(".contact-text{padding-left:0.5cm;padding-top:0;padding-bottom:0;vertical-align:top;}");
+        sb.AppendLine(".contact-vbar{width:0.6pt;background-color:").Append(BrandRed).Append(";font-size:1pt;line-height:1pt;mso-line-height-rule:exactly;}");
+        sb.AppendLine(".contact-text{padding-left:0.28cm;padding-top:0;padding-bottom:0;vertical-align:top;width:6.2cm;}");
         sb.AppendLine(".contact-line{color:").Append(BrandRed).Append(";font-size:10pt;line-height:1.2;margin:0;padding:0;}");
         sb.AppendLine(".doc-title{text-align:center;font-weight:bold;font-size:14pt;margin:14pt 0 10pt 0;}");
         sb.AppendLine(".doc-title-sub{font-size:13pt;margin-top:4pt;}");
@@ -173,20 +181,20 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         sb.AppendLine(".footer-meta td{border:none !important;color:").Append(BrandRed).Append(";font-size:11pt;}");
         sb.AppendLine(".footer-meta .right{text-align:right;}");
         sb.AppendLine("</style></head><body>");
+        sb.AppendLine("<div class=\"Section1\">");
 
-        // --- Верхний блок (единый для всех): лого + отступ 7 см + вертикальная красная плашка ---
+        // --- Верхний блок: лого слева, контакты справа ---
         sb.AppendLine("<table class=\"header-top\" cellspacing=\"0\" cellpadding=\"0\"><tr>");
         sb.AppendLine("<td class=\"logo-cell\">");
         if (!string.IsNullOrEmpty(logoUri))
-            sb.Append("<img src=\"").Append(logoUri).Append("\" alt=\"Brand Schutz\" />");
+            sb.Append("<img width=\"128\" height=\"128\" src=\"").Append(logoUri).Append("\" alt=\"Brand Schutz\" />");
         else
             sb.Append("&nbsp;");
         sb.AppendLine("</td>");
-        sb.AppendLine("<td class=\"gap-cell\">&nbsp;</td>");
-        sb.AppendLine("<td class=\"contact-cell\">");
-        sb.AppendLine("<table class=\"contact-wrap\" cellspacing=\"0\" cellpadding=\"0\"><tr>");
-        sb.AppendLine("<td class=\"contact-vbar\" style=\"min-height:3cm;\">&nbsp;</td>");
-        sb.AppendLine("<td class=\"contact-text\">");
+        sb.AppendLine("<td class=\"contact-cell\" style=\"text-align:right;\">");
+        sb.AppendLine("<table class=\"contact-wrap\" cellspacing=\"0\" cellpadding=\"0\" align=\"right\"><tr>");
+        sb.AppendLine("<td class=\"contact-vbar\" style=\"width:1px;\">&nbsp;</td>");
+        sb.AppendLine("<td class=\"contact-text\" style=\"width:6.2cm;\">");
         AppendContactLine(sb, "ООО «Бранд Шутц»");
         AppendContactLine(sb, "+7(495) 363-8916");
         AppendContactLine(sb, "117648, г. Москва, вн.тер.г.");
@@ -233,7 +241,7 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         AppendSecondBlock(sb, model, profile, stateFlags);
         AppendBottomConstantBlock(sb, answers);
 
-        sb.AppendLine("</body></html>");
+        sb.AppendLine("</div></body></html>");
         return sb.ToString();
     }
 
@@ -349,10 +357,10 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         sb.AppendLine("<div class=\"bottom-const\">");
 
         sb.AppendLine("<p class=\"bottom-section-title\">ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ:</p>");
-        AppendLinedRows(sb, rowCount: 4, text: GetSectionAnswerText(answers, "extra_"));
+        AppendContentLines(sb, GetSectionAnswerText(answers, "extra_"));
 
         sb.AppendLine("<p class=\"bottom-section-title\">ЗАМЕЧАНИЯ И РЕКОМЕНДАЦИИ:</p>");
-        AppendLinedRows(sb, rowCount: 4, text: GetSectionAnswerText(answers, "remarks_"));
+        AppendContentLines(sb, GetSectionAnswerText(answers, "remarks_"));
 
         sb.AppendLine("<table class=\"signature-grid\" cellspacing=\"0\" cellpadding=\"0\"><tr>");
         sb.AppendLine("<td style=\"width:48%;padding-right:18pt;\">");
@@ -377,51 +385,22 @@ public sealed class SqliteChecklistDocumentExportService : IChecklistDocumentExp
         sb.AppendLine("</div>");
     }
 
-    /// <summary>
-    /// Рисует несколько горизонтальных строк.
-    /// Текст можно печатать прямо поверх линии (line не пропадает, остается границей строки).
-    /// </summary>
-    private static void AppendLinedRows(StringBuilder sb, int rowCount, string? text)
+    /// <summary>Только заполненные строки текста — без пустых линий для ручной дописки.</summary>
+    private static void AppendContentLines(StringBuilder sb, string? text)
     {
-        var lines = SplitTextLines(text, rowCount);
-        sb.AppendLine("<table class=\"lined-table\" cellspacing=\"0\" cellpadding=\"0\">");
-        for (var i = 0; i < rowCount; i++)
-            sb.Append("<tr><td>").Append(Html(lines[i])).AppendLine("</td></tr>");
-
-        sb.AppendLine("</table>");
-    }
-
-    private static List<string> SplitTextLines(string? text, int rowCount)
-    {
-        var result = new List<string>(rowCount);
         if (string.IsNullOrWhiteSpace(text))
-        {
-            for (var i = 0; i < rowCount; i++)
-                result.Add(string.Empty);
-            return result;
-        }
+            return;
 
-        var parts = text
+        var lines = text
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
-        if (parts.Count == 0)
-        {
-            for (var i = 0; i < rowCount; i++)
-                result.Add(string.Empty);
-            return result;
-        }
+        if (lines.Count == 0)
+            return;
 
-        if (parts.Count <= rowCount)
-        {
-            result.AddRange(parts);
-            while (result.Count < rowCount)
-                result.Add(string.Empty);
-            return result;
-        }
-
-        result.AddRange(parts.Take(rowCount - 1));
-        result.Add(string.Join(" ", parts.Skip(rowCount - 1)));
-        return result;
+        sb.AppendLine("<table class=\"lined-table\" cellspacing=\"0\" cellpadding=\"0\">");
+        foreach (var line in lines)
+            sb.Append("<tr><td>").Append(Html(line)).AppendLine("</td></tr>");
+        sb.AppendLine("</table>");
     }
 
     private static string? GetSectionAnswerText(IReadOnlyList<ChecklistDocumentAnswer> answers, string fieldCodePrefix)

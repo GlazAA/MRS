@@ -61,6 +61,6 @@ ON CONFLICT (type_name) DO NOTHING;
 -- Если конфликт по type_name, обновить code отдельным скриптом при необходимости.
 INSERT INTO user_roles (role_name) VALUES
     ('Инженер'),
-    ('Администратор'),
+    ('Менеджер'),
     ('Администратор БД')
 ON CONFLICT (role_name) DO NOTHING;

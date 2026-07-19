@@ -14,6 +14,7 @@ public class AdminSupportRequestTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var svc = new SqliteAdminSupportRequestService(new FixedDbPath(path), bootstrapper);
 
 			var id = await svc.SubmitAsync(1, "Иванов Иван", "Не сохраняется контрольный лист");

@@ -11,4 +11,7 @@ public interface IFacilityHierarchyService
 	Task<IReadOnlyList<HierarchyOption>> GetFacilitiesWithAddressAsync(int organizationId, CancellationToken cancellationToken = default);
 
 	Task<IReadOnlyList<HierarchyOption>> GetSystemsAsync(int facilityId, CancellationToken cancellationToken = default);
+
+	/// <summary>Все активные объекты (имена) — для фильтров сборки акта / списков КЛ.</summary>
+	Task<IReadOnlyList<string>> GetAllFacilityNamesAsync(CancellationToken cancellationToken = default);
 }

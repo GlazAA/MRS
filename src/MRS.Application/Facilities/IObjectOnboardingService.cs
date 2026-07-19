@@ -8,6 +8,9 @@ public interface IObjectOnboardingService
 {
     Task<IReadOnlyList<HierarchyOption>> GetAllEquipmentTypesAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Уникальные должности из всех контактов (organization_employees) — для подсказок.</summary>
+    Task<IReadOnlyList<string>> GetDistinctContactPositionsAsync(CancellationToken cancellationToken = default);
+
     Task<ObjectOnboardingResult> UpsertHierarchyAsync(
         ObjectOnboardingRequest request,
         CancellationToken cancellationToken = default);

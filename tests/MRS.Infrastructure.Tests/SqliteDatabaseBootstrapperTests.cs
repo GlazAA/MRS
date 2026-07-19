@@ -8,7 +8,7 @@ namespace MRS.Infrastructure.Tests;
 public class SqliteDatabaseBootstrapperTests
 {
 	[Fact]
-	public async Task EnsureReadyAsync_creates_schema_seed_and_demo()
+	public async Task EnsureReadyAsync_creates_schema_seed_without_demo_clients()
 	{
 		var path = Path.Combine(Path.GetTempPath(), $"mrs_test_{Guid.NewGuid():N}.db");
 		try
@@ -21,12 +21,14 @@ public class SqliteDatabaseBootstrapperTests
 			Assert.Equal(11, status.FieldTypeCount);
 			Assert.Equal(9, status.MaintenanceTypeCount);
 
-			Assert.Equal(4, await CountAsync(path, "SELECT COUNT(*) FROM organizations WHERE is_active = 1;"));
-			Assert.Equal(9, await CountAsync(path, "SELECT COUNT(*) FROM checklists WHERE is_active = 1;"));
-			Assert.True(await CountAsync(path, "SELECT COUNT(*) FROM checklist_responses;") >= 20);
+			Assert.Equal(0, await CountAsync(path, "SELECT COUNT(*) FROM organizations WHERE is_active = 1;"));
+			Assert.Equal(0, await CountAsync(path, "SELECT COUNT(*) FROM checklists WHERE is_active = 1;"));
+			Assert.Equal(0, await CountAsync(path, "SELECT COUNT(*) FROM checklist_responses;"));
 			Assert.Equal(20, await CountAsync(path, "SELECT COUNT(*) FROM checklist_templates WHERE is_active = 1;"));
 			Assert.Equal(4, await CountAsync(path, "SELECT COUNT(*) FROM equipment_models WHERE equipment_type_id = 1;"));
-			Assert.Equal(39, await CountAsync(path, "SELECT COUNT(*) FROM system_equipment_types WHERE system_id IN (1,2,3);"));
+			Assert.Equal(0, await CountAsync(path, "SELECT COUNT(*) FROM facilities WHERE is_active = 1;"));
+			Assert.Equal(0, await CountAsync(path, "SELECT COUNT(*) FROM users WHERE is_active = 1;"));
+			Assert.Equal(0, await CountAsync(path, "SELECT COUNT(*) FROM organization_employees;"));
 
 			var second = await bootstrapper.EnsureReadyAsync(path);
 			Assert.True(second.Ready, second.Error);
@@ -48,12 +50,12 @@ public class SqliteDatabaseBootstrapperTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var svc = new SqliteFacilityHierarchyService(paths, bootstrapper);
 			var orgs = await svc.GetOrganizationsAsync();
-			Assert.Equal(4, orgs.Count);
+			Assert.Equal(3, orgs.Count);
 			var mir = Assert.Single(orgs, o => o.Name == "Мираторг");
-			Assert.Contains(orgs, o => o.Name.Contains("Демо", StringComparison.OrdinalIgnoreCase));
 			var facilities = await svc.GetFacilitiesAsync(mir.Id);
 			Assert.Contains(facilities, f => f.Name == "Курск");
 			var kursk = Assert.Single(facilities, f => f.Name == "Курск");
@@ -78,6 +80,7 @@ public class SqliteDatabaseBootstrapperTests
 		{
 			var bootstrapper = new SqliteDatabaseBootstrapper();
 			Assert.True((await bootstrapper.EnsureReadyAsync(path)).Ready);
+			await TestDemoOperationalSeed.EnsureAsync(path, bootstrapper);
 			var paths = new FixedDbPath(path);
 			var catalog = new SqliteEquipmentTypeCatalogService(paths, bootstrapper);
 			var types = await catalog.GetForSystemAsync(1);

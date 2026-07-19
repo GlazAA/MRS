@@ -18,18 +18,31 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 	public async Task<IReadOnlyList<string>> GetManufacturersAsync(int equipmentTypeId, CancellationToken cancellationToken = default)
 	{
 		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+
+		// Общий справочник: все производители из БД + ответы КЛ (не фильтруем по объекту/компании).
+		// equipmentTypeId влияет только на порядок: сначала бренды этого типа.
 		using var cmd = connection.CreateCommand();
 		cmd.CommandText = """
-			SELECT TRIM(manufacturer)
+			SELECT TRIM(manufacturer) AS name,
+			       CASE WHEN equipment_type_id = $et THEN 0 ELSE 1 END AS rank
 			FROM equipment_models
-			WHERE equipment_type_id = $et
-			  AND manufacturer IS NOT NULL
+			WHERE manufacturer IS NOT NULL
 			  AND TRIM(manufacturer) <> ''
-			ORDER BY id;
+			UNION ALL
+			SELECT TRIM(cr.text_response) AS name,
+			       CASE WHEN i.equipment_type_id = $et THEN 0 ELSE 1 END AS rank
+			FROM checklist_responses cr
+			JOIN checklist_template_items cti ON cti.id = cr.checklist_template_item_id
+			JOIN checklists c ON c.id = cr.checklist_id
+			JOIN installations i ON i.id = c.installation_id
+			WHERE cr.text_response IS NOT NULL
+			  AND TRIM(cr.text_response) <> ''
+			  AND length(cti.field_code) >= 13
+			  AND lower(substr(cti.field_code, -13)) = '_manufacturer'
+			ORDER BY rank, name COLLATE NOCASE;
 			""";
 		cmd.Parameters.AddWithValue("$et", equipmentTypeId);
 
-		// Без дубликатов по регистру: оставляем первое каноническое написание.
 		var byKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -55,20 +68,49 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
 		using var cmd = connection.CreateCommand();
 		cmd.CommandText = """
-			SELECT id, TRIM(manufacturer), TRIM(name)
+			SELECT id, TRIM(manufacturer), TRIM(name),
+			       CASE WHEN equipment_type_id = $et THEN 0 ELSE 1 END AS rank
 			FROM equipment_models
-			WHERE equipment_type_id = $et
-			  AND lower(TRIM(manufacturer)) = lower($mfg)
-			ORDER BY name COLLATE NOCASE;
+			WHERE lower(TRIM(manufacturer)) = lower($mfg)
+			  AND name IS NOT NULL
+			  AND TRIM(name) <> ''
+			UNION ALL
+			SELECT 0 AS id,
+			       $mfg AS manufacturer,
+			       TRIM(cr.text_response) AS name,
+			       CASE WHEN i.equipment_type_id = $et THEN 0 ELSE 1 END AS rank
+			FROM checklist_responses cr
+			JOIN checklist_template_items cti ON cti.id = cr.checklist_template_item_id
+			JOIN checklists c ON c.id = cr.checklist_id
+			JOIN installations i ON i.id = c.installation_id
+			WHERE cr.text_response IS NOT NULL
+			  AND TRIM(cr.text_response) <> ''
+			  AND length(cti.field_code) >= 6
+			  AND lower(substr(cti.field_code, -6)) = '_model'
+			  AND lower(substr(cti.field_code, -13)) <> '_manufacturer'
+			  AND EXISTS (
+			      SELECT 1
+			      FROM checklist_responses cr_mfg
+			      JOIN checklist_template_items cti_mfg ON cti_mfg.id = cr_mfg.checklist_template_item_id
+			      WHERE cr_mfg.checklist_id = cr.checklist_id
+			        AND lower(cti_mfg.field_code) = lower(
+			            substr(cti.field_code, 1, length(cti.field_code) - 6) || '_manufacturer')
+			        AND lower(TRIM(cr_mfg.text_response)) = lower($mfg)
+			  )
+			ORDER BY rank, name COLLATE NOCASE;
 			""";
 		cmd.Parameters.AddWithValue("$et", equipmentTypeId);
 		cmd.Parameters.AddWithValue("$mfg", mfg);
 
+		// Без дубликатов по имени: предпочитаем строку своего типа (rank=0, раньше в выборке).
 		var byKey = new Dictionary<string, EquipmentModelListItem>(StringComparer.OrdinalIgnoreCase);
 		await using var reader = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
 		{
-			var item = new EquipmentModelListItem(reader.GetInt32(0), reader.GetString(1), reader.GetString(2));
+			var name = reader.GetString(2).Trim();
+			if (name.Length == 0)
+				continue;
+			var item = new EquipmentModelListItem(reader.GetInt32(0), reader.GetString(1).Trim(), name);
 			byKey.TryAdd(item.Name, item);
 		}
 
@@ -82,7 +124,9 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 		cmd.CommandText = """
 			SELECT COUNT(1)
 			FROM equipment_models
-			WHERE equipment_type_id = $et;
+			WHERE equipment_type_id = $et
+			  AND name IS NOT NULL
+			  AND TRIM(name) <> '';
 			""";
 		cmd.Parameters.AddWithValue("$et", equipmentTypeId);
 		var count = Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
@@ -111,6 +155,16 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 			.ConfigureAwait(false);
 	}
 
+	public async Task EnsureManufacturerAsync(
+		int equipmentTypeId,
+		string manufacturer,
+		CancellationToken cancellationToken = default)
+	{
+		await using var connection = await SqliteLocalDatabase.OpenReadyAsync(_paths, _bootstrapper, cancellationToken).ConfigureAwait(false);
+		await EnsureManufacturerInTransactionAsync(connection, null, equipmentTypeId, manufacturer, cancellationToken)
+			.ConfigureAwait(false);
+	}
+
 	internal static async Task<int> EnsureModelInTransactionAsync(
 		SqliteConnection connection,
 		SqliteTransaction? tx,
@@ -122,6 +176,37 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 		var entry = await EnsureModelEntryInTransactionAsync(connection, tx, equipmentTypeId, manufacturer, modelName, cancellationToken)
 			.ConfigureAwait(false);
 		return entry.Id;
+	}
+
+	internal static async Task EnsureManufacturerInTransactionAsync(
+		SqliteConnection connection,
+		SqliteTransaction? tx,
+		int equipmentTypeId,
+		string manufacturer,
+		CancellationToken cancellationToken)
+	{
+		var mfg = (manufacturer ?? string.Empty).Trim();
+		if (mfg.Length == 0)
+			return;
+
+		var canonicalMfg = await FindCanonicalManufacturerAsync(connection, tx, equipmentTypeId, mfg, cancellationToken)
+			.ConfigureAwait(false);
+		if (canonicalMfg is not null)
+			return;
+
+		// Глобально уже есть такое написание — переиспользуем канон из любого типа.
+		canonicalMfg = await FindCanonicalManufacturerGlobalAsync(connection, tx, mfg, cancellationToken)
+			.ConfigureAwait(false) ?? mfg;
+
+		using var insert = connection.CreateCommand();
+		insert.Transaction = tx;
+		insert.CommandText = """
+			INSERT INTO equipment_models (equipment_type_id, manufacturer, name)
+			VALUES ($et, $mfg, '');
+			""";
+		insert.Parameters.AddWithValue("$et", equipmentTypeId);
+		insert.Parameters.AddWithValue("$mfg", canonicalMfg);
+		await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 	}
 
 	internal static async Task<EquipmentModelListItem> EnsureModelEntryInTransactionAsync(
@@ -162,9 +247,10 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 			}
 		}
 
-		// Каноническое написание производителя — как уже есть в справочнике, если есть.
 		var canonicalMfg = await FindCanonicalManufacturerAsync(connection, tx, equipmentTypeId, mfg, cancellationToken)
-			.ConfigureAwait(false) ?? mfg;
+			.ConfigureAwait(false)
+			?? await FindCanonicalManufacturerGlobalAsync(connection, tx, mfg, cancellationToken).ConfigureAwait(false)
+			?? mfg;
 
 		using var insert = connection.CreateCommand();
 		insert.Transaction = tx;
@@ -204,6 +290,26 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 		return scalar as string;
 	}
 
+	private static async Task<string?> FindCanonicalManufacturerGlobalAsync(
+		SqliteConnection connection,
+		SqliteTransaction? tx,
+		string manufacturer,
+		CancellationToken cancellationToken)
+	{
+		using var cmd = connection.CreateCommand();
+		cmd.Transaction = tx;
+		cmd.CommandText = """
+			SELECT TRIM(manufacturer)
+			FROM equipment_models
+			WHERE lower(TRIM(manufacturer)) = lower($mfg)
+			ORDER BY id
+			LIMIT 1;
+			""";
+		cmd.Parameters.AddWithValue("$mfg", manufacturer);
+		var scalar = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+		return scalar as string;
+	}
+
 	public async Task<InstallationEquipmentModelInfo?> GetInstallationModelAsync(
 		int installationId,
 		CancellationToken cancellationToken = default)
@@ -214,7 +320,7 @@ public sealed class SqliteEquipmentModelCatalogService : IEquipmentModelCatalogS
 			SELECT
 				i.id,
 				em.manufacturer,
-				COALESCE(em.name, i.custom_model_name),
+				COALESCE(NULLIF(TRIM(em.name), ''), i.custom_model_name),
 				i.equipment_model_id
 			FROM installations i
 			LEFT JOIN equipment_models em ON em.id = i.equipment_model_id
